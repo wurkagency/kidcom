@@ -1,0 +1,31 @@
+{
+  "name": "kidcom",
+  "private": true,
+  "version": "0.1.0",
+  "description": "KidCom — a well-being and communication app for separated parents and families.",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n api,worker,web -c blue,magenta,green \"npm:dev:api\" \"npm:dev:worker\" \"npm:dev:web\"",
+    "dev:api": "dotenv -e .env -- npm run dev --workspace=apps/api",
+    "dev:worker": "dotenv -e .env -- npm run worker --workspace=apps/api",
+    "dev:web": "dotenv -e .env -- npm run dev --workspace=apps/web",
+    "build": "npm run build --workspace=packages/db && npm run build --workspace=apps/api && npm run build --workspace=apps/web",
+    "build:web": "npm run build --workspace=apps/web",
+    "build:api": "npm run build --workspace=apps/api",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "prisma:generate": "dotenv -e .env -- npm run generate --workspace=packages/db",
+    "prisma:migrate": "dotenv -e .env -- npm run migrate:dev --workspace=packages/db",
+    "prisma:studio": "dotenv -e .env -- npm run studio --workspace=packages/db",
+    "prisma:db:seed": "dotenv -e .env -- npm run db:seed --workspace=packages/db"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.5",
+    "dotenv-cli": "^11.0.0"
+  }
+}

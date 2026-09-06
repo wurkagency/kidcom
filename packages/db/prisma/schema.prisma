@@ -1,0 +1,544 @@
+// SplitKid — initial data model (Chunk 1 scaffold)
+// Covers PRD sections 1-6 at a first-pass level of detail. Fields will be
+// refined as each feature chunk is built; nothing here is final.
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Auth / accounts
+// ---------------------------------------------------------------------------
+
+enum SubscriptionTier {
+  FREE
+  PARENTS
+  FAMILY
+}
+
+enum AccessRole {
+  PARENT
+  FAMILY
+}
+
+// The specific relationship shown in the UI ("Grandparent", "Co-Parent",
+// ...) — separate from AccessRole, which only controls permissions.
+// CO_PARENT is the only type that maps to AccessRole.PARENT; every other
+// type maps to AccessRole.FAMILY (see familyMemberTypeToRole in
+// packages/shared).
+enum FamilyMemberType {
+  CO_PARENT
+  GRANDPARENT
+  AUNT_UNCLE
+  SIBLING
+  CAREGIVER
+  OTHER
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  phone        String?
+  passwordHash String
+  firstName    String
+  lastName     String
+  avatarUrl    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // The subscription a user owns (they pay for Parents/Family tier).
+  ownedSubscription Subscription?
+
+  childAccess    ChildAccess[]
+  journalPosts   JournalPost[]
+  comments       Comment[]
+  journalReactions JournalReaction[]
+  mediaAssets    MediaAsset[]
+  avatarAsset    MediaAsset?       @relation("UserAvatar")
+  listClaims     ListItem[]        @relation("ListItemClaimedBy")
+  sentInvites    Invite[]          @relation("InviteSentBy")
+  personalNotes  PersonalNote[]
+  messagesSent   Message[]         @relation("MessageSender")
+  threadMembers  ThreadMember[]
+  swapRequestsBy SwapRequest[]     @relation("SwapRequestedBy")
+  pushSubscriptions PushSubscription[]
+
+  @@map("users")
+}
+
+model Invite {
+  id          String     @id @default(cuid())
+  token       String     @unique @default(cuid())
+  email       String?
+  phone       String?
+  role        AccessRole
+  familyMemberType FamilyMemberType?
+  invitedById String
+  invitedBy   User       @relation("InviteSentBy", fields: [invitedById], references: [id])
+  childId     String?
+  child       Child?     @relation(fields: [childId], references: [id])
+  acceptedAt  DateTime?
+  trialEndsAt DateTime?
+  createdAt   DateTime   @default(now())
+
+  @@map("invites")
+}
+
+// ---------------------------------------------------------------------------
+// Children & access control
+// ---------------------------------------------------------------------------
+
+enum ChildGender {
+  BOY
+  GIRL
+  OTHER
+}
+
+model Child {
+  id            String      @id @default(cuid())
+  firstName     String
+  lastName      String
+  gender        ChildGender
+  birthday      DateTime
+  profileImageUrl String?
+  heightCm      Float?
+  clothingSize  String?
+  shoeSize      String?
+  countryCode   String      @default("DK")
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  access             ChildAccess[]
+  medicalInfo        MedicalInfo[]
+  growthEntries      GrowthEntry[]
+  custodyPlans       CustodyPlan[]
+  calendarEvents     CalendarEvent[]
+  swapRequests       SwapRequest[]
+  journalPostTags    JournalPostChild[]
+  listItems          ListItem[]
+  invites            Invite[]
+  emergencyContacts  EmergencyContact[]
+  scheduleCompletions ChildScheduleCompletion[]
+  avatarAsset        MediaAsset?               @relation("ChildAvatar")
+
+  @@map("children")
+}
+
+// Who can see/edit a given child, and at what role (parent vs extended family).
+model ChildAccess {
+  id        String     @id @default(cuid())
+  childId   String
+  child     Child      @relation(fields: [childId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      AccessRole
+  // Null for the account owner (created directly, not via invite). Copied
+  // from Invite.familyMemberType when an invite is accepted so the "Family &
+  // Connections" list can show "Grandparent" instead of just "Family".
+  familyMemberType FamilyMemberType?
+  createdAt DateTime   @default(now())
+
+  @@unique([childId, userId])
+  @@map("child_access")
+}
+
+// ---------------------------------------------------------------------------
+// Medical / growth
+// ---------------------------------------------------------------------------
+
+enum MedicalInfoCategory {
+  ALLERGY
+  CONDITION
+}
+
+model MedicalInfo {
+  id            String              @id @default(cuid())
+  childId       String
+  child         Child               @relation(fields: [childId], references: [id], onDelete: Cascade)
+  category      MedicalInfoCategory @default(CONDITION)
+  condition     String
+  description   String?
+  emergencyNote String?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  // NOTE: this table holds sensitive health data (PRD 1.B). Encrypt at rest
+  // and gate exports/deletes per the GDPR notes in the architecture doc
+  // before this ships to real users.
+
+  @@map("medical_info")
+}
+
+// Per-country default checkup/vaccination schedule, used to build the
+// "what's coming next" view in the child profile.
+model MedicalScheduleTemplate {
+  id            String   @id @default(cuid())
+  countryCode   String
+  label         String
+  ageInMonths   Int
+  category      String // e.g. "dentist", "vaccination", "checkup"
+  description   String?
+
+  completions ChildScheduleCompletion[]
+
+  @@map("medical_schedule_templates")
+}
+
+model GrowthEntry {
+  id        String   @id @default(cuid())
+  childId   String
+  child     Child    @relation(fields: [childId], references: [id], onDelete: Cascade)
+  measuredAt DateTime
+  heightCm  Float?
+  weightKg  Float?
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@map("growth_entries")
+}
+
+// Tracks which MedicalScheduleTemplate items a child has completed — turns
+// the static per-country template list into the "X% Complete" progress bar
+// in the medical_info_schedules mockup.
+model ChildScheduleCompletion {
+  id          String                  @id @default(cuid())
+  childId     String
+  child       Child                   @relation(fields: [childId], references: [id], onDelete: Cascade)
+  templateId  String
+  template    MedicalScheduleTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  completedAt DateTime                @default(now())
+
+  @@unique([childId, templateId])
+  @@map("child_schedule_completions")
+}
+
+enum EmergencyContactCategory {
+  FAMILY
+  MEDICAL
+  OTHER
+}
+
+// Manually-added contacts (pediatrician, dentist, school, poison control —
+// per the emergency_contacts mockup). Family members who are already
+// ChildAccess users are derived at read time instead of duplicated here;
+// see the emergencyContacts route.
+model EmergencyContact {
+  id        String                    @id @default(cuid())
+  childId   String
+  child     Child                     @relation(fields: [childId], references: [id], onDelete: Cascade)
+  category  EmergencyContactCategory
+  name      String
+  role      String
+  phone     String
+  location  String?
+  createdAt DateTime                  @default(now())
+  updatedAt DateTime                  @updatedAt
+
+  @@map("emergency_contacts")
+}
+
+// ---------------------------------------------------------------------------
+// Calendar / custody
+// ---------------------------------------------------------------------------
+
+enum CalendarEventCategory {
+  CUSTODY
+  APPOINTMENT
+  HOLIDAY
+  PLANNED_HOLIDAY
+}
+
+enum SwapRequestStatus {
+  PENDING
+  APPROVED
+  DECLINED
+}
+
+// One active plan per child. `patternDays` is a structured recurrence rule
+// (see packages/shared/src/custody.ts's CustodyPattern type + resolveCustodyForDate)
+// interpreted on read rather than materialized into CalendarEvent rows — who
+// has the child on a given day is a pure function of this plan, so there's
+// nothing to keep in sync.
+model CustodyPlan {
+  id          String   @id @default(cuid())
+  childId     String
+  child       Child    @relation(fields: [childId], references: [id], onDelete: Cascade)
+  label       String   // e.g. "Week on/week off", "2-2-3"
+  patternDays Json
+  startDate   DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("custody_plans")
+}
+
+// Discrete calendar records only — appointments, planned/vacation holidays
+// (parent-entered), and system-seeded national holidays. Recurring custody
+// days are computed, not stored here (see CustodyPlan above).
+model CalendarEvent {
+  id        String                @id @default(cuid())
+  childId   String
+  child     Child                 @relation(fields: [childId], references: [id], onDelete: Cascade)
+  category  CalendarEventCategory
+  title     String
+  startsAt  DateTime
+  endsAt    DateTime?
+  allDay    Boolean               @default(false)
+  notes     String?
+  // Marks an APPOINTMENT as medical (doctor/dentist/etc.) vs. a general
+  // appointment (school event, activity, ...). Only meaningful for
+  // APPOINTMENT rows — the Medical Info page's "Appointments" section
+  // filters on this instead of showing every appointment on the calendar.
+  isMedical Boolean               @default(false)
+  // Set once the day-before push reminder has been sent, so the daily
+  // remind-appointments job (chunk 8) doesn't double-send.
+  remindedAt DateTime?
+  createdAt DateTime              @default(now())
+  updatedAt DateTime              @updatedAt
+
+  @@map("calendar_events")
+}
+
+// Requests to swap a computed custody day, not tied to a stored CalendarEvent
+// row (there isn't one — custody days are computed, see CustodyPlan above).
+model SwapRequest {
+  id            String            @id @default(cuid())
+  childId       String
+  child         Child             @relation(fields: [childId], references: [id], onDelete: Cascade)
+  date          DateTime
+  requestedById String
+  requestedBy   User              @relation("SwapRequestedBy", fields: [requestedById], references: [id])
+  status        SwapRequestStatus @default(PENDING)
+  message       String?
+  createdAt     DateTime          @default(now())
+  resolvedAt    DateTime?
+
+  @@map("swap_requests")
+}
+
+// ---------------------------------------------------------------------------
+// Journal / media
+// ---------------------------------------------------------------------------
+
+enum MediaType {
+  IMAGE
+  VIDEO
+}
+
+enum MediaAssetStatus {
+  PROCESSING
+  READY
+  FAILED
+}
+
+model MediaAsset {
+  id               String           @id @default(cuid())
+  ownerId          String
+  owner            User             @relation(fields: [ownerId], references: [id])
+  type             MediaType
+  status           MediaAssetStatus @default(PROCESSING)
+  originalPath     String           // lossless original, local disk path (see DEPLOYMENT.md storage note)
+  derivedPath      String?          // compressed WebP/WebM derivative (or JPEG poster for video) for in-app viewing
+  width            Int?
+  height           Int?
+  journalPostId    String?
+  journalPost      JournalPost?     @relation(fields: [journalPostId], references: [id])
+  // At most one of these two is set at a time — the asset currently in use
+  // as a given user's/child's profile photo. @unique enforces "at most one
+  // current avatar asset per user/child"; swapping to a new photo clears the
+  // old asset's FK first (see PATCH /auth/me, PATCH /children/:childId).
+  avatarForUserId  String?          @unique
+  avatarForUser    User?            @relation("UserAvatar", fields: [avatarForUserId], references: [id])
+  avatarForChildId String?          @unique
+  avatarForChild   Child?           @relation("ChildAvatar", fields: [avatarForChildId], references: [id])
+  createdAt        DateTime         @default(now())
+
+  @@map("media_assets")
+}
+
+model JournalPost {
+  id        String   @id @default(cuid())
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+  title     String
+  text      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  children  JournalPostChild[]
+  media     MediaAsset[]
+  comments  Comment[]
+  reactions JournalReaction[]
+
+  @@map("journal_posts")
+}
+
+// Join table letting one journal post tag several children — they share one
+// comment/reaction thread and each tagged child's journal shows the post.
+model JournalPostChild {
+  id            String      @id @default(cuid())
+  journalPostId String
+  journalPost   JournalPost @relation(fields: [journalPostId], references: [id], onDelete: Cascade)
+  childId       String
+  child         Child       @relation(fields: [childId], references: [id], onDelete: Cascade)
+
+  @@unique([journalPostId, childId])
+  @@map("journal_post_children")
+}
+
+model Comment {
+  id            String      @id @default(cuid())
+  journalPostId String
+  journalPost   JournalPost @relation(fields: [journalPostId], references: [id], onDelete: Cascade)
+  authorId      String
+  author        User        @relation(fields: [authorId], references: [id])
+  text          String
+  createdAt     DateTime    @default(now())
+
+  @@map("comments")
+}
+
+// Toggleable "Love" reaction on a journal post — one per user per post.
+model JournalReaction {
+  id            String      @id @default(cuid())
+  journalPostId String
+  journalPost   JournalPost @relation(fields: [journalPostId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt     DateTime    @default(now())
+
+  @@unique([journalPostId, userId])
+  @@map("journal_reactions")
+}
+
+// ---------------------------------------------------------------------------
+// Lists
+// ---------------------------------------------------------------------------
+
+enum ListItemType {
+  NECESSITY
+  WISHLIST
+}
+
+model ListItem {
+  id           String       @id @default(cuid())
+  childId      String
+  child        Child        @relation(fields: [childId], references: [id], onDelete: Cascade)
+  type         ListItemType
+  title        String
+  sizeValue    String?      // e.g. clothing/shoe size pulled from the child's profile at creation time
+  claimedById  String?
+  claimedBy    User?        @relation("ListItemClaimedBy", fields: [claimedById], references: [id])
+  createdAt    DateTime     @default(now())
+
+  @@map("list_items")
+}
+
+// ---------------------------------------------------------------------------
+// Messaging
+// ---------------------------------------------------------------------------
+
+model Thread {
+  id        String         @id @default(cuid())
+  isGroup   Boolean        @default(false)
+  createdAt DateTime       @default(now())
+
+  members  ThreadMember[]
+  messages Message[]
+
+  @@map("threads")
+}
+
+model ThreadMember {
+  id         String    @id @default(cuid())
+  threadId   String
+  thread     Thread    @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Stamped to now() whenever this member fetches the thread's messages —
+  // powers the unread badge on the thread list (chunk 6).
+  lastReadAt DateTime?
+
+  @@unique([threadId, userId])
+  @@map("thread_members")
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  threadId  String
+  thread    Thread   @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  senderId  String
+  sender    User     @relation("MessageSender", fields: [senderId], references: [id])
+  text      String?
+  mediaId   String?
+  createdAt DateTime @default(now())
+
+  @@map("messages")
+}
+
+model PersonalNote {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  text      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("personal_notes")
+}
+
+// ---------------------------------------------------------------------------
+// Billing
+// ---------------------------------------------------------------------------
+
+enum SubscriptionStatus {
+  TRIALING
+  PENDING // checkout started, awaiting QuickPay webhook confirmation
+  ACTIVE
+  PAST_DUE
+  CANCELED
+}
+
+enum BillingPeriod {
+  MONTHLY
+  ANNUAL
+}
+
+model Subscription {
+  id                     String             @id @default(cuid())
+  ownerId                String             @unique
+  owner                  User               @relation(fields: [ownerId], references: [id])
+  tier                   SubscriptionTier   @default(FREE)
+  status                 SubscriptionStatus @default(ACTIVE)
+  billingPeriod          BillingPeriod?
+  quickpaySubscriptionId String?
+  quickpayCustomerId     String?
+  trialEndsAt            DateTime?
+  currentPeriodEnd       DateTime?
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+
+  @@map("subscriptions")
+}
+
+// ---------------------------------------------------------------------------
+// Push notifications
+// ---------------------------------------------------------------------------
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  @@map("push_subscriptions")
+}

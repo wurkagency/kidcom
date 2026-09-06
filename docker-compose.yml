@@ -1,0 +1,41 @@
+# Local development only. Production runs Postgres + Redis directly on the
+# Plesk VM (not in Docker) — see DEPLOYMENT.md. This compose file exists so
+# the API/web dev servers (run natively via `npm run dev`) have something to
+# talk to on localhost, mirroring prod connectivity without mirroring prod's
+# process model.
+name: kidcom-dev
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: kidcom
+      POSTGRES_PASSWORD: kidcom
+      POSTGRES_DB: kidcom
+    ports:
+      - "5432:5432"
+    volumes:
+      - kidcom-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kidcom -d kidcom"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - kidcom-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  kidcom-postgres-data:
+  kidcom-redis-data:

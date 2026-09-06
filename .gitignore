@@ -1,0 +1,23 @@
+node_modules/
+dist/
+build/
+.env
+.env.local
+*.log
+.DS_Store
+Thumbs.db
+
+# Prisma
+packages/db/generated/
+
+# Vite / PWA
+apps/web/dist/
+apps/web/dev-dist/
+
+# Local media uploads (dev)
+apps/api/media/
+
+# IDE
+.vscode/*
+!.vscode/extensions.json
+.idea/
