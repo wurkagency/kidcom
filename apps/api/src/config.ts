@@ -23,7 +23,7 @@ export const config = {
   // The API's own publicly reachable base URL — used to build the QuickPay
   // webhook callback URL. In local dev this is localhost, which QuickPay
   // can't reach directly (needs a tunnel like ngrok — see chunk 7 plan
-  // notes); in production it's api.kidcom.com per DEPLOYMENT.md.
+  // notes); in production it's api.kidcom.org per DEPLOYMENT.md.
   apiBaseUrl: process.env.API_BASE_URL ?? `http://localhost:${port}`,
   databaseUrl: required("DATABASE_URL"),
   redisUrl: process.env.REDIS_URL ?? "redis://localhost:6379",

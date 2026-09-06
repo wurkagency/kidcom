@@ -10,8 +10,8 @@ export class ApiRequestError extends Error {
 
 // Thin fetch wrapper shared by every API call. `credentials: "include"` is
 // required for the session cookie to travel between the web app's origin
-// (localhost:5173 in dev, kidcom.com in prod) and the API's
-// (localhost:4000 in dev, api.kidcom.com in prod) — without it the browser
+// (localhost:5173 in dev, kidcom.org in prod) and the API's
+// (localhost:4000 in dev, api.kidcom.org in prod) — without it the browser
 // won't send the cookie on cross-origin requests even though both share the
 // same parent domain in production.
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
