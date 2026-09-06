@@ -2,7 +2,14 @@
 // Filled in as each feature area is built so the API and the SPA share one
 // source of truth for request/response shapes.
 
-export * from "./custody";
+// Explicit named re-exports rather than `export * from "./custody"` — a
+// wildcard re-export compiles to a runtime `__exportStar` loop in the
+// CommonJS output this package builds to, which trips up Vite/Rollup's
+// static named-export detection for CJS packages (it silently drops names,
+// including ones declared directly in this file). Explicit exports compile
+// to statically analyzable per-name bindings instead.
+export type { CustodyBlock, CustodyPattern, CustodyPlanLike } from "./custody";
+export { resolveCustodyForDate, CUSTODY_PRESETS, describeCustodyPattern } from "./custody";
 import type { CustodyPattern } from "./custody";
 
 export type ApiHealthResponse = {
