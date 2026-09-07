@@ -82,11 +82,17 @@ authRouter.post("/signup", authRateLimiter, async (req, res, next) => {
     });
 
     req.session.userId = user.id;
-    // Fire-and-forget-ish, but awaited so a real SMTP failure surfaces as a
-    // 500 instead of silently leaving the account unable to ever verify —
-    // signup itself already succeeded (transaction above committed), so a
-    // mail error here just needs to reach the client, not roll anything back.
-    await sendVerificationEmail(user);
+    // Signup itself (the transaction above) already committed — an SMTP
+    // outage/misconfiguration must never roll that back or block the
+    // response, or account creation silently depends on a third-party mail
+    // server's uptime. Swallow-and-log here; the user lands on the
+    // VerifyEmailGate either way and can hit "resend" once mail is working.
+    try {
+      await sendVerificationEmail(user);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error(`Failed to send verification email to ${user.email}:`, err);
+    }
     res.status(201).json({ user: toPublicUser(user) } satisfies MeResponse);
   } catch (err) {
     next(err);

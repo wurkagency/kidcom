@@ -230,8 +230,15 @@ invitesRouter.post("/:token/accept", async (req, res, next) => {
     // an invite link rather than the signup form, so it needs the same
     // "prove you control this inbox" verification email before the account
     // can do anything sensitive (the frontend's verify-email gate covers
-    // both paths identically).
-    await sendVerificationEmail(user);
+    // both paths identically). Account creation above already committed —
+    // an SMTP failure must not block the response; swallow-and-log, same as
+    // the organic signup path.
+    try {
+      await sendVerificationEmail(user);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error(`Failed to send verification email to ${user.email}:`, err);
+    }
     res.json({
       user: {
         id: user.id,
