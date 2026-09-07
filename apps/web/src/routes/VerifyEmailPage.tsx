@@ -16,8 +16,16 @@ export function VerifyEmailPage() {
   const [status, setStatus] = useState<"checking" | "success" | "error">("checking");
   const [message, setMessage] = useState<string | null>(null);
 
+  // react-router's useSearchParams() returns a NEW URLSearchParams object on
+  // every render (not just on navigation) — depending on `searchParams`
+  // itself, not this derived primitive, caused this effect to re-fire the
+  // moment `refresh()` below triggered a re-render, resubmitting the
+  // already-consumed (now-deleted) token and overwriting a real success
+  // with a false "invalid or expired" error. Depending on the raw string
+  // instead means the effect only re-runs if the token actually changes.
+  const token = searchParams.get("token");
+
   useEffect(() => {
-    const token = searchParams.get("token");
     if (!token) {
       setStatus("error");
       setMessage("This verification link is missing its token.");
@@ -33,10 +41,10 @@ export function VerifyEmailPage() {
         setStatus("error");
         setMessage(err instanceof ApiRequestError ? err.message : "Something went wrong");
       });
-    // Only ever run once per mount — re-running on `refresh` identity churn
-    // would re-submit an already-consumed (now invalid) token.
+    // Only ever run once per token — see comment above on why this can't
+    // depend on `searchParams` or `refresh`/`navigate` identity.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
+  }, [token]);
 
   return (
     <div className="flex flex-col w-full min-h-screen bg-surface-beige text-text-main items-center justify-center px-container-padding text-center gap-4">
