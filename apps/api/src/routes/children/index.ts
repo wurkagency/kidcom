@@ -2,7 +2,7 @@ import { Router } from "express";
 import type { ChildDetail, ChildSummary, CreateChildRequest, UpdateChildRequest } from "@kidcom/shared";
 
 import { prisma } from "../../db";
-import { requireAuth } from "../../middleware/session";
+import { requireAuth, requireVerifiedEmail } from "../../middleware/session";
 import { requireChildAccess } from "../../middleware/childAccess";
 import { requireActiveAccess, effectiveTier } from "../../middleware/billing";
 import { ApiError } from "../../middleware/errorHandler";
@@ -84,7 +84,7 @@ childrenRouter.get("/", async (req, res, next) => {
   }
 });
 
-childrenRouter.post("/", async (req, res, next) => {
+childrenRouter.post("/", requireVerifiedEmail, async (req, res, next) => {
   try {
     const body = req.body as Partial<CreateChildRequest>;
     const { firstName, gender, birthday } = body;
@@ -225,6 +225,7 @@ childrenRouter.get("/:childId/family", requireChildAccess, async (req, res, next
         userId: a.userId,
         firstName: a.user.firstName,
         lastName: a.user.lastName,
+        avatarUrl: a.user.avatarUrl,
         role: a.role,
         familyMemberType: a.familyMemberType,
       })),

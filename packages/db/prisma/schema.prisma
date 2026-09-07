@@ -42,15 +42,16 @@ enum FamilyMemberType {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  phone        String?
-  passwordHash String
-  firstName    String
-  lastName     String
-  avatarUrl    String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id              String    @id @default(cuid())
+  email           String    @unique
+  phone           String?
+  passwordHash    String
+  firstName       String
+  lastName        String
+  avatarUrl       String?
+  emailVerifiedAt DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   // The subscription a user owns (they pay for Parents/Family tier).
   ownedSubscription Subscription?
@@ -68,8 +69,25 @@ model User {
   threadMembers  ThreadMember[]
   swapRequestsBy SwapRequest[]     @relation("SwapRequestedBy")
   pushSubscriptions PushSubscription[]
+  emailVerificationTokens EmailVerificationToken[]
 
   @@map("users")
+}
+
+// A single-use, short-lived token proving control of the account's email
+// address. Only the sha256 hash is stored — same reasoning as never storing
+// a raw password — so a DB read alone can't be used to verify someone
+// else's account. Re-requesting verification replaces (deletes+recreates)
+// this row rather than accumulating one per request.
+model EmailVerificationToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("email_verification_tokens")
 }
 
 model Invite {

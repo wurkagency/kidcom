@@ -23,6 +23,9 @@ import { MessageThreadPage } from "./routes/MessageThreadPage";
 import { NotesPage } from "./routes/NotesPage";
 import { BillingPage } from "./routes/BillingPage";
 import { InviteAcceptPage } from "./routes/InviteAcceptPage";
+import { VerifyEmailPage } from "./routes/VerifyEmailPage";
+import { VerifyEmailGate } from "./components/VerifyEmailGate";
+import { InstallPrompt } from "./components/InstallPrompt";
 import { useAuth } from "./lib/AuthContext";
 
 // Route guarding: unauthenticated visitors only ever see welcome/login/signup
@@ -49,7 +52,21 @@ export default function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/invite/:token" element={<InviteAcceptPage />} />
+        <Route path="/verify-email" element={<VerifyEmailPage />} />
         <Route path="*" element={<Navigate to="/welcome" replace />} />
+      </Routes>
+    );
+  }
+
+  // Full gate: a signed-in user with no verified email sees nothing else —
+  // not even onboarding or the app shell — until they click the link in
+  // their verification email. /verify-email itself stays reachable (that's
+  // what the emailed link points at) so it can lift the gate.
+  if (!user.emailVerifiedAt) {
+    return (
+      <Routes>
+        <Route path="/verify-email" element={<VerifyEmailPage />} />
+        <Route path="*" element={<VerifyEmailGate />} />
       </Routes>
     );
   }
@@ -60,12 +77,14 @@ export default function App() {
       <Route path="/login" element={<Navigate to="/" replace />} />
       <Route path="/signup" element={<Navigate to="/" replace />} />
       <Route path="/invite/:token" element={<InviteAcceptPage />} />
+      <Route path="/verify-email" element={<VerifyEmailPage />} />
       <Route path="/onboarding/child" element={<OnboardingChildPage />} />
       <Route path="/onboarding/invite" element={<OnboardingInvitePage />} />
       <Route
         path="/*"
         element={
           <AppShell>
+            <InstallPrompt />
             <Routes>
               <Route path="/" element={<HomePage />} />
               <Route path="/calendar" element={<CalendarPage />} />

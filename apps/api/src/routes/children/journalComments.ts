@@ -13,7 +13,7 @@ type CommentParams = { childId: string; postId: string; commentId: string };
 function toDto(row: {
   id: string;
   authorId: string;
-  author: { firstName: string; lastName: string };
+  author: { firstName: string; lastName: string; avatarUrl: string | null };
   text: string;
   createdAt: Date;
 }): CommentDto {
@@ -21,6 +21,7 @@ function toDto(row: {
     id: row.id,
     authorId: row.authorId,
     authorName: `${row.author.firstName} ${row.author.lastName}`.trim(),
+    authorAvatarUrl: row.author.avatarUrl,
     text: row.text,
     createdAt: row.createdAt.toISOString(),
   };

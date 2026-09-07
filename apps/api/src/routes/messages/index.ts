@@ -43,7 +43,7 @@ function toMessageDto(row: {
   id: string;
   threadId: string;
   senderId: string;
-  sender: { firstName: string; lastName: string };
+  sender: { firstName: string; lastName: string; avatarUrl: string | null };
   text: string | null;
   mediaId: string | null;
   createdAt: Date;
@@ -53,6 +53,7 @@ function toMessageDto(row: {
     threadId: row.threadId,
     senderId: row.senderId,
     senderName: `${row.sender.firstName} ${row.sender.lastName}`.trim(),
+    senderAvatarUrl: row.sender.avatarUrl,
     text: row.text,
     mediaId: row.mediaId,
     createdAt: row.createdAt.toISOString(),
@@ -88,7 +89,7 @@ messagesRouter.get("/threads", async (req, res, next) => {
           isGroup: m.thread.isGroup,
           members: m.thread.members
             .filter((tm) => tm.userId !== userId)
-            .map((tm) => ({ userId: tm.userId, firstName: tm.user.firstName, lastName: tm.user.lastName })),
+            .map((tm) => ({ userId: tm.userId, firstName: tm.user.firstName, lastName: tm.user.lastName, avatarUrl: tm.user.avatarUrl })),
           lastMessage: lastMessageRow ? toMessageDto(lastMessageRow) : null,
           unread: lastMessageRow
             ? !m.lastReadAt || lastMessageRow.createdAt > m.lastReadAt
@@ -184,7 +185,7 @@ messagesRouter.get("/threads/:threadId", requireThreadMembership, async (req, re
       isGroup: thread.isGroup,
       members: thread.members
         .filter((tm) => tm.userId !== userId)
-        .map((tm) => ({ userId: tm.userId, firstName: tm.user.firstName, lastName: tm.user.lastName })),
+        .map((tm) => ({ userId: tm.userId, firstName: tm.user.firstName, lastName: tm.user.lastName, avatarUrl: tm.user.avatarUrl })),
     };
     res.json(dto);
   } catch (err) {

@@ -2,10 +2,9 @@ import type { ReactNode } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 
 import { Icon } from "./Icon";
+import { Avatar } from "./Avatar";
 import { useAuth } from "../lib/AuthContext";
 import { useHeaderContextValue } from "../lib/HeaderContext";
-import { fetchMediaUrl } from "../lib/media";
-import { useEffect, useState } from "react";
 
 // The mockups' fixed top bar (logo, page title, notification bell, avatar)
 // never made it into AppShell — this fills that gap. Every in-app page now
@@ -32,44 +31,6 @@ const CHILD_SUBPAGE_TITLES: Array<{ suffix: string; title: string }> = [
   { suffix: "/medical", title: "Medical Info" },
   { suffix: "/contacts", title: "Emergency Contacts" },
 ];
-
-function Avatar({ firstName, avatarUrl }: { firstName: string; avatarUrl?: string | null }) {
-  const [resolvedUrl, setResolvedUrl] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    if (!avatarUrl) {
-      setResolvedUrl(null);
-      return;
-    }
-    fetchMediaUrl(avatarUrl)
-      .then((url) => {
-        if (!cancelled) setResolvedUrl(url);
-      })
-      .catch(() => {
-        if (!cancelled) setResolvedUrl(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [avatarUrl]);
-
-  if (resolvedUrl) {
-    return (
-      <img
-        src={resolvedUrl}
-        alt=""
-        className="w-8 h-8 rounded-full object-cover shrink-0"
-      />
-    );
-  }
-
-  return (
-    <div className="w-8 h-8 rounded-full bg-primary-fixed flex items-center justify-center text-on-primary-fixed font-label-md text-label-md shrink-0">
-      {firstName.charAt(0).toUpperCase()}
-    </div>
-  );
-}
 
 function SubpageHeader({
   title,
@@ -99,7 +60,7 @@ function SubpageHeader({
         <div className="flex items-center gap-element-gap shrink-0">
           {rightAction}
           <Link to="/profile" aria-label="Profile">
-            <Avatar firstName={user?.firstName ?? "?"} avatarUrl={user?.avatarUrl} />
+            <Avatar name={user?.firstName ?? "?"} avatarAssetId={user?.avatarUrl} kind="adult" />
           </Link>
         </div>
       </div>
@@ -120,7 +81,7 @@ export function Header() {
       <div className="sticky top-0 z-40 bg-surface/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]">
         <div className="h-16 px-container-padding flex items-center justify-between">
           <div className="flex items-center gap-element-gap">
-            <img alt="KidCom" className="h-8 w-8 rounded-lg object-contain" src="/icons/icon-192.png" />
+            <img alt="KidCom" className="h-8 w-8 rounded-lg object-contain p-0.5" src="/logo.svg" />
             <span className="font-headline-md text-headline-md text-on-surface">
               {TAB_TITLES[path]}
             </span>
@@ -134,7 +95,7 @@ export function Header() {
               <Icon name="notifications" className="text-on-surface-variant" />
             </Link>
             <Link to="/profile" aria-label="Profile">
-              <Avatar firstName={user?.firstName ?? "?"} avatarUrl={user?.avatarUrl} />
+              <Avatar name={user?.firstName ?? "?"} avatarAssetId={user?.avatarUrl} kind="adult" />
             </Link>
           </div>
         </div>

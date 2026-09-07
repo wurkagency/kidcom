@@ -27,6 +27,7 @@ export type PublicUser = {
   firstName: string;
   lastName: string;
   avatarUrl: string | null;
+  emailVerifiedAt: string | null;
 };
 
 export type SignupRequest = {
@@ -97,6 +98,7 @@ export type ChildFamilyMember = {
   userId: string;
   firstName: string;
   lastName: string;
+  avatarUrl: string | null;
   role: AccessRole;
   // Null for the account owner (never went through an invite) and for any
   // access granted before this field existed.
@@ -348,6 +350,7 @@ export type CommentDto = {
   id: string;
   authorId: string;
   authorName: string;
+  authorAvatarUrl: string | null;
   text: string;
   createdAt: string;
 };
@@ -365,6 +368,7 @@ export type JournalPostDto = {
   childIds: string[];
   authorId: string;
   authorName: string;
+  authorAvatarUrl: string | null;
   title: string;
   text: string;
   createdAt: string;
@@ -414,6 +418,7 @@ export type ThreadMemberDto = {
   userId: string;
   firstName: string;
   lastName: string;
+  avatarUrl: string | null;
 };
 
 export type MessageDto = {
@@ -421,6 +426,7 @@ export type MessageDto = {
   threadId: string;
   senderId: string;
   senderName: string;
+  senderAvatarUrl: string | null;
   text: string | null;
   mediaId: string | null;
   createdAt: string;

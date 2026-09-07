@@ -79,7 +79,17 @@ export function CustodySetup({
 }) {
   const parentA = parents[0];
   const parentB = parents[1];
+  // A co-parent is optional — a solo parent can still create and maintain
+  // their own schedule (see the banner below); collaboration (both parents
+  // sharing/editing the same plan) is what actually requires parentB.
+  const hasCoParent = Boolean(parentA && parentB);
   const userIds: [string, string] | null = parentA && parentB ? [parentA.userId, parentB.userId] : null;
+  // Solo mode only ever assigns blocks to parentA — patternForPreset/
+  // blocksFromPattern below all key off `userIds`, which stays [string,
+  // string] | null (presets genuinely need two people to alternate between),
+  // but the custom-block editor works off this single id instead so it
+  // still functions with just one parent.
+  const soloUserId = parentA?.userId;
 
   // If the existing plan matches a known preset exactly, default to the
   // presets tab (nothing to pre-fill); otherwise it's a hand-built pattern,
@@ -92,7 +102,7 @@ export function CustodySetup({
       : undefined;
 
   const [mode, setMode] = useState<"presets" | "custom">(
-    existingPlan && !matchedPreset ? "custom" : "presets"
+    !hasCoParent || (existingPlan && !matchedPreset) ? "custom" : "presets"
   );
   const [saving, setSaving] = useState<PresetKey | "custom" | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -104,15 +114,12 @@ export function CustodySetup({
     existingPlan && userIds ? blocksFromPattern(existingPlan.patternDays, userIds) : [{ parentIndex: 0, days: 7 }]
   );
 
-  if (!parentA || !parentB || !userIds) {
+  if (!parentA || !soloUserId) {
     return (
       <div className="bg-surface-container rounded-2xl p-5 flex flex-col gap-2">
-        <p className="font-label-md text-label-md text-on-surface">
-          Invite a second parent first
-        </p>
+        <p className="font-label-md text-label-md text-on-surface">Custody schedule</p>
         <p className="font-body-md text-body-md text-on-surface-variant">
-          A custody schedule needs two parents on this child's profile — invite one from the
-          child's profile page.
+          You'll need parent access to this child's profile to set up a custody schedule.
         </p>
       </div>
     );
@@ -148,11 +155,12 @@ export function CustodySetup({
 
   function handleSaveCustom() {
     const days = customBlocks.reduce((sum, b) => sum + b.days, 0);
+    const blockUserIds = userIds ?? [soloUserId, soloUserId];
     savePattern(
       customLabel.trim() || "Custom schedule",
       {
         cycleLengthDays: days,
-        blocks: customBlocks.map((b) => ({ userId: userIds![b.parentIndex], days: b.days })),
+        blocks: customBlocks.map((b) => ({ userId: blockUserIds[b.parentIndex], days: b.days })),
       },
       "custom"
     );
@@ -177,7 +185,9 @@ export function CustodySetup({
             {existingPlan ? "Edit custody schedule" : "Set up your custody schedule"}
           </h3>
           <p className="font-body-md text-body-md text-on-surface-variant">
-            Pick a pattern, or build a custom one — {parentA.firstName} and {parentB.firstName}.
+            {hasCoParent
+              ? `Pick a pattern, or build a custom one — ${parentA.firstName} and ${parentB!.firstName}.`
+              : `Build ${parentA.firstName}'s schedule for this child.`}
           </p>
         </div>
         {onCancel && (
@@ -190,6 +200,16 @@ export function CustodySetup({
           </button>
         )}
       </div>
+
+      {!hasCoParent && (
+        <div className="bg-surface-container-lowest rounded-xl p-4 flex items-start gap-3">
+          <Icon name="info" className="text-primary shrink-0" />
+          <p className="font-body-sm text-body-sm text-on-surface-variant">
+            No co-parent yet — this schedule is private to you until you invite them. They'll be
+            able to see and help maintain it once they join this child's profile.
+          </p>
+        </div>
+      )}
 
       <div className="relative">
         <label
@@ -211,24 +231,26 @@ export function CustodySetup({
         </p>
       </div>
 
-      <div className="flex gap-2 bg-surface-container-lowest rounded-full p-1">
-        <button
-          onClick={() => setMode("presets")}
-          className={`flex-1 py-2 rounded-full font-label-sm text-label-sm transition-colors ${
-            mode === "presets" ? "bg-primary text-on-primary" : "text-on-surface-variant"
-          }`}
-        >
-          Presets
-        </button>
-        <button
-          onClick={() => setMode("custom")}
-          className={`flex-1 py-2 rounded-full font-label-sm text-label-sm transition-colors ${
-            mode === "custom" ? "bg-primary text-on-primary" : "text-on-surface-variant"
-          }`}
-        >
-          Custom
-        </button>
-      </div>
+      {hasCoParent && (
+        <div className="flex gap-2 bg-surface-container-lowest rounded-full p-1">
+          <button
+            onClick={() => setMode("presets")}
+            className={`flex-1 py-2 rounded-full font-label-sm text-label-sm transition-colors ${
+              mode === "presets" ? "bg-primary text-on-primary" : "text-on-surface-variant"
+            }`}
+          >
+            Presets
+          </button>
+          <button
+            onClick={() => setMode("custom")}
+            className={`flex-1 py-2 rounded-full font-label-sm text-label-sm transition-colors ${
+              mode === "custom" ? "bg-primary text-on-primary" : "text-on-surface-variant"
+            }`}
+          >
+            Custom
+          </button>
+        </div>
+      )}
 
       {error && (
         <p className="font-body-md text-body-md text-error bg-error-container rounded-lg px-4 py-3">
@@ -280,14 +302,20 @@ export function CustodySetup({
           <div className="flex flex-col gap-2">
             {customBlocks.map((block, i) => (
               <div key={i} className="flex items-center gap-2">
-                <select
-                  value={block.parentIndex}
-                  onChange={(e) => updateBlock(i, { parentIndex: Number(e.target.value) as 0 | 1 })}
-                  className="flex-1 bg-surface-container-lowest rounded-xl px-3 py-3 outline-none focus:ring-2 focus:ring-primary font-body-sm text-body-sm"
-                >
-                  <option value={0}>{parentA.firstName}</option>
-                  <option value={1}>{parentB.firstName}</option>
-                </select>
+                {hasCoParent ? (
+                  <select
+                    value={block.parentIndex}
+                    onChange={(e) => updateBlock(i, { parentIndex: Number(e.target.value) as 0 | 1 })}
+                    className="flex-1 bg-surface-container-lowest rounded-xl px-3 py-3 outline-none focus:ring-2 focus:ring-primary font-body-sm text-body-sm"
+                  >
+                    <option value={0}>{parentA.firstName}</option>
+                    <option value={1}>{parentB!.firstName}</option>
+                  </select>
+                ) : (
+                  <span className="flex-1 bg-surface-container-lowest rounded-xl px-3 py-3 font-body-sm text-body-sm text-on-surface-variant">
+                    With {parentA.firstName}
+                  </span>
+                )}
                 <input
                   type="number"
                   min={1}

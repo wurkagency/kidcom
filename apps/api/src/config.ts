@@ -43,4 +43,17 @@ export const config = {
   vapidPublicKey: process.env.VAPID_PUBLIC_KEY,
   vapidPrivateKey: process.env.VAPID_PRIVATE_KEY,
   vapidSubject: process.env.VAPID_SUBJECT ?? "mailto:charlie@wurk.dk",
+  // SMTP — optional. Unset in local dev (mailSender.ts falls back to
+  // logging emails to the console instead of sending them); set for real
+  // delivery in production, per DEPLOYMENT.md.
+  smtpHost: process.env.SMTP_HOST,
+  smtpPort: Number(process.env.SMTP_PORT ?? 587),
+  smtpUser: process.env.SMTP_USER,
+  smtpPass: process.env.SMTP_PASS,
+  smtpFrom: process.env.SMTP_FROM ?? '"KidCom" <noreply@kidcom.org>',
+  // The web app's own base URL — used to build links that go out in email
+  // (verification, invites). The first CORS origin is always the web app's
+  // real origin (see corsOrigin above), so it doubles as this without a
+  // separate env var to keep in sync.
+  webBaseUrl: (process.env.CORS_ORIGIN ?? "http://localhost:5173").split(",")[0],
 };

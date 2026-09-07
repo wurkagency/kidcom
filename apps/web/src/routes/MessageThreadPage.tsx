@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import type { CreateMessageRequest, MediaUploadResponse, MessageDto, ThreadDto } from "@kidcom/shared";
 
 import { Icon } from "../components/Icon";
+import { Avatar } from "../components/Avatar";
 import { fetchMediaUrl } from "../lib/media";
 import { apiGet, apiPost, apiUpload, ApiRequestError } from "../lib/api";
 import { useAuth } from "../lib/AuthContext";
@@ -138,18 +139,23 @@ export function MessageThreadPage() {
         {messages.map((m) => {
           const mine = m.senderId === user?.id;
           return (
-            <div key={m.id} className={`flex flex-col ${mine ? "items-end" : "items-start"}`}>
-              <div
-                className={`max-w-[75%] rounded-2xl px-4 py-2.5 flex flex-col gap-2 ${
-                  mine ? "bg-primary text-on-primary" : "bg-surface-container-lowest text-on-surface"
-                }`}
-              >
-                {m.mediaId && <MessageMedia mediaId={m.mediaId} />}
-                {m.text && <p className="font-body-md text-body-md">{m.text}</p>}
+            <div key={m.id} className={`flex items-end gap-2 ${mine ? "flex-row-reverse" : ""}`}>
+              {!mine && (
+                <Avatar name={m.senderName} avatarAssetId={m.senderAvatarUrl} kind="adult" size="xs" />
+              )}
+              <div className={`flex flex-col ${mine ? "items-end" : "items-start"}`}>
+                <div
+                  className={`max-w-[75%] rounded-2xl px-4 py-2.5 flex flex-col gap-2 ${
+                    mine ? "bg-primary text-on-primary" : "bg-surface-container-lowest text-on-surface"
+                  }`}
+                >
+                  {m.mediaId && <MessageMedia mediaId={m.mediaId} />}
+                  {m.text && <p className="font-body-md text-body-md">{m.text}</p>}
+                </div>
+                <span className="font-label-sm text-label-sm text-on-surface-variant mt-1">
+                  {new Date(m.createdAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}
+                </span>
               </div>
-              <span className="font-label-sm text-label-sm text-on-surface-variant mt-1">
-                {new Date(m.createdAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}
-              </span>
             </div>
           );
         })}

@@ -2,11 +2,12 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { ChildFamilyMember } from "@kidcom/shared";
 
+import { Avatar } from "../components/Avatar";
 import { apiGet, apiPost, ApiRequestError } from "../lib/api";
 import { useAuth } from "../lib/AuthContext";
 import { useHeaderConfig } from "../lib/HeaderContext";
 
-type Contact = { userId: string; firstName: string; lastName: string };
+type Contact = { userId: string; firstName: string; lastName: string; avatarUrl: string | null };
 
 // Fans out GET /children/:id/family for every child the current user has and
 // dedupes the results by userId — there's no single "all my contacts"
@@ -39,7 +40,12 @@ export function MessageComposePage() {
         const byId = new Map<string, Contact>();
         for (const res of results) {
           for (const m of res.members) {
-            byId.set(m.userId, { userId: m.userId, firstName: m.firstName, lastName: m.lastName });
+            byId.set(m.userId, {
+              userId: m.userId,
+              firstName: m.firstName,
+              lastName: m.lastName,
+              avatarUrl: m.avatarUrl,
+            });
           }
         }
         setContacts([...byId.values()]);
@@ -110,9 +116,12 @@ export function MessageComposePage() {
                   isSelected ? "ring-2 ring-primary" : ""
                 }`}
               >
-                <div className="w-10 h-10 rounded-full bg-primary-fixed flex items-center justify-center text-on-primary-fixed font-headline-md shrink-0">
-                  {c.firstName.charAt(0).toUpperCase()}
-                </div>
+                <Avatar
+                  name={`${c.firstName} ${c.lastName}`}
+                  avatarAssetId={c.avatarUrl}
+                  kind="adult"
+                  size="md"
+                />
                 <span className="font-label-md text-label-md text-on-surface flex-1">
                   {c.firstName} {c.lastName}
                 </span>

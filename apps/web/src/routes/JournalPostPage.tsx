@@ -3,6 +3,8 @@ import { useLocation, useNavigate, useParams, useSearchParams } from "react-rout
 import type { CommentDto, CreateCommentRequest, JournalPostDto, UpdateCommentRequest } from "@kidcom/shared";
 
 import { Icon } from "../components/Icon";
+import { Avatar } from "../components/Avatar";
+import { MediaGallery } from "../components/JournalPostCard";
 import { apiGet, apiPost, apiPatch, apiDelete, ApiRequestError } from "../lib/api";
 import { useAuth } from "../lib/AuthContext";
 import { useHeaderConfig } from "../lib/HeaderContext";
@@ -139,6 +141,23 @@ export function JournalPostPage() {
   return (
     <div className="flex flex-col w-full min-h-screen">
       <div className="flex-1 px-container-padding flex flex-col gap-3 pb-32">
+        {post && (
+          <div className="bg-surface-container-lowest rounded-xl shadow-sm p-4 flex flex-col gap-4 mb-2">
+            <div className="flex items-center gap-3">
+              <Avatar name={post.authorName} avatarAssetId={post.authorAvatarUrl} kind="adult" size="md" />
+              <div className="min-w-0">
+                <h2 className="font-label-md text-label-md text-on-surface line-clamp-1">
+                  {post.title}
+                </h2>
+                <p className="font-label-sm text-label-sm text-on-surface-variant">
+                  {post.authorName} • {new Date(post.createdAt).toLocaleDateString()}
+                </p>
+              </div>
+            </div>
+            <MediaGallery media={post.media} alt={post.title} />
+            <p className="font-body-md text-body-md text-text-main whitespace-pre-wrap">{post.text}</p>
+          </div>
+        )}
         {loading && <p className="font-body-md text-body-md text-on-surface-variant">Loading…</p>}
         {error && (
           <p className="font-body-md text-body-md text-error bg-error-container rounded-lg px-4 py-3">
@@ -158,6 +177,7 @@ export function JournalPostPage() {
             <div key={c.id} className="bg-surface-container-lowest rounded-xl p-4 shadow-sm">
               <div className="flex items-center justify-between gap-2 mb-1">
                 <div className="flex items-center gap-2">
+                  <Avatar name={c.authorName} avatarAssetId={c.authorAvatarUrl} kind="adult" size="xs" />
                   <span className="font-label-md text-label-md text-on-surface">{c.authorName}</span>
                   <span className="font-label-sm text-label-sm text-on-surface-variant">
                     {new Date(c.createdAt).toLocaleDateString()}

@@ -5,20 +5,33 @@ import { API_URL } from "./api";
 // attach credentials to it in a cross-port dev setup). Fetch as a blob and
 // hand back an object URL instead — the same approach any authenticated
 // binary content needs.
+//
+// `variant: "original"` fetches the real uploaded file rather than the
+// default derivative — for a VIDEO asset the derivative is just a JPG
+// poster frame (see apps/api/src/worker.ts), so actual playback needs this.
+// Cached separately per variant (cache key includes it) since they're
+// genuinely different blobs.
 const cache = new Map<string, Promise<string>>();
 
-export async function fetchMediaUrl(mediaAssetId: string): Promise<string> {
-  const cached = cache.get(mediaAssetId);
+export async function fetchMediaUrl(
+  mediaAssetId: string,
+  variant?: "original"
+): Promise<string> {
+  const cacheKey = variant ? `${mediaAssetId}:${variant}` : mediaAssetId;
+  const cached = cache.get(cacheKey);
   if (cached) return cached;
 
   const promise = (async () => {
-    const res = await fetch(`${API_URL}/media/${mediaAssetId}`, { credentials: "include" });
+    const query = variant ? `?variant=${variant}` : "";
+    const res = await fetch(`${API_URL}/media/${mediaAssetId}${query}`, {
+      credentials: "include",
+    });
     if (!res.ok) throw new Error(`Failed to load media ${mediaAssetId}`);
     const blob = await res.blob();
     return URL.createObjectURL(blob);
   })();
 
-  cache.set(mediaAssetId, promise);
+  cache.set(cacheKey, promise);
   return promise;
 }
 
@@ -26,9 +39,10 @@ export async function fetchMediaUrl(mediaAssetId: string): Promise<string> {
 // Revokes the URL (freeing the blob) and drops it from the cache so a future
 // mount fetches fresh data instead of reusing a now-revoked URL. Safe to call
 // even if the fetch never resolved or already failed.
-export function releaseMediaUrl(mediaAssetId: string): void {
-  const cached = cache.get(mediaAssetId);
+export function releaseMediaUrl(mediaAssetId: string, variant?: "original"): void {
+  const cacheKey = variant ? `${mediaAssetId}:${variant}` : mediaAssetId;
+  const cached = cache.get(cacheKey);
   if (!cached) return;
-  cache.delete(mediaAssetId);
+  cache.delete(cacheKey);
   cached.then((url) => URL.revokeObjectURL(url)).catch(() => {});
 }

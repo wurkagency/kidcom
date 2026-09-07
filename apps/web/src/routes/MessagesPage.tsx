@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import type { ThreadSummaryDto } from "@kidcom/shared";
 
 import { Icon } from "../components/Icon";
+import { Avatar } from "../components/Avatar";
 import { apiGet, ApiRequestError } from "../lib/api";
 import { useHeaderConfig } from "../lib/HeaderContext";
 
@@ -73,9 +74,12 @@ export function MessagesPage() {
             to={`/messages/${thread.id}`}
             className="bg-surface-container-lowest rounded-xl p-4 shadow-sm flex items-center gap-3"
           >
-            <div className="w-10 h-10 rounded-full bg-primary-fixed flex items-center justify-center text-on-primary-fixed font-headline-md shrink-0">
-              {threadTitle(thread).charAt(0).toUpperCase()}
-            </div>
+            <Avatar
+              name={threadTitle(thread)}
+              avatarAssetId={thread.members[0]?.avatarUrl}
+              kind="adult"
+              size="md"
+            />
             <div className="flex-1 min-w-0">
               <p className="font-label-md text-label-md text-on-surface truncate">{threadTitle(thread)}</p>
               <p className="font-body-md text-body-md text-on-surface-variant truncate">

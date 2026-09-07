@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
+import { Avatar } from "../components/Avatar";
 import { AvatarUpload } from "../components/AvatarUpload";
 import { Icon } from "../components/Icon";
 import { apiFetch, apiPatch } from "../lib/api";
@@ -105,9 +106,12 @@ export function ProfilePage() {
                 to={`/children/${child.id}`}
                 className="bg-surface-container-lowest rounded-xl p-4 shadow-sm flex items-center gap-3"
               >
-                <div className="w-10 h-10 rounded-full bg-primary-fixed flex items-center justify-center text-on-primary-fixed font-headline-md">
-                  {child.firstName.charAt(0).toUpperCase()}
-                </div>
+                <Avatar
+                  name={`${child.firstName} ${child.lastName}`}
+                  avatarAssetId={child.profileImageUrl}
+                  kind="child"
+                  size="md"
+                />
                 <div className="flex-1">
                   <p className="font-label-md text-label-md text-on-surface">
                     {child.firstName} {child.lastName}

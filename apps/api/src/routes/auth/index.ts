@@ -1,4 +1,5 @@
 import { Router } from "express";
+import rateLimit from "express-rate-limit";
 import bcrypt from "bcryptjs";
 import type {
   LoginRequest,
@@ -9,10 +10,24 @@ import type {
 
 import { prisma } from "../../db";
 import { ApiError } from "../../middleware/errorHandler";
+import { hashVerificationToken, sendVerificationEmail } from "../../lib/emailVerification";
 
 export const authRouter = Router();
 
 const SALT_ROUNDS = 10;
+
+// Basic per-IP throttling on the endpoints most attractive to abuse
+// (credential stuffing on /login, signup spam, and verification-email
+// flooding via /resend-verification) — nothing existed here before. Kept
+// deliberately simple (no CAPTCHA/external service) since this is meant as
+// a low-effort floor, not a full anti-abuse system.
+const authRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many attempts — please try again later." },
+});
 
 function toPublicUser(user: {
   id: string;
@@ -20,6 +35,7 @@ function toPublicUser(user: {
   firstName: string;
   lastName: string;
   avatarUrl: string | null;
+  emailVerifiedAt: Date | null;
 }): PublicUser {
   return {
     id: user.id,
@@ -27,10 +43,11 @@ function toPublicUser(user: {
     firstName: user.firstName,
     lastName: user.lastName,
     avatarUrl: user.avatarUrl,
+    emailVerifiedAt: user.emailVerifiedAt ? user.emailVerifiedAt.toISOString() : null,
   };
 }
 
-authRouter.post("/signup", async (req, res, next) => {
+authRouter.post("/signup", authRateLimiter, async (req, res, next) => {
   try {
     const body = req.body as Partial<SignupRequest>;
     const email = body.email?.trim().toLowerCase();
@@ -65,13 +82,67 @@ authRouter.post("/signup", async (req, res, next) => {
     });
 
     req.session.userId = user.id;
+    // Fire-and-forget-ish, but awaited so a real SMTP failure surfaces as a
+    // 500 instead of silently leaving the account unable to ever verify —
+    // signup itself already succeeded (transaction above committed), so a
+    // mail error here just needs to reach the client, not roll anything back.
+    await sendVerificationEmail(user);
     res.status(201).json({ user: toPublicUser(user) } satisfies MeResponse);
   } catch (err) {
     next(err);
   }
 });
 
-authRouter.post("/login", async (req, res, next) => {
+authRouter.get("/verify-email", async (req, res, next) => {
+  try {
+    const token = typeof req.query.token === "string" ? req.query.token : undefined;
+    if (!token) {
+      throw new ApiError(400, "Missing verification token");
+    }
+
+    const record = await prisma.emailVerificationToken.findUnique({
+      where: { tokenHash: hashVerificationToken(token) },
+    });
+    if (!record || record.expiresAt < new Date()) {
+      throw new ApiError(400, "This verification link is invalid or has expired");
+    }
+
+    const user = await prisma.$transaction(async (tx) => {
+      const updated = await tx.user.update({
+        where: { id: record.userId },
+        data: { emailVerifiedAt: new Date() },
+      });
+      await tx.emailVerificationToken.delete({ where: { id: record.id } });
+      return updated;
+    });
+
+    res.json({ user: toPublicUser(user) } satisfies MeResponse);
+  } catch (err) {
+    next(err);
+  }
+});
+
+authRouter.post("/resend-verification", authRateLimiter, async (req, res, next) => {
+  try {
+    if (!req.session.userId) {
+      throw new ApiError(401, "Not signed in");
+    }
+    const user = await prisma.user.findUnique({ where: { id: req.session.userId } });
+    if (!user) {
+      throw new ApiError(401, "Not signed in");
+    }
+    if (user.emailVerifiedAt) {
+      res.status(204).end();
+      return;
+    }
+    await sendVerificationEmail(user);
+    res.status(204).end();
+  } catch (err) {
+    next(err);
+  }
+});
+
+authRouter.post("/login", authRateLimiter, async (req, res, next) => {
   try {
     const body = req.body as Partial<LoginRequest>;
     const email = body.email?.trim().toLowerCase();

@@ -10,6 +10,7 @@ import {
   type UpdateChildRequest,
 } from "@kidcom/shared";
 
+import { Avatar } from "../components/Avatar";
 import { AvatarUpload } from "../components/AvatarUpload";
 import { CustodySetup } from "../components/CustodySetup";
 import { Icon } from "../components/Icon";
@@ -95,6 +96,7 @@ export function ChildProfilePage() {
           <AvatarUpload
             currentAssetId={child.profileImageUrl}
             fallbackLetter={child.firstName.charAt(0)}
+            kind="child"
             size="lg"
             onUploaded={async (newAssetId) => {
               const updated = await apiPatch<ChildDetail>(`/children/${childId}`, {
@@ -264,9 +266,12 @@ export function ChildProfilePage() {
               className="bg-surface-container-lowest rounded-xl p-4 shadow-sm flex items-center justify-between"
             >
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-primary-fixed flex items-center justify-center text-on-primary-fixed font-headline-md">
-                  {member.firstName.charAt(0).toUpperCase()}
-                </div>
+                <Avatar
+                  name={`${member.firstName} ${member.lastName}`}
+                  avatarAssetId={member.avatarUrl}
+                  kind="adult"
+                  size="md"
+                />
                 <div className="flex flex-col">
                   <span className="font-label-md text-label-md text-on-surface">
                     {member.firstName} {member.lastName}

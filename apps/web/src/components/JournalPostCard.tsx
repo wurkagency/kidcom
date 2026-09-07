@@ -3,11 +3,29 @@ import { Link } from "react-router-dom";
 import type { JournalPostDto, MediaAssetDto } from "@kidcom/shared";
 
 import { Icon } from "./Icon";
+import { Avatar } from "./Avatar";
 import { fetchMediaUrl, releaseMediaUrl } from "../lib/media";
 import { apiPost, apiDelete, ApiRequestError } from "../lib/api";
 
-function MediaThumb({ media, alt }: { media: MediaAssetDto; alt: string }) {
-  const [url, setUrl] = useState<string | null>(null);
+// Shown for one attached photo or video — a grid of these covers "show all
+// media, not just the first" (see the gallery below). Video plays for real
+// (an actual <video>, fetched via the ?variant=original endpoint) instead of
+// the old inert poster-image-with-a-play-badge; this is the MVP approach —
+// the whole file is fetched as a blob via the same authenticated flow images
+// already use, no HTTP Range/streaming support, which is an acceptable
+// tradeoff for a family-journal feature rather than a video product.
+export function MediaThumb({
+  media,
+  alt,
+  aspect = "h-48",
+}: {
+  media: MediaAssetDto;
+  alt: string;
+  aspect?: string;
+}) {
+  const [posterUrl, setPosterUrl] = useState<string | null>(null);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [playing, setPlaying] = useState(false);
   const loadedIdRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -15,25 +33,33 @@ function MediaThumb({ media, alt }: { media: MediaAssetDto; alt: string }) {
     let cancelled = false;
     fetchMediaUrl(media.id).then((u) => {
       if (!cancelled) {
-        setUrl(u);
+        setPosterUrl(u);
         loadedIdRef.current = media.id;
       }
     });
     return () => {
       cancelled = true;
-      // Release the object URL this instance fetched, so it doesn't leak —
-      // and drop it from media.ts's cache so a later mount re-fetches fresh
-      // rather than reusing a revoked URL.
       if (loadedIdRef.current) {
         releaseMediaUrl(loadedIdRef.current);
         loadedIdRef.current = null;
       }
+      if (media.type === "VIDEO") {
+        releaseMediaUrl(media.id, "original");
+      }
     };
-  }, [media.id, media.status]);
+  }, [media.id, media.status, media.type]);
+
+  async function handlePlay() {
+    if (!videoUrl) {
+      const url = await fetchMediaUrl(media.id, "original");
+      setVideoUrl(url);
+    }
+    setPlaying(true);
+  }
 
   if (media.status === "FAILED") {
     return (
-      <div className="w-full h-48 rounded-lg bg-surface-container-high flex flex-col items-center justify-center gap-1">
+      <div className={`w-full ${aspect} rounded-lg bg-surface-container-high flex flex-col items-center justify-center gap-1`}>
         <Icon name="broken_image" className="text-2xl text-on-surface-variant" />
         <span className="font-label-sm text-label-sm text-on-surface-variant">
           Couldn't process this file
@@ -44,22 +70,59 @@ function MediaThumb({ media, alt }: { media: MediaAssetDto; alt: string }) {
 
   if (media.status !== "READY") {
     return (
-      <div className="w-full h-48 rounded-lg bg-surface-container-high flex items-center justify-center">
+      <div className={`w-full ${aspect} rounded-lg bg-surface-container-high flex items-center justify-center`}>
         <span className="font-label-sm text-label-sm text-on-surface-variant">Processing…</span>
       </div>
     );
   }
-  if (!url) {
-    return <div className="w-full h-48 rounded-lg bg-surface-container-high animate-pulse" />;
+  if (!posterUrl) {
+    return <div className={`w-full ${aspect} rounded-lg bg-surface-container-high animate-pulse`} />;
+  }
+
+  if (media.type === "VIDEO") {
+    if (playing) {
+      return (
+        <video
+          src={videoUrl ?? undefined}
+          poster={posterUrl}
+          controls
+          autoPlay
+          className={`w-full ${aspect} object-cover rounded-lg bg-black`}
+        />
+      );
+    }
+    return (
+      <button
+        type="button"
+        onClick={handlePlay}
+        aria-label="Play video"
+        className="relative block w-full"
+      >
+        <img src={posterUrl} alt={alt} className={`w-full ${aspect} object-cover rounded-lg`} />
+        <span className="absolute inset-0 flex items-center justify-center">
+          <span className="w-12 h-12 rounded-full bg-black/60 text-white flex items-center justify-center">
+            <Icon name="play_arrow" className="text-2xl" />
+          </span>
+        </span>
+      </button>
+    );
+  }
+
+  return <img src={posterUrl} alt={alt} className={`w-full ${aspect} object-cover rounded-lg`} />;
+}
+
+// A grid when there's more than one attachment, a single full-width item
+// otherwise — every attached photo/video shows up now, not just media[0].
+export function MediaGallery({ media, alt }: { media: MediaAssetDto[]; alt: string }) {
+  if (media.length === 0) return null;
+  if (media.length === 1) {
+    return <MediaThumb media={media[0]} alt={alt} />;
   }
   return (
-    <div className="relative">
-      <img src={url} alt={alt} className="w-full h-48 object-cover rounded-lg" />
-      {media.type === "VIDEO" && (
-        <span className="absolute bottom-2 right-2 w-7 h-7 rounded-full bg-black/60 text-white flex items-center justify-center">
-          <Icon name="play_arrow" className="text-base" />
-        </span>
-      )}
+    <div className="grid grid-cols-2 gap-2">
+      {media.map((m) => (
+        <MediaThumb key={m.id} media={m} alt={alt} aspect="h-32" />
+      ))}
     </div>
   );
 }
@@ -87,7 +150,6 @@ export function JournalPostCard({
   onReacted: (postId: string, reactedByMe: boolean, reactionCount: number) => void;
   onDeleted?: (postId: string) => void;
 }) {
-  const media = post.media[0];
   const [reacting, setReacting] = useState(false);
   const [reactError, setReactError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -125,9 +187,7 @@ export function JournalPostCard({
     <div className="bg-surface-container-lowest rounded-xl shadow-sm p-4 flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-primary-container flex items-center justify-center text-on-primary-container font-label-md">
-            {post.authorName.charAt(0).toUpperCase()}
-          </div>
+          <Avatar name={post.authorName} avatarAssetId={post.authorAvatarUrl} kind="adult" size="md" />
           <div className="min-w-0">
             <h3 className="font-label-md text-label-md text-on-surface line-clamp-1">
               {post.title}
@@ -149,7 +209,7 @@ export function JournalPostCard({
         )}
       </div>
 
-      {media && <MediaThumb media={media} alt={post.title} />}
+      <MediaGallery media={post.media} alt={post.title} />
 
       <p className="font-body-md text-body-md text-text-main line-clamp-3">{post.text}</p>
 

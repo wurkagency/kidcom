@@ -4,6 +4,7 @@ import type { NextFunction, Request, Response } from "express";
 
 import { config } from "../config";
 import { redis } from "../redis";
+import { prisma } from "../db";
 
 declare module "express-session" {
   interface SessionData {
@@ -36,6 +37,29 @@ export const sessionMiddleware = session({
 export function requireAuth(req: Request, res: Response, next: NextFunction) {
   if (!req.session.userId) {
     res.status(401).json({ error: "Authentication required" });
+    return;
+  }
+  next();
+}
+
+// Anti-spoofing gate: blocks any route that would let an account act on
+// other people's data (inviting someone, creating a child, accepting an
+// invite into a family) until the caller has proven they control the email
+// address on their account. Must run after requireAuth (or do its own
+// session check, as here) — it does its own Prisma lookup since req.session
+// only carries the userId, not the full user record.
+export async function requireVerifiedEmail(req: Request, res: Response, next: NextFunction) {
+  if (!req.session.userId) {
+    res.status(401).json({ error: "Authentication required" });
+    return;
+  }
+  const user = await prisma.user.findUnique({ where: { id: req.session.userId } });
+  if (!user) {
+    res.status(401).json({ error: "Authentication required" });
+    return;
+  }
+  if (!user.emailVerifiedAt) {
+    res.status(403).json({ error: "Email verification required" });
     return;
   }
   next();

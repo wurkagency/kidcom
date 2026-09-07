@@ -35,6 +35,30 @@ const EXT_BY_MIME: Record<string, string> = {
   "video/webm": "webm",
 };
 
+// Inverse of the above, plus the fixed extensions the worker's own
+// derivatives always use (webp images, jpg video posters — see
+// apps/api/src/worker.ts) — needed because a served file's real MIME type
+// was never stored on MediaAsset itself, only inferred at upload time.
+// Getting this right matters more for video than it ever did for images:
+// browsers happily sniff image bytes with no/wrong Content-Type on an
+// <img>, but <video> playback from a fetched Blob relies on the Blob's
+// `type` (set from this header), not content sniffing.
+const MIME_BY_EXT: Record<string, string> = {
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+  heic: "image/heic",
+  mp4: "video/mp4",
+  mov: "video/quicktime",
+  webm: "video/webm",
+};
+
+function mimeForKey(key: string): string | undefined {
+  const ext = key.split(".").pop()?.toLowerCase();
+  return ext ? MIME_BY_EXT[ext] : undefined;
+}
+
 function toDto(row: {
   id: string;
   type: "IMAGE" | "VIDEO";
@@ -125,11 +149,21 @@ mediaRouter.get("/:id", requireAuth, async (req, res, next) => {
       throw new ApiError(403, "You don't have access to this media");
     }
 
-    const key = asset.derivedPath ?? asset.originalPath;
+    // ?variant=original — used for video playback: the derivative for a
+    // VIDEO asset is a JPG poster frame (see worker.ts's processVideo), not
+    // a playable file, so <video> needs the actual uploaded file instead.
+    // Default behavior (derivedPath ?? originalPath) is unchanged for the
+    // plain <img> case every other consumer already uses.
+    const wantsOriginal = req.query.variant === "original";
+    const key = wantsOriginal ? asset.originalPath : asset.derivedPath ?? asset.originalPath;
     if (!(await mediaStorage.exists(key))) {
       throw new ApiError(404, "Media file missing on disk");
     }
     res.setHeader("Cache-Control", "private, max-age=86400");
+    const mime = mimeForKey(key);
+    if (mime) {
+      res.setHeader("Content-Type", mime);
+    }
     mediaStorage.readStream(key).pipe(res);
   } catch (err) {
     next(err);

@@ -29,7 +29,7 @@ function toPostDto(post: {
   id: string;
   children: { childId: string }[];
   authorId: string;
-  author: { firstName: string; lastName: string };
+  author: { firstName: string; lastName: string; avatarUrl: string | null };
   title: string;
   text: string;
   createdAt: Date;
@@ -43,6 +43,7 @@ function toPostDto(post: {
     childIds: post.children.map((c) => c.childId),
     authorId: post.authorId,
     authorName: `${post.author.firstName} ${post.author.lastName}`.trim(),
+    authorAvatarUrl: post.author.avatarUrl,
     title: post.title,
     text: post.text,
     createdAt: post.createdAt.toISOString(),

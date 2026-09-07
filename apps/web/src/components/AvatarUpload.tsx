@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import type { MediaUploadResponse } from "@kidcom/shared";
 
+import { Avatar } from "./Avatar";
 import { apiUpload, ApiRequestError } from "../lib/api";
-import { fetchMediaUrl, releaseMediaUrl } from "../lib/media";
 
 // Mirrors MAX_UPLOAD_BYTES in apps/api/src/routes/media/index.ts — reject an
 // oversized file immediately instead of only after a full upload attempt
@@ -25,37 +25,19 @@ const SIZE_CLASSES: Record<"sm" | "md" | "lg", string> = {
 export function AvatarUpload({
   currentAssetId,
   fallbackLetter,
+  kind = "adult",
   onUploaded,
   size = "md",
 }: {
   currentAssetId: string | null;
   fallbackLetter: string;
+  kind?: "adult" | "child";
   onUploaded: (newAssetId: string) => void;
   size?: "sm" | "md" | "lg";
 }) {
-  const [resolvedUrl, setResolvedUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    if (!currentAssetId) {
-      setResolvedUrl(null);
-      return;
-    }
-    fetchMediaUrl(currentAssetId)
-      .then((url) => {
-        if (!cancelled) setResolvedUrl(url);
-      })
-      .catch(() => {
-        if (!cancelled) setResolvedUrl(null);
-      });
-    return () => {
-      cancelled = true;
-      releaseMediaUrl(currentAssetId);
-    };
-  }, [currentAssetId]);
 
   async function handleFilePick(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -91,13 +73,7 @@ export function AvatarUpload({
         aria-label="Change photo"
         className={`relative ${sizeClass} rounded-full overflow-hidden shrink-0 disabled:opacity-60`}
       >
-        {resolvedUrl ? (
-          <img src={resolvedUrl} alt="" className="w-full h-full object-cover" />
-        ) : (
-          <div className="w-full h-full bg-primary-fixed flex items-center justify-center text-on-primary-fixed font-headline-lg">
-            {fallbackLetter.toUpperCase()}
-          </div>
-        )}
+        <Avatar name={fallbackLetter} avatarAssetId={currentAssetId} kind={kind} size="full" />
         <div className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-colors flex items-center justify-center">
           {uploading && (
             <span className="font-label-sm text-label-sm text-white">Uploading…</span>

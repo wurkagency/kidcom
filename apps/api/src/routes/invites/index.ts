@@ -12,9 +12,10 @@ import { familyMemberTypeToRole } from "@kidcom/shared";
 
 import { prisma } from "../../db";
 import { config } from "../../config";
-import { requireAuth } from "../../middleware/session";
+import { requireAuth, requireVerifiedEmail } from "../../middleware/session";
 import { ApiError } from "../../middleware/errorHandler";
 import { mailSender } from "../../lib/mailSender";
+import { sendVerificationEmail } from "../../lib/emailVerification";
 
 export const invitesRouter = Router();
 
@@ -38,7 +39,7 @@ const FAMILY_MEMBER_TYPES: FamilyMemberType[] = [
 // and OnboardingInvitePage's success message was misleading), and real SMS
 // delivery is still a deferred, un-scoped feature rather than something to
 // half-build here.
-invitesRouter.post("/", requireAuth, async (req, res, next) => {
+invitesRouter.post("/", requireAuth, requireVerifiedEmail, async (req, res, next) => {
   try {
     const body = req.body as Partial<CreateInviteRequest>;
     const { childId, familyMemberType } = body;
@@ -224,6 +225,13 @@ invitesRouter.post("/:token/accept", async (req, res, next) => {
     });
 
     req.session.userId = user.id;
+    // Same anti-spoofing treatment as an organic signup (apps/api/src/routes/
+    // auth/index.ts) — this route also creates a brand-new account, just via
+    // an invite link rather than the signup form, so it needs the same
+    // "prove you control this inbox" verification email before the account
+    // can do anything sensitive (the frontend's verify-email gate covers
+    // both paths identically).
+    await sendVerificationEmail(user);
     res.json({
       user: {
         id: user.id,
@@ -231,6 +239,7 @@ invitesRouter.post("/:token/accept", async (req, res, next) => {
         firstName: user.firstName,
         lastName: user.lastName,
         avatarUrl: user.avatarUrl,
+        emailVerifiedAt: null,
       },
     } satisfies MeResponse);
   } catch (err) {
@@ -244,7 +253,11 @@ invitesRouter.post("/:token/accept", async (req, res, next) => {
 // No password needed — they're already authenticated as themselves. Only
 // accepts if the invite's email matches the current user's email, so this
 // can't be used to grab access meant for someone else.
-invitesRouter.post("/:token/accept-as-me", requireAuth, async (req, res, next) => {
+invitesRouter.post(
+  "/:token/accept-as-me",
+  requireAuth,
+  requireVerifiedEmail,
+  async (req, res, next) => {
   try {
     const { token } = req.params;
     const invite = await prisma.invite.findUnique({ where: { token } });
@@ -289,9 +302,11 @@ invitesRouter.post("/:token/accept-as-me", requireAuth, async (req, res, next) =
         firstName: me.firstName,
         lastName: me.lastName,
         avatarUrl: me.avatarUrl,
+        emailVerifiedAt: me.emailVerifiedAt ? me.emailVerifiedAt.toISOString() : null,
       },
     } satisfies MeResponse);
   } catch (err) {
     next(err);
   }
-});
+  }
+);
