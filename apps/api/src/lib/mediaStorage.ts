@@ -14,6 +14,14 @@ export interface MediaStorage {
   // Absolute filesystem path for a key — used by sharp/ffmpeg, which need a
   // real path to read from/write to rather than a stream.
   pathFor(key: string): string;
+  // Creates the parent directory for a key (e.g. "derived/") if it doesn't
+  // exist yet, without touching the file itself. sharp's .toFile() and
+  // ffmpeg's .screenshots() both write straight to a path and do NOT create
+  // missing parent directories — unlike save() above, which already does
+  // this mkdir for uploaded originals. Callers that hand sharp/ffmpeg a
+  // pathFor() result directly (worker.ts's processImage/processVideo) must
+  // call this first.
+  ensureDirFor(key: string): Promise<void>;
   readStream(key: string): NodeJS.ReadableStream;
   exists(key: string): Promise<boolean>;
   delete(key: string): Promise<void>;
@@ -28,6 +36,10 @@ export class LocalDiskStorage implements MediaStorage {
 
   pathFor(key: string): string {
     return path.join(this.root, key);
+  }
+
+  async ensureDirFor(key: string): Promise<void> {
+    await fsp.mkdir(path.dirname(this.pathFor(key)), { recursive: true });
   }
 
   async save(key: string, data: Buffer | NodeJS.ReadableStream): Promise<string> {

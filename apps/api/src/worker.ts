@@ -9,6 +9,7 @@ import path from "node:path";
 import sharp from "sharp";
 import ffmpeg from "fluent-ffmpeg";
 import ffmpegPath from "ffmpeg-static";
+import ffprobeStatic from "ffprobe-static";
 
 import { prisma } from "./db";
 import { bullConnection, type ProcessMediaJob } from "./lib/mediaQueue";
@@ -23,9 +24,23 @@ import { remindersQueue, type RemindAppointmentsJob } from "./lib/remindersQueue
 if (ffmpegPath) {
   ffmpeg.setFfmpegPath(ffmpegPath);
 }
+// ffmpeg-static only ships the ffmpeg binary — fluent-ffmpeg's ffprobe()
+// (used below for video dimensions) shells out to a separate `ffprobe`
+// binary that it otherwise expects to find on PATH, which a bare Node/PM2
+// process on a fresh host generally doesn't have. ffprobe-static ships
+// that second binary the same way ffmpeg-static ships the first.
+if (ffprobeStatic?.path) {
+  ffmpeg.setFfprobePath(ffprobeStatic.path);
+}
 
 async function processImage(originalKey: string, assetId: string) {
   const derivedKey = `derived/${assetId}.webp`;
+  // sharp's .toFile() (like ffmpeg's .screenshots() below) writes straight
+  // to this path and does not create a missing "derived/" directory itself
+  // — unlike mediaStorage.save(), which already mkdir's for uploaded
+  // originals. Without this, every single image/video fails to process on
+  // a host where "derived/" hasn't been created by hand.
+  await mediaStorage.ensureDirFor(derivedKey);
   const image = sharp(mediaStorage.pathFor(originalKey)).rotate();
   const metadata = await image.metadata();
   const derivedPath = mediaStorage.pathFor(derivedKey);
@@ -40,6 +55,7 @@ async function processImage(originalKey: string, assetId: string) {
 async function processVideo(originalKey: string, assetId: string) {
   const originalPath = mediaStorage.pathFor(originalKey);
   const derivedKey = `derived/${assetId}.jpg`; // poster frame — used as the feed thumbnail
+  await mediaStorage.ensureDirFor(derivedKey);
   const derivedPath = mediaStorage.pathFor(derivedKey);
   const outDir = path.dirname(derivedPath);
 
