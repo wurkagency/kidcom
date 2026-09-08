@@ -1,5 +1,10 @@
 import { Router, type Request } from "express";
-import type { CreateListItemRequest, ListItemDto, UpdateListItemAssignmentRequest } from "@kidcom/shared";
+import type {
+  CreateListItemRequest,
+  ListItemDto,
+  UpdateListItemAssignmentRequest,
+  UpdateListItemRequest,
+} from "@kidcom/shared";
 
 import { prisma } from "../../db";
 import { ApiError } from "../../middleware/errorHandler";
@@ -26,6 +31,7 @@ function toDto(row: {
   claimedById: string | null;
   claimedBy: { firstName: string; lastName: string } | null;
   calendarEventId: string | null;
+  image: { id: string } | null;
   createdAt: Date;
 }): ListItemDto {
   return {
@@ -40,11 +46,12 @@ function toDto(row: {
     claimedById: row.claimedById,
     claimedByName: row.claimedBy ? `${row.claimedBy.firstName} ${row.claimedBy.lastName}`.trim() : null,
     calendarEventId: row.calendarEventId,
+    imageAssetId: row.image?.id ?? null,
     createdAt: row.createdAt.toISOString(),
   };
 }
 
-const INCLUDE = { assignedTo: true, claimedBy: true } as const;
+const INCLUDE = { assignedTo: true, claimedBy: true, image: { select: { id: true } } } as const;
 
 // Any family member may be assigned a Necessity — validated against
 // ChildAccess the same way family-member listing (/children/:childId/family)
@@ -54,6 +61,38 @@ async function assertChildMember(childId: string, userId: string) {
     where: { childId_userId: { childId, userId } },
   });
   if (!access) throw new ApiError(404, "That person doesn't have access to this child");
+}
+
+// Attaches/replaces/clears a list item's single photo. Mirrors the
+// clear-old-then-set-new pattern used for Child/User avatars (see PATCH
+// /children/:childId) — the owning FK lives on MediaAsset
+// (listItemImageForId), not on ListItem itself.
+// `tx` is a Prisma transaction client — typed loosely (`any`) rather than
+// `typeof prisma`, since a `$transaction` callback's client is a distinct
+// (structurally identical but nominally different) type; matches this
+// codebase's existing convention for `tx` params elsewhere.
+async function setListItemImage(
+  tx: any,
+  itemId: string,
+  currentImageAssetId: string | null,
+  imageAssetId: string | null | undefined,
+  userId: string
+) {
+  if (imageAssetId === undefined || imageAssetId === currentImageAssetId) return;
+  if (currentImageAssetId) {
+    await tx.mediaAsset.updateMany({
+      where: { id: currentImageAssetId, listItemImageForId: itemId },
+      data: { listItemImageForId: null },
+    });
+  }
+  if (imageAssetId) {
+    const asset = await tx.mediaAsset.findFirst({ where: { id: imageAssetId, ownerId: userId } });
+    if (!asset) throw new ApiError(400, "Image not found");
+    if (asset.listItemImageForId && asset.listItemImageForId !== itemId) {
+      throw new ApiError(400, "That image is already attached to another item");
+    }
+    await tx.mediaAsset.update({ where: { id: imageAssetId }, data: { listItemImageForId: itemId } });
+  }
 }
 
 listItemsRouter.get("/", async (req: Request<ChildParams>, res, next) => {
@@ -96,19 +135,87 @@ listItemsRouter.post("/", async (req: Request<ChildParams>, res, next) => {
       });
       if (!event) throw new ApiError(404, "Linked calendar event not found");
     }
-    const row = await prisma.listItem.create({
-      data: {
-        childId: req.params.childId,
-        type: body.type,
-        title: body.title.trim(),
-        description: body.description?.trim() || null,
-        sizeValue: body.sizeValue?.trim() || null,
-        assignedToId: body.assignedToId || null,
-        calendarEventId: body.calendarEventId || null,
-      },
-      include: INCLUDE,
+    const userId = req.session.userId!;
+    const row = await prisma.$transaction(async (tx) => {
+      const created = await tx.listItem.create({
+        data: {
+          childId: req.params.childId,
+          type: body.type!,
+          title: body.title!.trim(),
+          description: body.description?.trim() || null,
+          sizeValue: body.sizeValue?.trim() || null,
+          assignedToId: body.assignedToId || null,
+          calendarEventId: body.calendarEventId || null,
+        },
+      });
+      await setListItemImage(tx, created.id, null, body.imageAssetId || null, userId);
+      return tx.listItem.findUniqueOrThrow({ where: { id: created.id }, include: INCLUDE });
     });
     res.status(201).json(toDto(row));
+  } catch (err) {
+    next(err);
+  }
+});
+
+listItemsRouter.get("/:itemId", async (req: Request<ItemParams>, res, next) => {
+  try {
+    const row = await prisma.listItem.findFirst({
+      where: { id: req.params.itemId, childId: req.params.childId },
+      include: INCLUDE,
+    });
+    if (!row) throw new ApiError(404, "List item not found");
+    res.json(toDto(row));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// General edit — title/description/sizeValue/assignedToId/calendarEventId/
+// imageAssetId, all independently optional (omitted = unchanged). Separate
+// from PATCH /:itemId/assign (narrow reassignment-only) and
+// PATCH /:itemId/claim (reserve toggle), which both stay as-is.
+listItemsRouter.patch("/:itemId", async (req: Request<ItemParams>, res, next) => {
+  try {
+    const userId = req.session.userId!;
+    const existing = await prisma.listItem.findFirst({
+      where: { id: req.params.itemId, childId: req.params.childId },
+      include: INCLUDE,
+    });
+    if (!existing) throw new ApiError(404, "List item not found");
+
+    const body = req.body as UpdateListItemRequest;
+
+    if (body.assignedToId) {
+      if (existing.type !== "NECESSITY") {
+        throw new ApiError(400, "assignedToId only applies to NECESSITY items");
+      }
+      await assertChildMember(req.params.childId, body.assignedToId);
+    }
+    if (body.calendarEventId) {
+      if (existing.type !== "WISHLIST") {
+        throw new ApiError(400, "calendarEventId only applies to WISHLIST items");
+      }
+      const event = await prisma.calendarEvent.findFirst({
+        where: { id: body.calendarEventId, childId: req.params.childId },
+      });
+      if (!event) throw new ApiError(404, "Linked calendar event not found");
+    }
+
+    const row = await prisma.$transaction(async (tx) => {
+      await tx.listItem.update({
+        where: { id: existing.id },
+        data: {
+          title: body.title !== undefined ? body.title.trim() : undefined,
+          description: body.description !== undefined ? body.description?.trim() || null : undefined,
+          sizeValue: body.sizeValue !== undefined ? body.sizeValue?.trim() || null : undefined,
+          assignedToId: body.assignedToId !== undefined ? body.assignedToId : undefined,
+          calendarEventId: body.calendarEventId !== undefined ? body.calendarEventId : undefined,
+        },
+      });
+      await setListItemImage(tx, existing.id, existing.image?.id ?? null, body.imageAssetId, userId);
+      return tx.listItem.findUniqueOrThrow({ where: { id: existing.id }, include: INCLUDE });
+    });
+    res.json(toDto(row));
   } catch (err) {
     next(err);
   }

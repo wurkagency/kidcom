@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import type {
   CalendarEventDto,
@@ -8,28 +8,55 @@ import type {
   CreateListItemRequest,
   ListItemDto,
   ListItemType,
+  MediaUploadResponse,
+  UpdateListItemRequest,
 } from "@kidcom/shared";
 
-import { apiGet, apiPost, ApiRequestError } from "../lib/api";
+import { Icon } from "../components/Icon";
+import { ListItemImage } from "../components/ListItemImage";
+import { apiGet, apiPatch, apiPost, apiUpload, ApiRequestError } from "../lib/api";
 import { useHeaderConfig } from "../lib/HeaderContext";
 
 type Member = { userId: string; firstName: string; lastName: string; avatarUrl: string | null };
 
-// Full-page replacement for ListsPage's old AddItemSheet bottom-sheet modal,
-// which rendered outside the viewport on real devices and made it impossible
-// to post to either list. Mirrors JournalComposePage.tsx's pattern: a real
-// route (/children/:childId/lists/new?type=NECESSITY|WISHLIST) with its own
-// data-fetching, using useHeaderConfig for the header instead of a modal —
-// so it survives a direct reload/deep link the way the old modal never could.
+function toDateInput(iso: string): string {
+  return iso.slice(0, 10);
+}
+function toTimeInput(iso: string): string {
+  return new Date(iso).toTimeString().slice(0, 5);
+}
+
+// Full-page replacement for ListsPage's old AddItemSheet bottom-sheet modal.
+// Mirrors JournalComposePage.tsx's pattern: a real route with its own
+// data-fetching, using useHeaderConfig for the header instead of a modal.
+// Doubles as the edit page (mirroring EventFormPage.tsx's two-routes-one-
+// component pattern) when an `:itemId` route param is present — unlike
+// EventFormPage, edit mode here fetches the item by id (GET /:itemId)
+// instead of relying only on router state, so it survives a direct
+// reload/deep link the way ListItemDetailPage does.
 export function ListItemFormPage() {
-  const { childId } = useParams<{ childId: string }>();
+  const { childId, itemId } = useParams<{ childId: string; itemId?: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const type: ListItemType = searchParams.get("type") === "WISHLIST" ? "WISHLIST" : "NECESSITY";
+  const isEditing = Boolean(itemId);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // In create mode the type comes from the ?type= query param; in edit mode
+  // it comes from the fetched item itself (below) and can't be changed.
+  const [type, setType] = useState<ListItemType>(
+    searchParams.get("type") === "WISHLIST" ? "WISHLIST" : "NECESSITY"
+  );
 
   useHeaderConfig(
-    { title: type === "NECESSITY" ? "Add to Necessities" : "Add to Wishlist", backTo: "/lists" },
-    [type]
+    {
+      title: isEditing
+        ? `Edit ${type === "WISHLIST" ? "Wishlist Item" : "Necessity"}`
+        : type === "NECESSITY"
+          ? "Add to Necessities"
+          : "Add to Wishlist",
+      backTo: isEditing ? `/children/${childId}/lists/${itemId}` : "/lists",
+    },
+    [type, isEditing]
   );
 
   const [child, setChild] = useState<ChildDetail | null>(null);
@@ -41,9 +68,22 @@ export function ListItemFormPage() {
   const [description, setDescription] = useState("");
   const [sizeValue, setSizeValue] = useState("");
   const [assignedToId, setAssignedToId] = useState("");
-  const [addDate, setAddDate] = useState(false);
-  const [eventDate, setEventDate] = useState("");
-  const [eventTime, setEventTime] = useState("");
+  const [imageAssetId, setImageAssetId] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+
+  // Wishlist-only "attach to a calendar event" section.
+  const [eventMode, setEventMode] = useState<"none" | "new" | "existing">("none");
+  const [eventTitle, setEventTitle] = useState("");
+  const [eventAllDay, setEventAllDay] = useState(false);
+  const [eventStartDate, setEventStartDate] = useState("");
+  const [eventStartTime, setEventStartTime] = useState("");
+  const [eventEndDate, setEventEndDate] = useState("");
+  const [eventEndTime, setEventEndTime] = useState("");
+  const [existingEvents, setExistingEvents] = useState<CalendarEventDto[]>([]);
+  const [existingEventsLoading, setExistingEventsLoading] = useState(false);
+  const [selectedExistingEventId, setSelectedExistingEventId] = useState("");
+  const [currentLinkedEvent, setCurrentLinkedEvent] = useState<CalendarEventDto | null>(null);
+
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -58,15 +98,37 @@ export function ListItemFormPage() {
     Promise.all([
       apiGet<ChildDetail>(`/children/${childId}`),
       apiGet<{ members: ChildFamilyMember[] }>(`/children/${childId}/family`),
+      itemId ? apiGet<ListItemDto>(`/children/${childId}/lists/${itemId}`) : Promise.resolve(null),
     ])
-      .then(([childRes, familyRes]) => {
+      .then(async ([childRes, familyRes, itemRes]) => {
         if (cancelled) return;
         setChild(childRes);
         setMembers(familyRes.members);
+        if (itemRes) {
+          setType(itemRes.type);
+          setTitle(itemRes.title);
+          setDescription(itemRes.description ?? "");
+          setSizeValue(itemRes.sizeValue ?? "");
+          setAssignedToId(itemRes.assignedToId ?? "");
+          setImageAssetId(itemRes.imageAssetId);
+          if (itemRes.type === "WISHLIST" && itemRes.calendarEventId) {
+            try {
+              const event = await apiGet<CalendarEventDto>(
+                `/children/${childId}/calendar-events/${itemRes.calendarEventId}`
+              );
+              if (cancelled) return;
+              setCurrentLinkedEvent(event);
+              setEventMode("existing");
+              setSelectedExistingEventId(event.id);
+            } catch {
+              // Linked event vanished (e.g. deleted directly) — treat as unlinked.
+            }
+          }
+        }
       })
       .catch((err) => {
         if (!cancelled) {
-          setLoadError(err instanceof ApiRequestError ? err.message : "Couldn't load this child");
+          setLoadError(err instanceof ApiRequestError ? err.message : "Couldn't load this item");
         }
       })
       .finally(() => {
@@ -75,7 +137,46 @@ export function ListItemFormPage() {
     return () => {
       cancelled = true;
     };
-  }, [childId]);
+  }, [childId, itemId]);
+
+  // Fetch the picker options once "existing" is chosen, so a fresh event
+  // created elsewhere shows up without needing to reload this page.
+  useEffect(() => {
+    if (eventMode !== "existing" || !childId) return;
+    let cancelled = false;
+    setExistingEventsLoading(true);
+    apiGet<{ items: CalendarEventDto[] }>(`/children/${childId}/calendar-events?linkedToWishlist=1`)
+      .then((res) => {
+        if (!cancelled) setExistingEvents(res.items);
+      })
+      .catch(() => {
+        if (!cancelled) setExistingEvents([]);
+      })
+      .finally(() => {
+        if (!cancelled) setExistingEventsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [eventMode, childId]);
+
+  async function handleImagePick(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setUploadingImage(true);
+    setError(null);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const asset = await apiUpload<MediaUploadResponse>("/media/upload", formData);
+      setImageAssetId(asset.id);
+    } catch (err) {
+      setError(err instanceof ApiRequestError ? err.message : "Couldn't upload that photo");
+    } finally {
+      setUploadingImage(false);
+    }
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -83,32 +184,53 @@ export function ListItemFormPage() {
     setSubmitting(true);
     setError(null);
     try {
-      let calendarEventId: string | undefined;
-      if (type === "WISHLIST" && addDate && eventDate) {
-        const allDay = !eventTime;
-        const startsAt = new Date(`${eventDate}T${allDay ? "00:00" : eventTime}:00`).toISOString();
+      let calendarEventId: string | null | undefined;
+      if (type === "WISHLIST" && eventMode === "new" && eventStartDate) {
+        const startsAt = new Date(
+          `${eventStartDate}T${eventAllDay ? "00:00" : eventStartTime || "00:00"}:00`
+        ).toISOString();
+        const endsAt = new Date(
+          `${eventEndDate || eventStartDate}T${eventAllDay ? "00:00" : eventEndTime || eventStartTime || "00:00"}:00`
+        ).toISOString();
         const event = await apiPost<CalendarEventDto>(`/children/${childId}/calendar-events`, {
           category: "APPOINTMENT",
-          title: title.trim(),
+          title: eventTitle.trim() || title.trim(),
           startsAt,
-          endsAt: startsAt,
-          allDay,
+          endsAt,
+          allDay: eventAllDay,
         } satisfies CreateCalendarEventRequest);
         calendarEventId = event.id;
+      } else if (type === "WISHLIST" && eventMode === "existing" && selectedExistingEventId) {
+        calendarEventId = selectedExistingEventId;
+      } else if (type === "WISHLIST" && eventMode === "none" && isEditing) {
+        // Editing and deliberately switched off — explicit null clears it.
+        calendarEventId = null;
       }
 
-      await apiPost<ListItemDto>(`/children/${childId}/lists`, {
-        type,
-        title: title.trim(),
-        description: description.trim() || undefined,
-        sizeValue: type === "NECESSITY" ? sizeValue.trim() || undefined : undefined,
-        assignedToId: type === "NECESSITY" ? assignedToId || undefined : undefined,
-        calendarEventId,
-      } satisfies CreateListItemRequest);
-
-      navigate(`/lists?child=${childId}`, { replace: true });
+      if (isEditing) {
+        await apiPatch<ListItemDto>(`/children/${childId}/lists/${itemId}`, {
+          title: title.trim(),
+          description: description.trim() || null,
+          sizeValue: type === "NECESSITY" ? sizeValue.trim() || null : undefined,
+          assignedToId: type === "NECESSITY" ? assignedToId || null : undefined,
+          calendarEventId,
+          imageAssetId,
+        } satisfies UpdateListItemRequest);
+        navigate(`/children/${childId}/lists/${itemId}`, { replace: true });
+      } else {
+        await apiPost<ListItemDto>(`/children/${childId}/lists`, {
+          type,
+          title: title.trim(),
+          description: description.trim() || undefined,
+          sizeValue: type === "NECESSITY" ? sizeValue.trim() || undefined : undefined,
+          assignedToId: type === "NECESSITY" ? assignedToId || undefined : undefined,
+          calendarEventId: calendarEventId ?? undefined,
+          imageAssetId: imageAssetId ?? undefined,
+        } satisfies CreateListItemRequest);
+        navigate(`/lists?child=${childId}`, { replace: true });
+      }
     } catch (err) {
-      setError(err instanceof ApiRequestError ? err.message : "Couldn't add that item — try again");
+      setError(err instanceof ApiRequestError ? err.message : "Couldn't save that item — try again");
     } finally {
       setSubmitting(false);
     }
@@ -137,13 +259,46 @@ export function ListItemFormPage() {
   return (
     <form onSubmit={handleSubmit} className="flex flex-col w-full min-h-screen">
       <div className="flex-1 overflow-y-auto px-container-padding py-section-margin flex flex-col gap-4">
+        <div className="flex items-center gap-4">
+          <ListItemImage
+            imageAssetId={imageAssetId}
+            alt={title}
+            className="w-20 h-20 rounded-xl shrink-0"
+            fallback={
+              <div className="w-20 h-20 rounded-xl bg-surface-container flex items-center justify-center shrink-0">
+                <Icon name={type === "WISHLIST" ? "redeem" : "checkroom"} className="text-on-surface-variant text-3xl" />
+              </div>
+            }
+          />
+          <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImagePick} />
+          <div className="flex flex-col gap-2">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadingImage}
+              className="py-2 px-4 rounded-full bg-surface-container text-primary font-label-sm text-label-sm disabled:opacity-60"
+            >
+              {uploadingImage ? "Uploading…" : imageAssetId ? "Replace photo" : "Add photo"}
+            </button>
+            {imageAssetId && (
+              <button
+                type="button"
+                onClick={() => setImageAssetId(null)}
+                className="py-2 px-4 rounded-full text-error font-label-sm text-label-sm"
+              >
+                Remove photo
+              </button>
+            )}
+          </div>
+        </div>
+
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Item, e.g. Winter coat"
           className="w-full bg-surface-container-lowest rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary font-body-md text-body-md"
           required
-          autoFocus
+          autoFocus={!isEditing}
         />
         <textarea
           value={description}
@@ -181,46 +336,127 @@ export function ListItemFormPage() {
 
         {type === "WISHLIST" && (
           <div className="bg-surface-container-lowest rounded-xl p-4 flex flex-col gap-3">
-            <label className="flex items-center justify-between">
-              <span className="font-label-md text-label-md text-on-surface">
-                Add a date (e.g. birthday)
-              </span>
-              <button
-                type="button"
-                aria-pressed={addDate}
-                onClick={() => setAddDate((v) => !v)}
-                className={`w-12 h-6 rounded-full relative transition-colors duration-300 ${
-                  addDate ? "bg-primary" : "bg-surface-container-high"
-                }`}
-              >
-                <div
-                  className={`absolute top-1 w-4 h-4 rounded-full transition-transform duration-300 ${
-                    addDate ? "translate-x-6 bg-on-primary" : "translate-x-1 bg-outline"
+            <span className="font-label-md text-label-md text-on-surface">Calendar event (optional)</span>
+
+            <div className="flex p-1 bg-surface-container-high rounded-full w-full">
+              {(["none", "new", "existing"] as const).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => setEventMode(mode)}
+                  className={`flex-1 py-2 text-center rounded-full font-label-sm text-label-sm transition-colors ${
+                    eventMode === mode ? "bg-primary text-on-primary shadow-sm" : "text-on-surface-variant"
                   }`}
-                />
-              </button>
-            </label>
-            {addDate && (
-              <div className="flex items-center gap-2">
+                >
+                  {mode === "none" ? "None" : mode === "new" ? "New event" : "Existing event"}
+                </button>
+              ))}
+            </div>
+
+            {eventMode === "new" && (
+              <div className="flex flex-col gap-3">
                 <input
-                  type="date"
-                  value={eventDate}
-                  onChange={(e) => setEventDate(e.target.value)}
-                  required={addDate}
-                  className="flex-1 px-3 py-2 bg-surface-container rounded-lg font-label-md text-label-md text-on-surface-variant outline-none"
+                  value={eventTitle}
+                  onChange={(e) => setEventTitle(e.target.value)}
+                  placeholder={`Event title (defaults to "${title.trim() || "this item"}")`}
+                  className="w-full bg-surface-container rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-primary font-body-md text-body-md"
                 />
-                <input
-                  type="time"
-                  value={eventTime}
-                  onChange={(e) => setEventTime(e.target.value)}
-                  className="flex-1 px-3 py-2 bg-surface-container rounded-lg font-label-md text-label-md text-on-surface-variant outline-none"
-                />
+                <label className="flex items-center justify-between">
+                  <span className="font-label-sm text-label-sm text-on-surface-variant">All-day</span>
+                  <button
+                    type="button"
+                    aria-pressed={eventAllDay}
+                    onClick={() => setEventAllDay((v) => !v)}
+                    className={`w-12 h-6 rounded-full relative transition-colors duration-300 ${
+                      eventAllDay ? "bg-primary" : "bg-surface-container-high"
+                    }`}
+                  >
+                    <div
+                      className={`absolute top-1 w-4 h-4 rounded-full transition-transform duration-300 ${
+                        eventAllDay ? "translate-x-6 bg-on-primary" : "translate-x-1 bg-outline"
+                      }`}
+                    />
+                  </button>
+                </label>
+                <div className="flex flex-col gap-1">
+                  <span className="font-label-sm text-label-sm text-on-surface-variant">Starts</span>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="date"
+                      value={eventStartDate}
+                      onChange={(e) => setEventStartDate(e.target.value)}
+                      required={eventMode === "new"}
+                      className="flex-1 px-3 py-2 bg-surface-container rounded-lg font-label-md text-label-md text-on-surface-variant outline-none"
+                    />
+                    {!eventAllDay && (
+                      <input
+                        type="time"
+                        value={eventStartTime}
+                        onChange={(e) => setEventStartTime(e.target.value)}
+                        className="flex-1 px-3 py-2 bg-surface-container rounded-lg font-label-md text-label-md text-on-surface-variant outline-none"
+                      />
+                    )}
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="font-label-sm text-label-sm text-on-surface-variant">Ends</span>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="date"
+                      value={eventEndDate}
+                      onChange={(e) => setEventEndDate(e.target.value)}
+                      min={eventStartDate}
+                      className="flex-1 px-3 py-2 bg-surface-container rounded-lg font-label-md text-label-md text-on-surface-variant outline-none"
+                    />
+                    {!eventAllDay && (
+                      <input
+                        type="time"
+                        value={eventEndTime}
+                        onChange={(e) => setEventEndTime(e.target.value)}
+                        className="flex-1 px-3 py-2 bg-surface-container rounded-lg font-label-md text-label-md text-on-surface-variant outline-none"
+                      />
+                    )}
+                  </div>
+                </div>
+                <p className="font-label-sm text-label-sm text-on-surface-variant">
+                  This will also add an event to the Calendar.
+                </p>
               </div>
             )}
-            {addDate && (
-              <p className="font-label-sm text-label-sm text-on-surface-variant">
-                This will also add "{title.trim() || "this item"}" to the Calendar on that date.
-              </p>
+
+            {eventMode === "existing" && (
+              <div className="flex flex-col gap-2">
+                {currentLinkedEvent && selectedExistingEventId === currentLinkedEvent.id && (
+                  <p className="font-label-sm text-label-sm text-on-surface-variant">
+                    Currently linked to "{currentLinkedEvent.title}" —{" "}
+                    {new Date(currentLinkedEvent.startsAt).toLocaleDateString(undefined, {
+                      month: "short",
+                      day: "numeric",
+                    })}
+                    .
+                  </p>
+                )}
+                <select
+                  value={selectedExistingEventId}
+                  onChange={(e) => setSelectedExistingEventId(e.target.value)}
+                  className="w-full bg-surface-container rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-primary font-body-md text-body-md"
+                >
+                  <option value="">
+                    {existingEventsLoading ? "Loading events…" : "Choose an event"}
+                  </option>
+                  {existingEvents.map((event) => (
+                    <option key={event.id} value={event.id}>
+                      {event.title} —{" "}
+                      {new Date(event.startsAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                    </option>
+                  ))}
+                </select>
+                {!existingEventsLoading && existingEvents.length === 0 && (
+                  <p className="font-label-sm text-label-sm text-on-surface-variant">
+                    No existing wishlist-linked events yet — create one with "New event" instead.
+                  </p>
+                )}
+              </div>
             )}
           </div>
         )}
@@ -236,7 +472,7 @@ export function ListItemFormPage() {
           disabled={!title.trim() || submitting}
           className="w-full py-4 bg-primary text-on-primary rounded-full font-label-md text-label-md shadow-lg disabled:opacity-60"
         >
-          {submitting ? "Adding…" : "Add"}
+          {submitting ? "Saving…" : isEditing ? "Save" : "Add"}
         </button>
       </div>
     </form>

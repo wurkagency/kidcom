@@ -59,6 +59,39 @@ function toRecurrenceEndsAtInput(value: string | null | undefined): Date | null 
   return new Date(value);
 }
 
+// List events for this child — currently only used to power the "attach to
+// an existing event" picker on Wishlist items (?linkedToWishlist=1), which
+// needs a lightweight lookup of this child's wishlist-originated events. Not
+// used for the main calendar grid, which goes through the combined
+// custody+events endpoint in calendar.ts instead.
+calendarEventsRouter.get("/", async (req: Request<ChildParams>, res, next) => {
+  try {
+    const linkedToWishlist = req.query.linkedToWishlist === "1" || req.query.linkedToWishlist === "true";
+    const rows = await prisma.calendarEvent.findMany({
+      where: {
+        childId: req.params.childId,
+        ...(linkedToWishlist ? { listItems: { some: { type: "WISHLIST" } } } : {}),
+      },
+      orderBy: { startsAt: "asc" },
+    });
+    res.json({ items: rows.map(toDto) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+calendarEventsRouter.get("/:id", async (req: Request<ChildEventParams>, res, next) => {
+  try {
+    const row = await prisma.calendarEvent.findFirst({
+      where: { id: req.params.id, childId: req.params.childId },
+    });
+    if (!row) throw new ApiError(404, "Event not found");
+    res.json(toDto(row));
+  } catch (err) {
+    next(err);
+  }
+});
+
 calendarEventsRouter.post("/", async (req: Request<ChildParams>, res, next) => {
   try {
     const body = req.body as Partial<CreateCalendarEventRequest>;

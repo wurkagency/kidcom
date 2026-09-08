@@ -109,6 +109,8 @@ mediaRouter.post("/upload", requireAuth, upload.single("file"), async (req, res,
 //   access to where some other ChildAccess row for the same child belongs
 //   to the avatar's owner.
 // - A child's avatar: viewable by anyone with ChildAccess to that child.
+// A list item's photo (listItemImageFor) follows the same
+// ChildAccess-to-that-item's-child rule as a child avatar.
 mediaRouter.get("/:id", requireAuth, async (req, res, next) => {
   try {
     const asset = await prisma.mediaAsset.findUnique({
@@ -117,6 +119,7 @@ mediaRouter.get("/:id", requireAuth, async (req, res, next) => {
         journalPost: {
           include: { children: { include: { child: { include: { access: true } } } } },
         },
+        listItemImageFor: { select: { childId: true } },
       },
     });
     if (!asset) throw new ApiError(404, "Media not found");
@@ -143,6 +146,14 @@ mediaRouter.get("/:id", requireAuth, async (req, res, next) => {
       const hasAccess =
         (await prisma.childAccess.count({
           where: { childId: asset.avatarForChildId, userId: req.session.userId! },
+        })) > 0;
+      if (!hasAccess) throw new ApiError(403, "You don't have access to this media");
+    } else if (asset.listItemImageFor) {
+      // A Necessity/Wishlist item's photo — viewable by anyone with
+      // ChildAccess to that item's child, same rule as avatars/journal media.
+      const hasAccess =
+        (await prisma.childAccess.count({
+          where: { childId: asset.listItemImageFor.childId, userId: req.session.userId! },
         })) > 0;
       if (!hasAccess) throw new ApiError(403, "You don't have access to this media");
     } else if (asset.ownerId !== req.session.userId) {

@@ -2,12 +2,12 @@ import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import type { ChildDetail, ChildFamilyMember, ListItemDto, ListItemType } from "@kidcom/shared";
 
+import { AssignSheet, type Member } from "../components/AssignSheet";
 import { Avatar } from "../components/Avatar";
 import { Icon } from "../components/Icon";
+import { ListItemImage } from "../components/ListItemImage";
 import { apiDelete, apiGet, apiPatch, ApiRequestError } from "../lib/api";
 import { useAuth } from "../lib/AuthContext";
-
-type Member = { userId: string; firstName: string; lastName: string; avatarUrl: string | null };
 
 // Matches docs/stitch_splitkid/shared_lists/code.html: a two-tab
 // Necessities/Wishlist screen with a sliding pill switcher and a single FAB.
@@ -189,6 +189,9 @@ export function ListsPage() {
                 key={item.id}
                 item={item}
                 busy={busyItemId === item.id}
+                onOpenDetail={() =>
+                  childId && navigate(`/children/${childId}/lists/${item.id}`, { state: { item } })
+                }
                 onOpenAssign={() => setAssigningItem(item)}
                 onDelete={() => handleDelete(item)}
               />
@@ -199,6 +202,9 @@ export function ListsPage() {
                 item={item}
                 currentUserId={user?.id}
                 busy={busyItemId === item.id}
+                onOpenDetail={() =>
+                  childId && navigate(`/children/${childId}/lists/${item.id}`, { state: { item } })
+                }
                 onReserveToggle={() => handleClaimToggle(item)}
                 onDelete={() => handleDelete(item)}
               />
@@ -230,19 +236,34 @@ export function ListsPage() {
 function NecessityCard({
   item,
   busy,
+  onOpenDetail,
   onOpenAssign,
   onDelete,
 }: {
   item: ListItemDto;
   busy: boolean;
+  onOpenDetail: () => void;
   onOpenAssign: () => void;
   onDelete: () => void;
 }) {
   return (
-    <div className="bg-surface-container-lowest rounded-xl p-4 shadow-[0_2px_8px_rgba(50,105,67,0.05)] flex items-start gap-4">
-      <div className="w-16 h-16 rounded-lg bg-surface-container flex items-center justify-center shrink-0">
-        <Icon name="checkroom" className="text-on-surface-variant text-3xl" />
-      </div>
+    <div
+      onClick={onOpenDetail}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onOpenDetail()}
+      className="bg-surface-container-lowest rounded-xl p-4 shadow-[0_2px_8px_rgba(50,105,67,0.05)] flex items-start gap-4 cursor-pointer active:scale-[0.99] transition-transform"
+    >
+      <ListItemImage
+        imageAssetId={item.imageAssetId}
+        alt={item.title}
+        className="w-16 h-16 rounded-lg shrink-0"
+        fallback={
+          <div className="w-16 h-16 rounded-lg bg-surface-container flex items-center justify-center shrink-0">
+            <Icon name="checkroom" className="text-on-surface-variant text-3xl" />
+          </div>
+        }
+      />
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-2 mb-1">
           <h3 className="font-label-md text-on-surface line-clamp-2">{item.title}</h3>
@@ -253,7 +274,10 @@ function NecessityCard({
               </span>
             )}
             <button
-              onClick={onDelete}
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
               disabled={busy}
               className="w-6 h-6 flex items-center justify-center text-on-surface-variant disabled:opacity-60"
             >
@@ -264,7 +288,14 @@ function NecessityCard({
         {item.description && (
           <p className="font-body-md text-sm text-on-surface-variant mb-3 line-clamp-3">{item.description}</p>
         )}
-        <button onClick={onOpenAssign} disabled={busy} className="flex items-center gap-2 disabled:opacity-60">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpenAssign();
+          }}
+          disabled={busy}
+          className="flex items-center gap-2 disabled:opacity-60"
+        >
           {item.assignedToId ? (
             <>
               <Avatar name={item.assignedToName ?? "?"} avatarAssetId={null} kind="adult" size="sm" />
@@ -286,12 +317,14 @@ function WishlistCard({
   item,
   currentUserId,
   busy,
+  onOpenDetail,
   onReserveToggle,
   onDelete,
 }: {
   item: ListItemDto;
   currentUserId: string | undefined;
   busy: boolean;
+  onOpenDetail: () => void;
   onReserveToggle: () => void;
   onDelete: () => void;
 }) {
@@ -300,19 +333,33 @@ function WishlistCard({
 
   return (
     <div
-      className={`bg-surface-container-lowest rounded-xl p-4 shadow-[0_2px_8px_rgba(50,105,67,0.05)] flex flex-col gap-3 ${
+      onClick={onOpenDetail}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onOpenDetail()}
+      className={`bg-surface-container-lowest rounded-xl p-4 shadow-[0_2px_8px_rgba(50,105,67,0.05)] flex flex-col gap-3 cursor-pointer active:scale-[0.99] transition-transform ${
         reservedByOther ? "opacity-75" : ""
       }`}
     >
       <div className="flex items-start gap-4">
-        <div className="w-20 h-20 rounded-lg bg-surface-container shrink-0 flex items-center justify-center">
-          <Icon name="redeem" className="text-on-surface-variant text-3xl" />
-        </div>
+        <ListItemImage
+          imageAssetId={item.imageAssetId}
+          alt={item.title}
+          className="w-20 h-20 rounded-lg shrink-0"
+          fallback={
+            <div className="w-20 h-20 rounded-lg bg-surface-container shrink-0 flex items-center justify-center">
+              <Icon name="redeem" className="text-on-surface-variant text-3xl" />
+            </div>
+          }
+        />
         <div className="flex-1 min-w-0 pt-1">
           <div className="flex items-start justify-between gap-2">
             <h3 className="font-label-md text-on-surface line-clamp-2 mb-1">{item.title}</h3>
             <button
-              onClick={onDelete}
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
               disabled={busy}
               className="w-6 h-6 flex items-center justify-center text-on-surface-variant disabled:opacity-60 shrink-0"
             >
@@ -341,7 +388,10 @@ function WishlistCard({
         ) : (
           <div className="flex justify-end w-full">
             <button
-              onClick={onReserveToggle}
+              onClick={(e) => {
+                e.stopPropagation();
+                onReserveToggle();
+              }}
               disabled={busy}
               className="px-4 py-2 bg-surface-container-high hover:bg-surface-variant text-on-surface font-label-sm rounded-full transition-colors disabled:opacity-60"
             >
@@ -349,59 +399,6 @@ function WishlistCard({
             </button>
           </div>
         )}
-      </div>
-    </div>
-  );
-}
-
-function AssignSheet({
-  item,
-  members,
-  busy,
-  onClose,
-  onPick,
-}: {
-  item: ListItemDto;
-  members: Member[];
-  busy: boolean;
-  onClose: () => void;
-  onPick: (assignedToId: string | null) => void;
-}) {
-  return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-end justify-center" onClick={onClose}>
-      <div
-        className="w-full max-w-md bg-surface rounded-t-2xl p-container-padding flex flex-col gap-2 pb-safe"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between mb-2">
-          <h3 className="font-headline-md text-headline-md text-on-surface">Assign "{item.title}"</h3>
-          <button type="button" onClick={onClose}>
-            <Icon name="close" />
-          </button>
-        </div>
-        <button
-          onClick={() => onPick(null)}
-          disabled={busy}
-          className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-surface-container-low text-left disabled:opacity-60"
-        >
-          <span className="w-2 h-2 rounded-full bg-alert-soft-red ml-1" />
-          <span className="font-label-md text-label-md text-on-surface">Still Needed (unassign)</span>
-        </button>
-        {members.map((m) => (
-          <button
-            key={m.userId}
-            onClick={() => onPick(m.userId)}
-            disabled={busy}
-            className={`w-full flex items-center gap-3 p-3 rounded-xl hover:bg-surface-container-low text-left disabled:opacity-60 ${
-              item.assignedToId === m.userId ? "bg-primary/10" : ""
-            }`}
-          >
-            <Avatar name={`${m.firstName} ${m.lastName}`} avatarAssetId={m.avatarUrl} kind="adult" size="sm" />
-            <span className="font-label-md text-label-md text-on-surface">
-              {m.firstName} {m.lastName}
-            </span>
-          </button>
-        ))}
       </div>
     </div>
   );
