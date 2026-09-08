@@ -3,8 +3,10 @@ import crypto from "node:crypto";
 import { prisma } from "../db";
 import { config } from "../config";
 import { mailSender } from "./mailSender";
+import { renderConfirmEmailHtml } from "./emailTemplates/confirmEmail";
 
 const VERIFICATION_TOKEN_TTL_MS = 1000 * 60 * 60 * 24; // 24h
+const VERIFICATION_TOKEN_TTL_HOURS = VERIFICATION_TOKEN_TTL_MS / (1000 * 60 * 60);
 
 export function hashVerificationToken(token: string): string {
   return crypto.createHash("sha256").update(token).digest("hex");
@@ -32,7 +34,12 @@ export async function sendVerificationEmail(user: { id: string; email: string; f
   const link = `${config.webBaseUrl}/verify-email?token=${token}`;
   await mailSender.send({
     to: user.email,
-    subject: "Verify your email for KidCom",
-    text: `Hi ${user.firstName},\n\nPlease confirm this is your email address to finish setting up your KidCom account:\n\n${link}\n\nThis link expires in 24 hours. If you didn't create a KidCom account, you can ignore this email.`,
+    subject: "Verify your email for SplitKid",
+    text: `Hi ${user.firstName},\n\nPlease confirm this is your email address to finish setting up your SplitKid account:\n\n${link}\n\nThis link expires in ${VERIFICATION_TOKEN_TTL_HOURS} hours. If you didn't create a SplitKid account, you can ignore this email.`,
+    html: renderConfirmEmailHtml({
+      email: user.email,
+      confirmUrl: link,
+      ttlHours: VERIFICATION_TOKEN_TTL_HOURS,
+    }),
   });
 }

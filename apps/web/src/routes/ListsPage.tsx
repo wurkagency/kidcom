@@ -1,40 +1,59 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { useParams } from "react-router-dom";
-import type { ChildDetail, ListItemDto, ListItemType, CreateListItemRequest } from "@kidcom/shared";
+import { useSearchParams } from "react-router-dom";
+import type {
+  ChildDetail,
+  ChildFamilyMember,
+  CreateListItemRequest,
+  ListItemDto,
+  ListItemType,
+} from "@kidcom/shared";
 
+import { Avatar } from "../components/Avatar";
 import { Icon } from "../components/Icon";
-import { apiFetch, apiGet, apiPost, ApiRequestError } from "../lib/api";
+import { apiDelete, apiGet, apiPatch, apiPost, ApiRequestError } from "../lib/api";
 import { useAuth } from "../lib/AuthContext";
-import { useHeaderConfig } from "../lib/HeaderContext";
 
-// No Stitch mockup exists for this screen (see chunk 6 plan notes) — built
-// from the PRD text using the existing Kindred Path tokens. Necessities and
-// wishlist share one model (ListItem.type), split into two sections here.
+type Member = { userId: string; firstName: string; lastName: string; avatarUrl: string | null };
+
+// Matches docs/stitch_splitkid/shared_lists/code.html: a two-tab
+// Necessities/Wishlist screen with a sliding pill switcher and a single FAB.
+// Necessities support real assignment (any family member can assign/reassign
+// an item to any other family member — ListItem.assignedToId). Wishlist keeps
+// the existing self-claim mechanic, relabeled "Reserve" per the mockup.
 export function ListsPage() {
-  const { childId } = useParams<{ childId: string }>();
-  const { user } = useAuth();
+  const { children, user } = useAuth();
+  const [searchParams] = useSearchParams();
+  const requestedChildId = searchParams.get("child");
+  const [selectedId, setSelectedId] = useState<string | undefined>(
+    requestedChildId ?? children[0]?.id
+  );
+  const childId = selectedId ?? children[0]?.id;
 
   const [child, setChild] = useState<ChildDetail | null>(null);
+  const [members, setMembers] = useState<Member[]>([]);
   const [items, setItems] = useState<ListItemDto[]>([]);
+  const [tab, setTab] = useState<ListItemType>("NECESSITY");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [addingType, setAddingType] = useState<ListItemType | null>(null);
-  const [title, setTitle] = useState("");
-  const [sizeValue, setSizeValue] = useState("");
+  const [showAdd, setShowAdd] = useState(false);
+  const [assigningItem, setAssigningItem] = useState<ListItemDto | null>(null);
   const [busyItemId, setBusyItemId] = useState<string | null>(null);
 
-  useHeaderConfig({ title: `${child?.firstName ?? ""}'s Shared List` }, [child]);
-
   async function load() {
-    if (!childId) return;
+    if (!childId) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
-      const [childRes, itemsRes] = await Promise.all([
+      const [childRes, familyRes, itemsRes] = await Promise.all([
         apiGet<ChildDetail>(`/children/${childId}`),
+        apiGet<{ members: ChildFamilyMember[] }>(`/children/${childId}/family`),
         apiGet<{ items: ListItemDto[] }>(`/children/${childId}/lists`),
       ]);
       setChild(childRes);
+      setMembers(familyRes.members);
       setItems(itemsRes.items);
     } catch (err) {
       setError(err instanceof ApiRequestError ? err.message : "Couldn't load the list");
@@ -48,25 +67,20 @@ export function ListsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [childId]);
 
-  function openAdd(type: ListItemType) {
-    setAddingType(type);
-    setTitle("");
-    setSizeValue("");
-  }
-
-  async function handleAdd(e: FormEvent) {
-    e.preventDefault();
-    if (!childId || !addingType || !title.trim()) return;
+  async function handleAssign(item: ListItemDto, assignedToId: string | null) {
+    if (!childId) return;
+    setBusyItemId(item.id);
+    setError(null);
     try {
-      const created = await apiPost<ListItemDto>(`/children/${childId}/lists`, {
-        type: addingType,
-        title: title.trim(),
-        sizeValue: sizeValue.trim() || undefined,
-      } satisfies CreateListItemRequest);
-      setItems((prev) => [...prev, created]);
-      setAddingType(null);
+      const updated = await apiPatch<ListItemDto>(`/children/${childId}/lists/${item.id}/assign`, {
+        assignedToId,
+      });
+      setItems((prev) => prev.map((it) => (it.id === item.id ? updated : it)));
+      setAssigningItem(null);
     } catch (err) {
-      setError(err instanceof ApiRequestError ? err.message : "Couldn't add that item");
+      setError(err instanceof ApiRequestError ? err.message : "Couldn't update that assignment");
+    } finally {
+      setBusyItemId(null);
     }
   }
 
@@ -75,9 +89,7 @@ export function ListsPage() {
     setBusyItemId(item.id);
     setError(null);
     try {
-      const updated = await apiFetch<ListItemDto>(`/children/${childId}/lists/${item.id}/claim`, {
-        method: "PATCH",
-      });
+      const updated = await apiPatch<ListItemDto>(`/children/${childId}/lists/${item.id}/claim`, {});
       setItems((prev) => prev.map((it) => (it.id === item.id ? updated : it)));
     } catch (err) {
       setError(err instanceof ApiRequestError ? err.message : "Couldn't update that item");
@@ -90,7 +102,7 @@ export function ListsPage() {
     if (!childId) return;
     setBusyItemId(item.id);
     try {
-      await apiFetch(`/children/${childId}/lists/${item.id}`, { method: "DELETE" });
+      await apiDelete(`/children/${childId}/lists/${item.id}`);
       setItems((prev) => prev.filter((it) => it.id !== item.id));
     } catch (err) {
       setError(err instanceof ApiRequestError ? err.message : "Couldn't remove that item");
@@ -99,80 +111,18 @@ export function ListsPage() {
     }
   }
 
-  function Section({ type, label, icon }: { type: ListItemType; label: string; icon: string }) {
-    const sectionItems = items.filter((it) => it.type === type);
+  if (children.length === 0) {
     return (
-      <div className="flex flex-col gap-element-gap">
-        <div className="flex items-center justify-between">
-          <h3 className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider flex items-center gap-2">
-            <Icon name={icon} className="text-[16px]" /> {label}
-          </h3>
-          <button
-            onClick={() => openAdd(type)}
-            className="font-label-sm text-label-sm text-primary flex items-center gap-1"
-          >
-            <Icon name="add" className="text-[16px]" /> Add
-          </button>
-        </div>
-
-        {sectionItems.length === 0 && (
-          <p className="font-body-md text-body-md text-on-surface-variant">Nothing here yet.</p>
-        )}
-
-        <div className="flex flex-col gap-2">
-          {sectionItems.map((item) => {
-            const claimedByMe = item.claimedById === user?.id;
-            return (
-              <div
-                key={item.id}
-                className="bg-surface-container-lowest rounded-xl p-4 shadow-sm flex items-center justify-between gap-3"
-              >
-                <div className="flex flex-col min-w-0">
-                  <span className="font-label-md text-label-md text-on-surface truncate">{item.title}</span>
-                  {item.sizeValue && (
-                    <span className="font-label-sm text-label-sm text-on-surface-variant">
-                      Size: {item.sizeValue}
-                    </span>
-                  )}
-                  {item.claimedByName && (
-                    <span
-                      className={`font-label-sm text-label-sm ${claimedByMe ? "text-primary" : "text-on-surface-variant"}`}
-                    >
-                      Claimed by {claimedByMe ? "you" : item.claimedByName}
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  {!item.claimedById || claimedByMe ? (
-                    <button
-                      onClick={() => handleClaimToggle(item)}
-                      disabled={busyItemId === item.id}
-                      className={`font-label-sm text-label-sm py-2 px-4 rounded-full disabled:opacity-60 ${
-                        claimedByMe ? "bg-surface-container text-on-surface-variant" : "bg-primary text-on-primary"
-                      }`}
-                    >
-                      {claimedByMe ? "Unclaim" : "Claim"}
-                    </button>
-                  ) : (
-                    <span className="font-label-sm text-label-sm text-on-surface-variant px-2">Claimed</span>
-                  )}
-                  <button
-                    onClick={() => handleDelete(item)}
-                    disabled={busyItemId === item.id}
-                    className="w-9 h-9 flex items-center justify-center text-on-surface-variant disabled:opacity-60"
-                  >
-                    <Icon name="delete" className="text-[18px]" />
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+      <section className="px-container-padding pt-6 flex flex-col gap-2">
+        <h1 className="font-headline-lg-mobile text-headline-lg-mobile text-on-surface">Lists</h1>
+        <p className="font-body-md text-body-md text-on-surface-variant">
+          Add a child first to start a shared list.
+        </p>
+      </section>
     );
   }
 
-  if (loading) {
+  if (loading || !child) {
     return (
       <section className="px-container-padding pt-6">
         <p className="font-body-md text-body-md text-on-surface-variant">Loading…</p>
@@ -180,75 +130,409 @@ export function ListsPage() {
     );
   }
 
-  if (!child) {
-    return (
-      <section className="px-container-padding pt-6">
-        <p className="font-body-md text-body-md text-error">{error ?? "Child not found"}</p>
-      </section>
-    );
+  const tabItems = items.filter((it) => it.type === tab);
+
+  return (
+    <div className="flex flex-col w-full px-container-padding gap-section-margin pt-4 pb-32 relative">
+      {children.length > 1 && (
+        <div className="flex gap-2 overflow-x-auto">
+          {children.map((c) => (
+            <button
+              key={c.id}
+              onClick={() => setSelectedId(c.id)}
+              className={`px-4 py-2 rounded-full font-label-md text-label-md whitespace-nowrap ${
+                c.id === childId ? "bg-primary text-on-primary" : "bg-surface-container text-on-surface-variant"
+              }`}
+            >
+              {c.firstName}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {error && (
+        <p className="font-body-md text-body-md text-error bg-error-container rounded-lg px-4 py-3">{error}</p>
+      )}
+
+      <div className="flex flex-col gap-element-gap">
+        <div className="flex p-1 bg-surface-container-high rounded-full w-full">
+          <button
+            onClick={() => setTab("NECESSITY")}
+            className={`flex-1 py-2 text-center rounded-full font-label-md text-label-md transition-colors ${
+              tab === "NECESSITY" ? "bg-primary text-on-primary shadow-sm" : "text-on-surface-variant"
+            }`}
+          >
+            Necessities
+          </button>
+          <button
+            onClick={() => setTab("WISHLIST")}
+            className={`flex-1 py-2 text-center rounded-full font-label-md text-label-md transition-colors ${
+              tab === "WISHLIST" ? "bg-primary text-on-primary shadow-sm" : "text-on-surface-variant"
+            }`}
+          >
+            Wishlist
+          </button>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-element-gap">
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="font-headline-md text-on-surface">
+            {tab === "NECESSITY" ? "Essential Needs" : "Gift Ideas"}
+          </h2>
+          <span className="bg-primary-container/20 text-on-primary-container px-3 py-1 rounded-full font-label-sm">
+            {tabItems.length} item{tabItems.length === 1 ? "" : "s"}
+          </span>
+        </div>
+
+        {tabItems.length === 0 && (
+          <p className="font-body-md text-body-md text-on-surface-variant">Nothing here yet.</p>
+        )}
+
+        {tab === "NECESSITY"
+          ? tabItems.map((item) => (
+              <NecessityCard
+                key={item.id}
+                item={item}
+                busy={busyItemId === item.id}
+                onOpenAssign={() => setAssigningItem(item)}
+                onDelete={() => handleDelete(item)}
+              />
+            ))
+          : tabItems.map((item) => (
+              <WishlistCard
+                key={item.id}
+                item={item}
+                currentUserId={user?.id}
+                busy={busyItemId === item.id}
+                onReserveToggle={() => handleClaimToggle(item)}
+                onDelete={() => handleDelete(item)}
+              />
+            ))}
+      </div>
+
+      <button
+        onClick={() => setShowAdd(true)}
+        className="fixed bottom-24 right-container-padding w-14 h-14 bg-primary text-on-primary rounded-full shadow-lg flex items-center justify-center hover:bg-surface-tint active:scale-95 transition-transform z-40"
+      >
+        <Icon name="add" className="text-[28px]" />
+      </button>
+
+      {showAdd && childId && (
+        <AddItemSheet
+          childId={childId}
+          type={tab}
+          members={members}
+          childSizeHint={child.clothingSize ?? child.shoeSize ?? null}
+          onClose={() => setShowAdd(false)}
+          onAdded={(created) => {
+            setItems((prev) => [...prev, created]);
+            setShowAdd(false);
+          }}
+        />
+      )}
+
+      {assigningItem && (
+        <AssignSheet
+          item={assigningItem}
+          members={members}
+          busy={busyItemId === assigningItem.id}
+          onClose={() => setAssigningItem(null)}
+          onPick={(assignedToId) => handleAssign(assigningItem, assignedToId)}
+        />
+      )}
+    </div>
+  );
+}
+
+function NecessityCard({
+  item,
+  busy,
+  onOpenAssign,
+  onDelete,
+}: {
+  item: ListItemDto;
+  busy: boolean;
+  onOpenAssign: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <div className="bg-surface-container-lowest rounded-xl p-4 shadow-[0_2px_8px_rgba(50,105,67,0.05)] flex items-start gap-4">
+      <div className="w-16 h-16 rounded-lg bg-surface-container flex items-center justify-center shrink-0">
+        <Icon name="checkroom" className="text-on-surface-variant text-3xl" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-start justify-between gap-2 mb-1">
+          <h3 className="font-label-md text-on-surface truncate">{item.title}</h3>
+          <div className="flex items-center gap-2 shrink-0">
+            {item.sizeValue && (
+              <span className="bg-tertiary-container/20 text-on-tertiary-container px-2 py-0.5 rounded-md font-label-sm whitespace-nowrap">
+                Size: {item.sizeValue}
+              </span>
+            )}
+            <button
+              onClick={onDelete}
+              disabled={busy}
+              className="w-6 h-6 flex items-center justify-center text-on-surface-variant disabled:opacity-60"
+            >
+              <Icon name="delete" className="text-[16px]" />
+            </button>
+          </div>
+        </div>
+        {item.description && (
+          <p className="font-body-md text-sm text-on-surface-variant mb-3 line-clamp-2">{item.description}</p>
+        )}
+        <button onClick={onOpenAssign} disabled={busy} className="flex items-center gap-2 disabled:opacity-60">
+          {item.assignedToId ? (
+            <>
+              <Avatar name={item.assignedToName ?? "?"} avatarAssetId={null} kind="adult" size="sm" />
+              <span className="font-label-sm text-primary">Handled by {item.assignedToName}</span>
+            </>
+          ) : (
+            <>
+              <span className="w-2 h-2 rounded-full bg-alert-soft-red" />
+              <span className="font-label-sm text-on-surface-variant">Still Needed</span>
+            </>
+          )}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function WishlistCard({
+  item,
+  currentUserId,
+  busy,
+  onReserveToggle,
+  onDelete,
+}: {
+  item: ListItemDto;
+  currentUserId: string | undefined;
+  busy: boolean;
+  onReserveToggle: () => void;
+  onDelete: () => void;
+}) {
+  const reservedByMe = item.claimedById === currentUserId;
+  const reservedByOther = !!item.claimedById && !reservedByMe;
+
+  return (
+    <div
+      className={`bg-surface-container-lowest rounded-xl p-4 shadow-[0_2px_8px_rgba(50,105,67,0.05)] flex flex-col gap-3 ${
+        reservedByOther ? "opacity-75" : ""
+      }`}
+    >
+      <div className="flex items-start gap-4">
+        <div className="w-20 h-20 rounded-lg bg-surface-container shrink-0 flex items-center justify-center">
+          <Icon name="redeem" className="text-on-surface-variant text-3xl" />
+        </div>
+        <div className="flex-1 min-w-0 pt-1">
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="font-label-md text-on-surface truncate mb-1">{item.title}</h3>
+            <button
+              onClick={onDelete}
+              disabled={busy}
+              className="w-6 h-6 flex items-center justify-center text-on-surface-variant disabled:opacity-60 shrink-0"
+            >
+              <Icon name="delete" className="text-[16px]" />
+            </button>
+          </div>
+          {item.description && (
+            <p className="font-body-md text-sm text-on-surface-variant mb-2">{item.description}</p>
+          )}
+        </div>
+      </div>
+      <div className="flex items-center justify-between mt-1 border-t border-surface-container pt-3">
+        {reservedByOther ? (
+          <>
+            <div className="flex items-center gap-2">
+              <Icon name="check_circle" className="text-primary text-sm" />
+              <span className="font-label-sm text-primary">Reserved by {item.claimedByName}</span>
+            </div>
+            <button
+              disabled
+              className="px-4 py-2 bg-surface-container-low text-on-surface-variant font-label-sm rounded-full cursor-not-allowed"
+            >
+              Reserved
+            </button>
+          </>
+        ) : (
+          <div className="flex justify-end w-full">
+            <button
+              onClick={onReserveToggle}
+              disabled={busy}
+              className="px-4 py-2 bg-surface-container-high hover:bg-surface-variant text-on-surface font-label-sm rounded-full transition-colors disabled:opacity-60"
+            >
+              {reservedByMe ? "Un-reserve" : "Reserve Item"}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AssignSheet({
+  item,
+  members,
+  busy,
+  onClose,
+  onPick,
+}: {
+  item: ListItemDto;
+  members: Member[];
+  busy: boolean;
+  onClose: () => void;
+  onPick: (assignedToId: string | null) => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-end justify-center" onClick={onClose}>
+      <div
+        className="w-full max-w-md bg-surface rounded-t-2xl p-container-padding flex flex-col gap-2 pb-safe"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="font-headline-md text-headline-md text-on-surface">Assign "{item.title}"</h3>
+          <button type="button" onClick={onClose}>
+            <Icon name="close" />
+          </button>
+        </div>
+        <button
+          onClick={() => onPick(null)}
+          disabled={busy}
+          className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-surface-container-low text-left disabled:opacity-60"
+        >
+          <span className="w-2 h-2 rounded-full bg-alert-soft-red ml-1" />
+          <span className="font-label-md text-label-md text-on-surface">Still Needed (unassign)</span>
+        </button>
+        {members.map((m) => (
+          <button
+            key={m.userId}
+            onClick={() => onPick(m.userId)}
+            disabled={busy}
+            className={`w-full flex items-center gap-3 p-3 rounded-xl hover:bg-surface-container-low text-left disabled:opacity-60 ${
+              item.assignedToId === m.userId ? "bg-primary/10" : ""
+            }`}
+          >
+            <Avatar name={`${m.firstName} ${m.lastName}`} avatarAssetId={m.avatarUrl} kind="adult" size="sm" />
+            <span className="font-label-md text-label-md text-on-surface">
+              {m.firstName} {m.lastName}
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AddItemSheet({
+  childId,
+  type,
+  members,
+  childSizeHint,
+  onClose,
+  onAdded,
+}: {
+  childId: string;
+  type: ListItemType;
+  members: Member[];
+  childSizeHint: string | null;
+  onClose: () => void;
+  onAdded: (item: ListItemDto) => void;
+}) {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [sizeValue, setSizeValue] = useState("");
+  const [assignedToId, setAssignedToId] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (!title.trim()) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const created = await apiPost<ListItemDto>(`/children/${childId}/lists`, {
+        type,
+        title: title.trim(),
+        description: description.trim() || undefined,
+        sizeValue: type === "NECESSITY" ? sizeValue.trim() || undefined : undefined,
+        assignedToId: type === "NECESSITY" ? assignedToId || undefined : undefined,
+      } satisfies CreateListItemRequest);
+      onAdded(created);
+    } catch (err) {
+      setError(err instanceof ApiRequestError ? err.message : "Couldn't add that item");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
-    <div className="flex flex-col w-full pb-8">
-      <div className="px-container-padding pt-4 flex flex-col gap-section-margin">
-        <p className="font-body-md text-body-md text-on-surface-variant">
-          {child.firstName}
-          {(child.clothingSize || child.shoeSize) && (
-            <>
-              {" "}
-              • Clothing {child.clothingSize ?? "—"} · Shoe {child.shoeSize ?? "—"}
-            </>
-          )}
-        </p>
-        {error && (
-          <p className="font-body-md text-body-md text-error bg-error-container rounded-lg px-4 py-3">{error}</p>
-        )}
-        <Section type="NECESSITY" label="Necessities" icon="checkroom" />
-        <Section type="WISHLIST" label="Wishlist" icon="redeem" />
-      </div>
-
-      {addingType && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-end justify-center">
-          <form
-            onSubmit={handleAdd}
-            className="w-full max-w-md bg-surface rounded-t-2xl p-container-padding flex flex-col gap-4 pb-safe"
-          >
-            <div className="flex items-center justify-between">
-              <h3 className="font-headline-md text-headline-md text-on-surface">
-                Add to {addingType === "NECESSITY" ? "Necessities" : "Wishlist"}
-              </h3>
-              <button type="button" onClick={() => setAddingType(null)}>
-                <Icon name="close" />
-              </button>
-            </div>
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Item, e.g. Winter coat"
-              className="w-full bg-surface-container-lowest rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary font-body-md text-body-md"
-              required
-              autoFocus
-            />
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-end justify-center">
+      <form
+        onSubmit={handleSubmit}
+        className="w-full max-w-md bg-surface rounded-t-2xl p-container-padding flex flex-col gap-4 pb-safe"
+      >
+        <div className="flex items-center justify-between">
+          <h3 className="font-headline-md text-headline-md text-on-surface">
+            Add to {type === "NECESSITY" ? "Necessities" : "Wishlist"}
+          </h3>
+          <button type="button" onClick={onClose}>
+            <Icon name="close" />
+          </button>
+        </div>
+        <input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Item, e.g. Winter coat"
+          className="w-full bg-surface-container-lowest rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary font-body-md text-body-md"
+          required
+          autoFocus
+        />
+        <textarea
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Notes (optional)"
+          rows={2}
+          className="w-full bg-surface-container-lowest rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary font-body-md text-body-md resize-none"
+        />
+        {type === "NECESSITY" && (
+          <>
             <input
               value={sizeValue}
               onChange={(e) => setSizeValue(e.target.value)}
-              placeholder={
-                child.clothingSize || child.shoeSize
-                  ? `Size (e.g. ${child.clothingSize ?? child.shoeSize})`
-                  : "Size (optional)"
-              }
+              placeholder={childSizeHint ? `Size (e.g. ${childSizeHint})` : "Size (optional)"}
               className="w-full bg-surface-container-lowest rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary font-body-md text-body-md"
             />
-            <button
-              type="submit"
-              disabled={!title.trim()}
-              className="w-full py-4 bg-primary text-on-primary rounded-full font-label-md text-label-md disabled:opacity-60"
-            >
-              Add
-            </button>
-          </form>
-        </div>
-      )}
+            <label className="flex flex-col gap-1 font-label-md text-label-md text-text-main">
+              Assign to (optional)
+              <select
+                value={assignedToId}
+                onChange={(e) => setAssignedToId(e.target.value)}
+                className="bg-surface-container-lowest rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary"
+              >
+                <option value="">Still Needed (unassigned)</option>
+                {members.map((m) => (
+                  <option key={m.userId} value={m.userId}>
+                    {m.firstName} {m.lastName}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </>
+        )}
+        {error && (
+          <p className="font-body-md text-body-md text-error bg-error-container rounded-lg px-4 py-3">{error}</p>
+        )}
+        <button
+          type="submit"
+          disabled={!title.trim() || submitting}
+          className="w-full py-4 bg-primary text-on-primary rounded-full font-label-md text-label-md disabled:opacity-60"
+        >
+          {submitting ? "Adding…" : "Add"}
+        </button>
+      </form>
     </div>
   );
 }

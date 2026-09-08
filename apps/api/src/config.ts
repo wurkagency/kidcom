@@ -50,7 +50,7 @@ export const config = {
   smtpPort: Number(process.env.SMTP_PORT ?? 587),
   smtpUser: process.env.SMTP_USER,
   smtpPass: process.env.SMTP_PASS,
-  smtpFrom: process.env.SMTP_FROM ?? '"KidCom" <noreply@kidcom.org>',
+  smtpFrom: process.env.SMTP_FROM ?? '"SplitKid" <noreply@splitkid.com>',
   // The web app's own base URL — used to build links that go out in email
   // (verification, invites). The first CORS origin is always the web app's
   // real origin (see corsOrigin above), so it doubles as this without a

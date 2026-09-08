@@ -23,13 +23,14 @@ const TAB_TITLES: Record<string, string> = {
   "/": "Dashboard",
   "/calendar": "Calendar",
   "/journal": "Journal",
-  "/growth": "Growth",
+  "/lists": "Lists",
   "/profile": "Profile",
 };
 
 const CHILD_SUBPAGE_TITLES: Array<{ suffix: string; title: string }> = [
   { suffix: "/medical", title: "Medical Info" },
   { suffix: "/contacts", title: "Emergency Contacts" },
+  { suffix: "/growth", title: "Growth" },
 ];
 
 function SubpageHeader({

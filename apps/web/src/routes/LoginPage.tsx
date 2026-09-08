@@ -1,17 +1,21 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import type { LoginRequest, MeResponse } from "@kidcom/shared";
+import type { LoginRequest, TwoFactorRequiredResponse } from "@kidcom/shared";
 
 import { FormInput } from "../components/FormInput";
 import { apiPost, ApiRequestError } from "../lib/api";
-import { useAuth } from "../lib/AuthContext";
 
 // No Stitch mockup exists for a plain login screen (only the signup flow was
 // designed) — built in the same visual language as SignupPage/FormInput.
+//
+// Logins always require 2FA (see apps/api/src/routes/auth/index.ts) — a
+// correct password never grants a session by itself. On success this
+// navigates to /login/verify (carrying ?redirect= through) rather than
+// completing login itself; that screen is what calls refresh()/navigates on
+// to the app once the emailed code is verified.
 export function LoginPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { refresh } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -26,9 +30,8 @@ export function LoginPage() {
     setError(null);
     setSubmitting(true);
     try {
-      await apiPost<MeResponse>("/auth/login", { email, password } satisfies LoginRequest);
-      await refresh();
-      navigate(redirect && redirect.startsWith("/") ? redirect : "/");
+      await apiPost<TwoFactorRequiredResponse>("/auth/login", { email, password } satisfies LoginRequest);
+      navigate(redirect && redirect.startsWith("/") ? `/login/verify?redirect=${encodeURIComponent(redirect)}` : "/login/verify");
     } catch (err) {
       setError(err instanceof ApiRequestError ? err.message : "Something went wrong");
     } finally {

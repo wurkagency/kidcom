@@ -8,7 +8,9 @@ import type {
   CreateMedicalInfoRequest,
   MedicalInfoCategory,
   MedicalInfoEntry,
+  ScheduleItem,
   UpdateMedicalInfoRequest,
+  UpdateScheduleOccurrenceRequest,
 } from "@kidcom/shared";
 
 import { Icon } from "../components/Icon";
@@ -19,6 +21,42 @@ function toDateOnly(d: Date): string {
   const month = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+type ScheduleGroup = {
+  templateId: string;
+  label: string;
+  description: string | null;
+  provider: string | null;
+  ageInMonths: number;
+  isRecurring: boolean;
+  items: ScheduleItem[];
+};
+
+// Groups the flat ScheduleItem[] (one row per occurrence) back into one
+// entry per template, in the order the API already sorts them (by
+// ageInMonths, then occurrence sequence within a template).
+function groupScheduleItems(items: ScheduleItem[]): ScheduleGroup[] {
+  const groups: ScheduleGroup[] = [];
+  const byTemplate = new Map<string, ScheduleGroup>();
+  for (const item of items) {
+    let group = byTemplate.get(item.templateId);
+    if (!group) {
+      group = {
+        templateId: item.templateId,
+        label: item.label,
+        description: item.description,
+        provider: item.provider,
+        ageInMonths: item.ageInMonths,
+        isRecurring: item.isRecurring,
+        items: [],
+      };
+      byTemplate.set(item.templateId, group);
+      groups.push(group);
+    }
+    group.items.push(item);
+  }
+  return groups;
 }
 
 // Matches docs/stitch_splitkid/medical_info_schedules/code.html. The
@@ -88,10 +126,10 @@ export function ChildMedicalPage() {
     setInfo(refreshed.items);
   }
 
-  async function markComplete(templateId: string) {
-    if (!childId || !schedule) return;
+  async function updateOccurrence(templateId: string, sequence: number, patch: UpdateScheduleOccurrenceRequest) {
+    if (!childId) return;
     try {
-      await apiPost(`/children/${childId}/schedule/${templateId}/complete`);
+      await apiPatch(`/children/${childId}/schedule/${templateId}/occurrences/${sequence}`, patch);
       const refreshed = await apiGet<ChildScheduleResponse>(`/children/${childId}/schedule`);
       setSchedule(refreshed);
     } catch {
@@ -134,6 +172,10 @@ export function ChildMedicalPage() {
   const percentComplete = schedule && schedule.totalCount > 0
     ? Math.round((schedule.completedCount / schedule.totalCount) * 100)
     : 0;
+  // One card per template, each listing its occurrence row(s) — a recurring
+  // template (the ongoing dental screening) can have several dated rows once
+  // it's been completed at least once; every other template has exactly one.
+  const scheduleGroups = groupScheduleItems(schedule?.items ?? []);
 
   return (
     <div className="flex flex-col w-full pb-8">
@@ -336,7 +378,7 @@ export function ChildMedicalPage() {
         </section>
 
         <section className="flex flex-col gap-base">
-          <h2 className="font-headline-md text-headline-md text-on-surface">Vaccination Progress</h2>
+          <h2 className="font-headline-md text-headline-md text-on-surface">Medical Progress</h2>
           <div className="bg-surface-container-lowest rounded-[1.5rem] p-container-padding shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <span className="font-label-md text-label-md text-on-surface-variant">
@@ -349,26 +391,63 @@ export function ChildMedicalPage() {
             <div className="w-full h-3 bg-surface-container rounded-full overflow-hidden mb-6">
               <div className="h-full bg-primary rounded-full" style={{ width: `${percentComplete}%` }} />
             </div>
-            <div className="flex flex-col gap-4">
-              {schedule?.items.map((item) => (
-                <button
-                  key={item.templateId}
-                  onClick={() => !item.completed && markComplete(item.templateId)}
-                  className={`flex items-center gap-3 text-left ${item.completed ? "" : "opacity-70"}`}
-                >
-                  <Icon
-                    name={item.completed ? "check_circle" : "radio_button_unchecked"}
-                    className={item.completed ? "text-primary" : "text-outline"}
-                  />
-                  <div className="flex-1">
-                    <p className="font-label-md text-label-md text-on-surface">{item.label}</p>
+            <div className="flex flex-col gap-5">
+              {scheduleGroups.map((group) => (
+                <div key={group.templateId} className="flex flex-col gap-2">
+                  <div>
+                    <p className="font-label-md text-label-md text-on-surface">{group.label}</p>
                     <p className="font-label-sm text-label-sm text-on-surface-variant">
-                      {item.completed ? "Completed" : `Recommended around ${item.ageInMonths} months`}
+                      {[group.provider, `Recommended around ${group.ageInMonths} months`]
+                        .filter(Boolean)
+                        .join(" · ")}
+                      {group.isRecurring ? " · Repeats every 12 months" : ""}
                     </p>
+                    {group.description && (
+                      <p className="font-body-md text-[13px] text-on-surface-variant mt-0.5">
+                        {group.description}
+                      </p>
+                    )}
                   </div>
-                </button>
+                  <div className="flex flex-col gap-2 pl-1">
+                    {group.items.map((item) => (
+                      <div key={item.sequence} className="flex items-center gap-3">
+                        <button
+                          onClick={() => updateOccurrence(item.templateId, item.sequence, { completed: !item.completed })}
+                          aria-label={item.completed ? "Mark not completed" : "Mark completed"}
+                          className="shrink-0"
+                        >
+                          <Icon
+                            name={item.completed ? "check_circle" : "radio_button_unchecked"}
+                            className={item.completed ? "text-primary" : "text-outline"}
+                          />
+                        </button>
+                        <div className="flex-1 flex items-center justify-between gap-3">
+                          <span className="font-label-sm text-label-sm text-on-surface-variant">
+                            {group.isRecurring
+                              ? item.completed
+                                ? `Completed ${new Date(item.completedAt!).toLocaleDateString()}`
+                                : "Planned"
+                              : item.completed
+                                ? `Completed ${new Date(item.completedAt!).toLocaleDateString()}`
+                                : "Planned date"}
+                          </span>
+                          <input
+                            type="date"
+                            value={item.plannedAt ? item.plannedAt.slice(0, 10) : ""}
+                            onChange={(e) =>
+                              updateOccurrence(item.templateId, item.sequence, {
+                                plannedAt: e.target.value || null,
+                              })
+                            }
+                            className="bg-surface-container rounded-lg px-2 py-1 text-[13px] outline-none focus:ring-2 focus:ring-primary"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               ))}
-              {(!schedule || schedule.items.length === 0) && (
+              {scheduleGroups.length === 0 && (
                 <p className="font-body-md text-body-md text-on-surface-variant">
                   No schedule template loaded for {child.countryCode} yet.
                 </p>

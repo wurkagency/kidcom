@@ -4,19 +4,33 @@ import type { CommentDto, CreateCommentRequest, JournalPostDto, UpdateCommentReq
 
 import { Icon } from "../components/Icon";
 import { Avatar } from "../components/Avatar";
-import { MediaGallery } from "../components/JournalPostCard";
+import { MediaDetailGallery } from "../components/MediaDetailGallery";
 import { apiGet, apiPost, apiPatch, apiDelete, ApiRequestError } from "../lib/api";
 import { useAuth } from "../lib/AuthContext";
 import { useHeaderConfig } from "../lib/HeaderContext";
 
+// A small curated set rather than a full emoji library/CDN picker — keeps
+// this self-contained and fast, and covers what a family-journal comment
+// actually needs.
+const EMOJI_OPTIONS = [
+  "😀", "😂", "🥰", "😊", "😍", "🥳", "😢", "😮",
+  "👍", "👏", "🙌", "🙏", "💪", "👀", "🎉", "🔥",
+  "❤️", "💕", "⭐", "✅", "👶", "🍼", "🏆", "😴",
+];
+
 // Comment thread for a single journal post — kept separate from the feed
 // (per the chunk 5 plan) so JournalPage stays a lightweight scroll.
 //
-// There's no GET /children/:childId/journal/:postId endpoint, so the post
-// itself (needed here only to know its author, for the delete affordance)
-// rides along as router state from the feed's link — see JournalPostCard's
-// Link. If this page is opened directly (no state, e.g. a deep link/reload),
-// the delete button simply doesn't render.
+// The post itself is always fetched here (GET /children/:childId/journal/
+// :postId) rather than relying on it being carried over as router
+// navigation state from wherever the link came from. It used to rely on
+// that state, which broke silently on a page reload, a direct/deep link, or
+// any link that simply forgot to pass it (the dashboard's "Latest Journal
+// Entry" card did exactly that) — the page would show only the comment
+// thread with no post content above it, which read as "linked to the wrong
+// place." Router state (if present, e.g. from JournalPostCard's Link) is
+// still used as an instant first paint while the real fetch is in flight,
+// so navigating from the feed still feels immediate.
 export function JournalPostPage() {
   const { postId } = useParams<{ postId: string }>();
   const [searchParams] = useSearchParams();
@@ -24,13 +38,17 @@ export function JournalPostPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const childId = searchParams.get("childId");
-  const post = (location.state as { post?: JournalPostDto } | null)?.post;
+  const [post, setPost] = useState<JournalPostDto | undefined>(
+    () => (location.state as { post?: JournalPostDto } | null)?.post
+  );
+  const [postError, setPostError] = useState<string | null>(null);
 
   const [comments, setComments] = useState<CommentDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [deletingPost, setDeletingPost] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
@@ -64,6 +82,23 @@ export function JournalPostPage() {
       .finally(() => setLoading(false));
   }, [childId, postId]);
 
+  useEffect(() => {
+    if (!childId || !postId) return;
+    let cancelled = false;
+    apiGet<JournalPostDto>(`/children/${childId}/journal/${postId}`)
+      .then((res) => {
+        if (!cancelled) setPost(res);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setPostError(err instanceof ApiRequestError ? err.message : "Couldn't load this post");
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [childId, postId]);
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!childId || !postId || !text.trim()) return;
@@ -79,6 +114,11 @@ export function JournalPostPage() {
     } finally {
       setSending(false);
     }
+  }
+
+  function insertEmoji(emoji: string) {
+    setText((prev) => prev + emoji);
+    setShowEmojiPicker(false);
   }
 
   function startEdit(comment: CommentDto) {
@@ -141,6 +181,11 @@ export function JournalPostPage() {
   return (
     <div className="flex flex-col w-full min-h-screen">
       <div className="flex-1 px-container-padding flex flex-col gap-3 pb-32">
+        {postError && !post && (
+          <p className="font-body-md text-body-md text-error bg-error-container rounded-lg px-4 py-3">
+            {postError}
+          </p>
+        )}
         {post && (
           <div className="bg-surface-container-lowest rounded-xl shadow-sm p-4 flex flex-col gap-4 mb-2">
             <div className="flex items-center gap-3">
@@ -154,7 +199,7 @@ export function JournalPostPage() {
                 </p>
               </div>
             </div>
-            <MediaGallery media={post.media} alt={post.title} />
+            <MediaDetailGallery media={post.media} alt={post.title} />
             <p className="font-body-md text-body-md text-text-main whitespace-pre-wrap">{post.text}</p>
           </div>
         )}
@@ -235,24 +280,56 @@ export function JournalPostPage() {
         })}
       </div>
 
-      <form
-        onSubmit={handleSubmit}
-        className="fixed bottom-0 inset-x-0 bg-surface p-container-padding pb-safe flex gap-2 border-t border-surface-variant/50"
-      >
-        <input
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="Write a comment…"
-          className="flex-1 bg-surface-container-lowest rounded-full px-4 py-3 outline-none focus:ring-2 focus:ring-primary font-body-md text-body-md"
-        />
-        <button
-          type="submit"
-          disabled={sending || !text.trim()}
-          className="w-12 h-12 rounded-full bg-primary text-on-primary flex items-center justify-center disabled:opacity-60"
-        >
-          <Icon name="send" className="text-[20px]" />
-        </button>
-      </form>
+      {/* bottom-20 (not bottom-0) + z-40 (below BottomNav's z-50) — this used
+          to sit at bottom-0 with no z-index, which put it directly *behind*
+          the app's persistent bottom nav (also fixed to the bottom of the
+          screen): the input was there in the DOM but visually hidden under
+          the nav bar, reading as "no input for a comment." bottom-20/z-40 is
+          the same pattern MessageComposePage already uses correctly for a
+          bar that has to float above the nav instead of at the true bottom
+          of the viewport. */}
+      <div className="fixed bottom-20 inset-x-0 z-40 bg-surface border-t border-surface-variant/50">
+        {showEmojiPicker && (
+          <div className="grid grid-cols-8 gap-1 px-container-padding pt-3 max-w-md mx-auto">
+            {EMOJI_OPTIONS.map((emoji) => (
+              <button
+                key={emoji}
+                type="button"
+                onClick={() => insertEmoji(emoji)}
+                className="text-2xl leading-none py-1.5 rounded-lg hover:bg-surface-container-lowest transition-colors"
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+        )}
+        <form onSubmit={handleSubmit} className="p-container-padding pb-safe flex items-center gap-2">
+          <Avatar name={user ? `${user.firstName} ${user.lastName}` : "You"} avatarAssetId={user?.avatarUrl} kind="adult" size="sm" />
+          <input
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="Write a comment…"
+            className="flex-1 bg-surface-container-lowest rounded-full px-4 py-3 outline-none focus:ring-2 focus:ring-primary font-body-md text-body-md"
+          />
+          <button
+            type="button"
+            onClick={() => setShowEmojiPicker((v) => !v)}
+            aria-label="Insert emoji"
+            className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors shrink-0 ${
+              showEmojiPicker ? "text-primary" : "text-on-surface-variant hover:text-primary"
+            }`}
+          >
+            <Icon name="mood" className="text-xl" />
+          </button>
+          <button
+            type="submit"
+            disabled={sending || !text.trim()}
+            className="w-12 h-12 rounded-full bg-primary text-on-primary flex items-center justify-center disabled:opacity-60 shrink-0"
+          >
+            <Icon name="send" className="text-[20px]" />
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

@@ -63,13 +63,16 @@ model User {
   mediaAssets    MediaAsset[]
   avatarAsset    MediaAsset?       @relation("UserAvatar")
   listClaims     ListItem[]        @relation("ListItemClaimedBy")
+  listAssignments ListItem[]       @relation("ListItemAssignedTo")
   sentInvites    Invite[]          @relation("InviteSentBy")
   personalNotes  PersonalNote[]
   messagesSent   Message[]         @relation("MessageSender")
   threadMembers  ThreadMember[]
   swapRequestsBy SwapRequest[]     @relation("SwapRequestedBy")
   pushSubscriptions PushSubscription[]
+  notificationPreferences NotificationPreferences?
   emailVerificationTokens EmailVerificationToken[]
+  twoFactorCodes LoginTwoFactorCode[]
 
   @@map("users")
 }
@@ -88,6 +91,24 @@ model EmailVerificationToken {
   createdAt DateTime @default(now())
 
   @@map("email_verification_tokens")
+}
+
+// A single-use, short-lived login OTP — the login-time counterpart to
+// EmailVerificationToken above (same "only the hash is stored" reasoning).
+// One active code per user (re-requesting via /auth/resend-2fa deletes and
+// recreates, same pattern as EmailVerificationToken); `attempts` caps how
+// many wrong guesses a holder of this row's userId gets before the code is
+// forced to be regenerated, bounding brute-force over the 6-digit space.
+model LoginTwoFactorCode {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  codeHash  String
+  expiresAt DateTime
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@map("login_two_factor_codes")
 }
 
 model Invite {
@@ -142,7 +163,7 @@ model Child {
   listItems          ListItem[]
   invites            Invite[]
   emergencyContacts  EmergencyContact[]
-  scheduleCompletions ChildScheduleCompletion[]
+  scheduleOccurrences ChildScheduleOccurrence[]
   avatarAsset        MediaAsset?               @relation("ChildAvatar")
 
   @@map("children")
@@ -196,14 +217,17 @@ model MedicalInfo {
 // Per-country default checkup/vaccination schedule, used to build the
 // "what's coming next" view in the child profile.
 model MedicalScheduleTemplate {
-  id            String   @id @default(cuid())
-  countryCode   String
-  label         String
-  ageInMonths   Int
-  category      String // e.g. "dentist", "vaccination", "checkup"
-  description   String?
+  id               String   @id @default(cuid())
+  countryCode      String
+  label            String
+  ageInMonths      Int
+  category         String // e.g. "dental", "vaccination", "checkup", "school_health"
+  description      String?
+  provider         String? // e.g. "General Practitioner (GP)", "Municipal Dental Care"
+  isRecurring      Boolean  @default(false)
+  recurrenceMonths Int? // only set when isRecurring — months between auto-generated occurrences
 
-  completions ChildScheduleCompletion[]
+  occurrences ChildScheduleOccurrence[]
 
   @@map("medical_schedule_templates")
 }
@@ -221,19 +245,27 @@ model GrowthEntry {
   @@map("growth_entries")
 }
 
-// Tracks which MedicalScheduleTemplate items a child has completed — turns
+// Tracks a child's progress against a MedicalScheduleTemplate item — turns
 // the static per-country template list into the "X% Complete" progress bar
-// in the medical_info_schedules mockup.
-model ChildScheduleCompletion {
+// (Medical Progress) in the medical_info_schedules mockup. sequence 0 is the
+// template's normal (and for non-recurring templates, only) occurrence;
+// sequence 1, 2, ... are auto-generated future instances of a recurring
+// template (e.g. the ongoing dental screening, every 12 months), created by
+// the API once the prior occurrence is completed — see schedule.ts.
+model ChildScheduleOccurrence {
   id          String                  @id @default(cuid())
   childId     String
   child       Child                   @relation(fields: [childId], references: [id], onDelete: Cascade)
   templateId  String
   template    MedicalScheduleTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
-  completedAt DateTime                @default(now())
+  sequence    Int                     @default(0)
+  plannedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
 
-  @@unique([childId, templateId])
-  @@map("child_schedule_completions")
+  @@unique([childId, templateId, sequence])
+  @@map("child_schedule_occurrences")
 }
 
 enum EmergencyContactCategory {
@@ -309,11 +341,26 @@ model CalendarEvent {
   endsAt    DateTime?
   allDay    Boolean               @default(false)
   notes     String?
+  location  String?
   // Marks an APPOINTMENT as medical (doctor/dentist/etc.) vs. a general
   // appointment (school event, activity, ...). Only meaningful for
   // APPOINTMENT rows — the Medical Info page's "Appointments" section
   // filters on this instead of showing every appointment on the calendar.
   isMedical Boolean               @default(false)
+  // Same idea as isMedical, for sport/activity events (practice, games,
+  // lessons) — its own category tag rather than overloading isMedical.
+  isSport   Boolean               @default(false)
+  // Weekly recurrence — null means a one-off event. When set, this row is
+  // the recurring series' anchor: `startsAt`/`endsAt` are the first
+  // occurrence's date+time, and later occurrences fall every N weeks after
+  // that. Occurrences aren't stored as separate rows — the calendar range
+  // endpoint expands them on read (see calendar.ts) — so there's no
+  // per-occurrence editing/exceptions; editing or deleting this row edits or
+  // deletes the whole series. `recurrenceEndsAt` is optional — null repeats
+  // indefinitely (safe: expansion is bounded by whatever range is queried,
+  // never generated eagerly).
+  recurrenceIntervalWeeks Int?
+  recurrenceEndsAt        DateTime?
   // Set once the day-before push reminder has been sent, so the daily
   // remind-appointments job (chunk 8) doesn't double-send.
   remindedAt DateTime?
@@ -450,7 +497,13 @@ model ListItem {
   child        Child        @relation(fields: [childId], references: [id], onDelete: Cascade)
   type         ListItemType
   title        String
+  description  String?
   sizeValue    String?      // e.g. clothing/shoe size pulled from the child's profile at creation time
+  // Necessities: real delegation — any family member can assign/reassign this
+  // to any other family member (not just claim it for themselves).
+  assignedToId String?
+  assignedTo   User?        @relation("ListItemAssignedTo", fields: [assignedToId], references: [id])
+  // Wishlist: self-claim/"Reserve" — whoever claims it is giving that gift.
   claimedById  String?
   claimedBy    User?        @relation("ListItemClaimedBy", fields: [claimedById], references: [id])
   createdAt    DateTime     @default(now())
@@ -501,14 +554,22 @@ model Message {
 }
 
 model PersonalNote {
-  id        String   @id @default(cuid())
+  id        String        @id @default(cuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   text      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  category  NoteCategory?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
 
   @@map("personal_notes")
+}
+
+enum NoteCategory {
+  ROUTINE
+  MILESTONE
+  HEALTH
+  GENERAL
 }
 
 // ---------------------------------------------------------------------------
@@ -559,4 +620,32 @@ model PushSubscription {
   createdAt DateTime @default(now())
 
   @@map("push_subscriptions")
+}
+
+// ---------------------------------------------------------------------------
+// Notification preferences
+// ---------------------------------------------------------------------------
+
+// One row per user, upserted on read (same pattern as Subscription). No
+// `pushEnabled` field here — Push Notifications stays wired to the real
+// PushSubscription-existing-or-not mechanism, not a boolean that could drift
+// out of sync with actual browser permission state.
+model NotificationPreferences {
+  id                        String   @id @default(cuid())
+  userId                    String   @unique
+  user                      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emailEnabled              Boolean  @default(false)
+  googleCalendarSyncEnabled Boolean  @default(false)
+  office365SyncEnabled      Boolean  @default(false)
+  categoryCalendar          Boolean  @default(true)
+  categoryJournal           Boolean  @default(true)
+  categoryLists             Boolean  @default(false)
+  categoryMessages          Boolean  @default(true)
+  doNotDisturb              Boolean  @default(true)
+  quietHoursFrom            String   @default("21:00") // 24h "HH:MM"
+  quietHoursTo              String   @default("07:00")
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+
+  @@map("notification_preferences")
 }

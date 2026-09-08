@@ -8,6 +8,7 @@ import {
 } from "@kidcom/shared";
 
 import { Icon } from "../components/Icon";
+import { OnboardingSegments } from "../components/OnboardingSegments";
 import { apiPost, ApiRequestError } from "../lib/api";
 import { useAuth } from "../lib/AuthContext";
 
@@ -53,7 +54,11 @@ export function OnboardingInvitePage() {
   const childId = explicitChildId ?? children[0]?.id;
   const childName =
     children.find((c) => c.id === childId)?.firstName ?? children[0]?.firstName ?? "your child";
-  const returnPath = explicitChildId ? `/children/${explicitChildId}` : "/";
+  // No explicit childId means this really is the onboarding flow (as
+  // opposed to being launched from a child profile's "Invite Family"
+  // button) — in that case Done/Skip continue on to the next onboarding
+  // step (Choose Your Plan) rather than dropping straight into the app.
+  const returnPath = explicitChildId ? `/children/${explicitChildId}` : "/onboarding/plan";
 
   async function handleSend(e: FormEvent) {
     e.preventDefault();
@@ -103,18 +108,7 @@ export function OnboardingInvitePage() {
 
   return (
     <div className="flex flex-col w-full min-h-screen relative overflow-hidden bg-surface-beige">
-      <div className="w-full px-container-padding py-6">
-        <div className="flex gap-2 w-full justify-between mb-2">
-          <div className="h-2 rounded-full bg-primary flex-1" />
-          <div className="h-2 rounded-full bg-primary flex-1" />
-          <div className="h-2 rounded-full bg-primary flex-1" />
-          <div className="h-2 rounded-full bg-surface-container-highest flex-1" />
-        </div>
-        <div className="flex justify-between items-center text-label-sm font-label-sm text-outline px-1 mt-1">
-          <span>Step 3 of 4</span>
-          <span>Almost there</span>
-        </div>
-      </div>
+      <OnboardingSegments step={3} total={4} label="Almost there" />
 
       <div className="flex-1 flex flex-col px-container-padding pb-safe relative z-10">
         <div className="flex justify-center items-center py-section-margin">
@@ -125,7 +119,7 @@ export function OnboardingInvitePage() {
 
         <div className="text-center mb-8">
           <h1 className="font-headline-lg-mobile text-headline-lg-mobile text-on-surface mb-4">
-            Invite Family
+            {explicitChildId ? "Invite Family" : "Invite Co-parent"}
           </h1>
           <p className="font-body-lg text-body-lg text-on-surface-variant max-w-[280px] mx-auto">
             Invite someone to see {childName}'s schedule and memories — a co-parent, grandparent, or

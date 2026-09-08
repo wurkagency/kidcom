@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import type { JournalPostDto } from "@kidcom/shared";
 
 import { JournalPostCard } from "../components/JournalPostCard";
 import { Icon } from "../components/Icon";
 import { apiGet, ApiRequestError } from "../lib/api";
 import { useAuth } from "../lib/AuthContext";
+import { MediaGalleryTab } from "./MediaGalleryPage";
 
 const PAGE_LIMIT = 20;
 const POLL_INTERVAL_MS = 4000;
@@ -17,9 +18,13 @@ type ChildFeedState = {
 
 // Matches docs/stitch_splitkid/journal_feed/code.html: a feed of posts for
 // the selected child (or all children), with a FAB opening the composer.
+// Same pill-tab pattern as MessagesPage (?tab=media) merges in the Media
+// Gallery as a second tab rather than a separate screen.
 export function JournalPage() {
   const { user, children } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = searchParams.get("tab") === "media" ? "media" : "journal";
   const [filterChildId, setFilterChildId] = useState<string | "ALL">("ALL");
   const [feeds, setFeeds] = useState<Record<string, ChildFeedState>>({});
   const [loading, setLoading] = useState(true);
@@ -166,11 +171,15 @@ export function JournalPage() {
     );
   }
 
+  function setTab(next: "journal" | "media") {
+    setSearchParams(next === "media" ? { tab: "media" } : {}, { replace: true });
+  }
+
   return (
     <div className="flex flex-col w-full h-full pb-20 relative">
-      <div className="px-container-padding py-section-margin flex items-center justify-between">
-        <h1 className="font-headline-lg text-headline-lg-mobile text-on-surface">Journal</h1>
-        {children.length > 1 && (
+      <div className="px-container-padding py-section-margin flex items-center justify-between gap-2">
+        <h1 className="font-headline-lg text-headline-lg-mobile text-on-surface shrink-0">Journal</h1>
+        {tab === "journal" && children.length > 1 && (
           <select
             value={filterChildId}
             onChange={(e) => setFilterChildId(e.target.value)}
@@ -186,48 +195,75 @@ export function JournalPage() {
         )}
       </div>
 
-      <div className="flex-1 px-container-padding flex flex-col gap-element-gap pb-section-margin">
-        {loading && (
-          <p className="font-body-md text-body-md text-on-surface-variant">Loading…</p>
-        )}
-        {error && (
-          <p className="font-body-md text-body-md text-error bg-error-container rounded-lg px-4 py-3">
-            {error}
-          </p>
-        )}
-        {!loading && feed.length === 0 && (
-          <p className="font-body-md text-body-md text-on-surface-variant">
-            No journal entries yet — tap + to share the first one.
-          </p>
-        )}
-        {feed.map((post) => (
-          <JournalPostCard
-            key={post.id}
-            childId={post.childIds[0]}
-            post={post}
-            currentUserId={user?.id}
-            onReacted={handleReacted}
-            onDeleted={handleDeleted}
-          />
-        ))}
-
-        {!loading && anyNextCursor && (
+      <div className="px-container-padding pb-2 sticky top-0 z-10 bg-surface">
+        <div className="flex p-1 bg-surface-container-high rounded-full w-full">
           <button
-            onClick={() => targetChildIds.forEach((id) => feeds[id]?.nextCursor && loadMore(id))}
-            disabled={loadingMore}
-            className="self-center mt-2 px-6 py-2 rounded-full bg-surface-container-high font-label-sm text-label-sm text-on-surface-variant disabled:opacity-60"
+            onClick={() => setTab("journal")}
+            className={`flex-1 py-2 text-center rounded-full font-label-md text-label-md transition-colors ${
+              tab === "journal" ? "bg-primary text-on-primary shadow-sm" : "text-on-surface-variant"
+            }`}
           >
-            {loadingMore ? "Loading…" : "Load more"}
+            Journal
           </button>
-        )}
+          <button
+            onClick={() => setTab("media")}
+            className={`flex-1 py-2 text-center rounded-full font-label-md text-label-md transition-colors ${
+              tab === "media" ? "bg-primary text-on-primary shadow-sm" : "text-on-surface-variant"
+            }`}
+          >
+            Media Gallery
+          </button>
+        </div>
       </div>
 
-      <button
-        onClick={() => navigate("/journal/new")}
-        className="fixed bottom-24 right-6 w-14 h-14 bg-primary text-on-primary rounded-full shadow-lg flex items-center justify-center hover:bg-surface-tint transition-colors z-40"
-      >
-        <Icon name="add" className="text-2xl" />
-      </button>
+      {tab === "media" ? (
+        <MediaGalleryTab />
+      ) : (
+        <>
+          <div className="flex-1 px-container-padding flex flex-col gap-element-gap pb-section-margin">
+            {loading && (
+              <p className="font-body-md text-body-md text-on-surface-variant">Loading…</p>
+            )}
+            {error && (
+              <p className="font-body-md text-body-md text-error bg-error-container rounded-lg px-4 py-3">
+                {error}
+              </p>
+            )}
+            {!loading && feed.length === 0 && (
+              <p className="font-body-md text-body-md text-on-surface-variant">
+                No journal entries yet — tap + to share the first one.
+              </p>
+            )}
+            {feed.map((post) => (
+              <JournalPostCard
+                key={post.id}
+                childId={post.childIds[0]}
+                post={post}
+                currentUserId={user?.id}
+                onReacted={handleReacted}
+                onDeleted={handleDeleted}
+              />
+            ))}
+
+            {!loading && anyNextCursor && (
+              <button
+                onClick={() => targetChildIds.forEach((id) => feeds[id]?.nextCursor && loadMore(id))}
+                disabled={loadingMore}
+                className="self-center mt-2 px-6 py-2 rounded-full bg-surface-container-high font-label-sm text-label-sm text-on-surface-variant disabled:opacity-60"
+              >
+                {loadingMore ? "Loading…" : "Load more"}
+              </button>
+            )}
+          </div>
+
+          <button
+            onClick={() => navigate("/journal/new")}
+            className="fixed bottom-24 right-6 w-14 h-14 bg-primary text-on-primary rounded-full shadow-lg flex items-center justify-center hover:bg-surface-tint transition-colors z-40"
+          >
+            <Icon name="add" className="text-2xl" />
+          </button>
+        </>
+      )}
     </div>
   );
 }

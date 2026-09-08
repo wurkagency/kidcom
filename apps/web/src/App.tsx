@@ -11,17 +11,23 @@ import { LoginPage } from "./routes/LoginPage";
 import { SignupPage } from "./routes/SignupPage";
 import { OnboardingChildPage } from "./routes/OnboardingChildPage";
 import { OnboardingInvitePage } from "./routes/OnboardingInvitePage";
+import { OnboardingPlanPage } from "./routes/OnboardingPlanPage";
+import { LoginTwoFactorPage } from "./routes/LoginTwoFactorPage";
 import { ChildProfilePage } from "./routes/ChildProfilePage";
 import { ChildMedicalPage } from "./routes/ChildMedicalPage";
 import { ChildContactsPage } from "./routes/ChildContactsPage";
+import { EventFormPage } from "./routes/EventFormPage";
 import { JournalPostPage } from "./routes/JournalPostPage";
 import { JournalComposePage } from "./routes/JournalComposePage";
 import { ListsPage } from "./routes/ListsPage";
 import { MessagesPage } from "./routes/MessagesPage";
 import { MessageComposePage } from "./routes/MessageComposePage";
 import { MessageThreadPage } from "./routes/MessageThreadPage";
-import { NotesPage } from "./routes/NotesPage";
 import { BillingPage } from "./routes/BillingPage";
+import { AppPreferencesPage } from "./routes/AppPreferencesPage";
+import { NotificationSettingsPage } from "./routes/NotificationSettingsPage";
+import { SettingsChoicePage } from "./routes/SettingsChoicePage";
+import { PrivacySecurityPage } from "./routes/PrivacySecurityPage";
 import { InviteAcceptPage } from "./routes/InviteAcceptPage";
 import { VerifyEmailPage } from "./routes/VerifyEmailPage";
 import { VerifyEmailGate } from "./components/VerifyEmailGate";
@@ -50,6 +56,7 @@ export default function App() {
       <Routes>
         <Route path="/welcome" element={<WelcomePage />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/login/verify" element={<LoginTwoFactorPage />} />
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/invite/:token" element={<InviteAcceptPage />} />
         <Route path="/verify-email" element={<VerifyEmailPage />} />
@@ -75,11 +82,13 @@ export default function App() {
     <Routes>
       <Route path="/welcome" element={<Navigate to="/" replace />} />
       <Route path="/login" element={<Navigate to="/" replace />} />
+      <Route path="/login/verify" element={<Navigate to="/" replace />} />
       <Route path="/signup" element={<Navigate to="/" replace />} />
       <Route path="/invite/:token" element={<InviteAcceptPage />} />
       <Route path="/verify-email" element={<VerifyEmailPage />} />
       <Route path="/onboarding/child" element={<OnboardingChildPage />} />
       <Route path="/onboarding/invite" element={<OnboardingInvitePage />} />
+      <Route path="/onboarding/plan" element={<OnboardingPlanPage />} />
       <Route
         path="/*"
         element={
@@ -89,18 +98,26 @@ export default function App() {
               <Route path="/" element={<HomePage />} />
               <Route path="/calendar" element={<CalendarPage />} />
               <Route path="/journal" element={<JournalPage />} />
-              <Route path="/growth" element={<GrowthPage />} />
+              <Route path="/lists" element={<ListsPage />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/children/:childId" element={<ChildProfilePage />} />
               <Route path="/children/:childId/medical" element={<ChildMedicalPage />} />
               <Route path="/children/:childId/contacts" element={<ChildContactsPage />} />
+              <Route path="/children/:childId/growth" element={<GrowthPage />} />
+              <Route path="/children/:childId/calendar-events/new" element={<EventFormPage />} />
+              <Route path="/children/:childId/calendar-events/:eventId/edit" element={<EventFormPage />} />
               <Route path="/journal/new" element={<JournalComposePage />} />
+              <Route path="/journal/media" element={<Navigate to="/journal?tab=media" replace />} />
               <Route path="/journal/:postId" element={<JournalPostPage />} />
-              <Route path="/children/:childId/lists" element={<ListsPage />} />
               <Route path="/messages" element={<MessagesPage />} />
               <Route path="/messages/new" element={<MessageComposePage />} />
               <Route path="/messages/:threadId" element={<MessageThreadPage />} />
-              <Route path="/notes" element={<NotesPage />} />
+              <Route path="/notes" element={<Navigate to="/messages?tab=notes" replace />} />
+              <Route path="/preferences" element={<AppPreferencesPage />} />
+              <Route path="/preferences/:field" element={<SettingsChoicePage />} />
+              <Route path="/security" element={<PrivacySecurityPage />} />
+              <Route path="/security/:field" element={<SettingsChoicePage />} />
+              <Route path="/notifications" element={<NotificationSettingsPage />} />
               <Route path="/billing" element={<BillingPage />} />
             </Routes>
           </AppShell>

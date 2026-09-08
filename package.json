@@ -8,6 +8,7 @@
     "packages/*"
   ],
   "scripts": {
+    "prepare": "npm run build --workspace=packages/shared",
     "dev": "concurrently -n api,worker,web -c blue,magenta,green \"npm:dev:api\" \"npm:dev:worker\" \"npm:dev:web\"",
     "dev:api": "dotenv -e .env -- npm run dev --workspace=apps/api",
     "dev:worker": "dotenv -e .env -- npm run worker --workspace=apps/api",

@@ -98,7 +98,7 @@ export function OnboardingChildPage() {
 
         <div className="flex flex-col gap-1.5">
           <label className="font-label-md text-label-md text-text-main" id="gender-label">
-            Gender
+            Gender (Optional)
           </label>
           <div
             className="flex p-1 bg-surface-container-high rounded-xl gap-1"

@@ -20,7 +20,11 @@ function toDto(row: {
   endsAt: Date | null;
   allDay: boolean;
   notes: string | null;
+  location: string | null;
   isMedical: boolean;
+  isSport: boolean;
+  recurrenceIntervalWeeks: number | null;
+  recurrenceEndsAt: Date | null;
 }): CalendarEventDto {
   return {
     id: row.id,
@@ -30,9 +34,29 @@ function toDto(row: {
     endsAt: row.endsAt?.toISOString() ?? null,
     allDay: row.allDay,
     notes: row.notes,
+    location: row.location,
     editable: row.category !== "HOLIDAY",
     isMedical: row.isMedical,
+    isSport: row.isSport,
+    recurrenceIntervalWeeks: row.recurrenceIntervalWeeks,
+    recurrenceEndsAt: row.recurrenceEndsAt?.toISOString() ?? null,
   };
+}
+
+function validateRecurrence(body: Partial<CreateCalendarEventRequest>) {
+  if (body.recurrenceIntervalWeeks === undefined || body.recurrenceIntervalWeeks === null) return;
+  if (!Number.isInteger(body.recurrenceIntervalWeeks) || body.recurrenceIntervalWeeks < 1) {
+    throw new ApiError(400, "recurrenceIntervalWeeks must be a positive integer");
+  }
+}
+
+// `undefined` means "field omitted, leave unchanged on update"; `null`
+// means "explicitly clear" — both are meaningful and must pass through
+// distinctly rather than collapsing to one or the other.
+function toRecurrenceEndsAtInput(value: string | null | undefined): Date | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  return new Date(value);
 }
 
 calendarEventsRouter.post("/", async (req: Request<ChildParams>, res, next) => {
@@ -44,6 +68,7 @@ calendarEventsRouter.post("/", async (req: Request<ChildParams>, res, next) => {
     if (body.category !== "APPOINTMENT" && body.category !== "PLANNED_HOLIDAY") {
       throw new ApiError(400, "category must be APPOINTMENT or PLANNED_HOLIDAY");
     }
+    validateRecurrence(body);
     const row = await prisma.calendarEvent.create({
       data: {
         childId: req.params.childId,
@@ -53,7 +78,11 @@ calendarEventsRouter.post("/", async (req: Request<ChildParams>, res, next) => {
         endsAt: body.endsAt ? new Date(body.endsAt) : undefined,
         allDay: body.allDay ?? false,
         notes: body.notes,
+        location: body.location,
         isMedical: body.isMedical ?? false,
+        isSport: body.isSport ?? false,
+        recurrenceIntervalWeeks: body.recurrenceIntervalWeeks ?? undefined,
+        recurrenceEndsAt: toRecurrenceEndsAtInput(body.recurrenceEndsAt) ?? undefined,
       },
     });
     res.status(201).json(toDto(row));
@@ -73,6 +102,7 @@ calendarEventsRouter.patch("/:id", async (req: Request<ChildEventParams>, res, n
     }
 
     const body = req.body as UpdateCalendarEventRequest;
+    validateRecurrence(body);
     const row = await prisma.calendarEvent.update({
       where: { id: req.params.id },
       data: {
@@ -82,7 +112,11 @@ calendarEventsRouter.patch("/:id", async (req: Request<ChildEventParams>, res, n
         endsAt: body.endsAt ? new Date(body.endsAt) : undefined,
         allDay: body.allDay,
         notes: body.notes,
+        location: body.location,
         isMedical: body.isMedical,
+        isSport: body.isSport,
+        recurrenceIntervalWeeks: body.recurrenceIntervalWeeks,
+        recurrenceEndsAt: toRecurrenceEndsAtInput(body.recurrenceEndsAt),
       },
     });
     res.json(toDto(row));

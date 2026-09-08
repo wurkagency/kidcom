@@ -1,5 +1,7 @@
 import { Router } from "express";
-import type { ChildDetail, ChildSummary, CreateChildRequest, UpdateChildRequest } from "@kidcom/shared";
+import type { ChildDetail, ChildGender, ChildSummary, CreateChildRequest, UpdateChildRequest } from "@kidcom/shared";
+
+const CHILD_GENDERS: ChildGender[] = ["BOY", "GIRL", "OTHER"];
 
 import { prisma } from "../../db";
 import { requireAuth, requireVerifiedEmail } from "../../middleware/session";
@@ -91,6 +93,9 @@ childrenRouter.post("/", requireVerifiedEmail, async (req, res, next) => {
 
     if (!firstName || !gender || !birthday) {
       throw new ApiError(400, "firstName, gender, and birthday are required");
+    }
+    if (!CHILD_GENDERS.includes(gender)) {
+      throw new ApiError(400, "gender must be one of BOY, GIRL, OTHER");
     }
 
     // Free and Parents cap at 1 child, Family is unlimited (PRD pricing
@@ -184,6 +189,10 @@ childrenRouter.patch("/:childId", requireChildAccess, async (req, res, next) => 
           data: { avatarForChildId: req.params.childId },
         });
       });
+    }
+
+    if (body.gender !== undefined && !CHILD_GENDERS.includes(body.gender)) {
+      throw new ApiError(400, "gender must be one of BOY, GIRL, OTHER");
     }
 
     const child = await prisma.child.update({

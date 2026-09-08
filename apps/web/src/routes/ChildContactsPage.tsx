@@ -9,6 +9,7 @@ import type {
   UpdateEmergencyContactRequest,
 } from "@kidcom/shared";
 
+import { Avatar } from "../components/Avatar";
 import { Icon } from "../components/Icon";
 import { apiDelete, apiGet, apiPatch, apiPost, ApiRequestError } from "../lib/api";
 
@@ -119,9 +120,7 @@ export function ChildContactsPage() {
           )}
           {family.map((c) => (
             <div key={c.id} className="bg-surface-container rounded-2xl p-4 flex items-center gap-4">
-              <div className="w-16 h-16 rounded-full bg-surface-variant flex items-center justify-center shrink-0 text-on-surface-variant font-headline-md">
-                {c.name.charAt(0).toUpperCase()}
-              </div>
+              <Avatar name={c.name} avatarAssetId={c.avatarUrl} kind="adult" size="lg" />
               <div className="flex-1 min-w-0">
                 <h4 className="font-label-md text-label-md text-on-surface truncate">{c.name}</h4>
                 <p className="font-body-md text-body-md text-on-surface-variant truncate">
@@ -129,12 +128,22 @@ export function ChildContactsPage() {
                 </p>
               </div>
               {c.phone && (
-                <a
-                  href={`tel:${c.phone}`}
-                  className="w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center shrink-0"
-                >
-                  <Icon name="call" className="text-[20px]" />
-                </a>
+                <div className="flex items-center gap-2 shrink-0">
+                  <a
+                    href={`sms:${c.phone}`}
+                    aria-label={`Text ${c.name}`}
+                    className="w-10 h-10 rounded-full bg-surface-container-lowest text-primary flex items-center justify-center"
+                  >
+                    <Icon name="sms" className="text-[20px]" />
+                  </a>
+                  <a
+                    href={`tel:${c.phone}`}
+                    aria-label={`Call ${c.name}`}
+                    className="w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center"
+                  >
+                    <Icon name="call" className="text-[20px]" />
+                  </a>
+                </div>
               )}
             </div>
           ))}
@@ -338,14 +347,18 @@ export function ChildContactsPage() {
 
       <section className="mb-4">
         <div className="bg-journal-peach/30 rounded-2xl p-5 relative overflow-hidden flex flex-col gap-3 shadow-sm">
-          <div className="flex items-center gap-2 text-on-secondary-fixed-variant">
+          <div className="absolute -right-8 -top-8 w-32 h-32 bg-secondary-container rounded-full opacity-50 blur-xl pointer-events-none" />
+          <div className="flex items-center gap-2 text-on-secondary-fixed-variant z-10">
             <Icon name="info" className="text-[20px]" />
             <h4 className="font-label-md text-label-md">Critical Information</h4>
           </div>
           {criticalAllergy ? (
-            <div className="bg-surface/80 backdrop-blur-sm rounded-xl p-3 inline-block self-start shadow-sm">
+            <div className="bg-surface/80 backdrop-blur-sm rounded-xl p-3 inline-block self-start shadow-sm z-10">
               <span className="font-label-md text-label-md text-error flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-error" />
+                <span className="relative w-2 h-2 flex">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-error opacity-75" />
+                  <span className="relative w-2 h-2 rounded-full bg-error" />
+                </span>
                 {criticalAllergy.condition}
               </span>
             </div>

@@ -8,7 +8,7 @@ import type {
   InvitePreviewResponse,
   MeResponse,
 } from "@kidcom/shared";
-import { familyMemberTypeToRole } from "@kidcom/shared";
+import { familyMemberTypeToRole, isValidEmail } from "@kidcom/shared";
 
 import { prisma } from "../../db";
 import { config } from "../../config";
@@ -52,6 +52,9 @@ invitesRouter.post("/", requireAuth, requireVerifiedEmail, async (req, res, next
     }
     if (!body.email) {
       throw new ApiError(400, "email is required");
+    }
+    if (!isValidEmail(body.email)) {
+      throw new ApiError(400, "Please enter a valid email address");
     }
 
     const access = await prisma.childAccess.findUnique({

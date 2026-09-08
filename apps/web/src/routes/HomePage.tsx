@@ -266,7 +266,12 @@ export function HomePage() {
 
             {/* Latest Journal Entry */}
             <Link
-              to={data?.latestPost ? `/journal/${data.latestPost.id}` : "/journal"}
+              to={
+                data?.latestPost
+                  ? `/journal/${data.latestPost.id}?childId=${childId}`
+                  : "/journal"
+              }
+              state={data?.latestPost ? { post: data.latestPost } : undefined}
               className="bg-journal-peach rounded-[24px] p-1 flex flex-col min-h-[160px] shadow-sm relative overflow-hidden"
             >
               {journalMediaUrl && (

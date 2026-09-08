@@ -9,6 +9,11 @@ import { prisma } from "../db";
 declare module "express-session" {
   interface SessionData {
     userId?: string;
+    // Set by POST /login once the password check passes but before the 2FA
+    // code is verified — a real session (userId) isn't granted until
+    // POST /auth/verify-2fa succeeds. Never used as an auth credential by
+    // itself (requireAuth/requireVerifiedEmail only ever check userId).
+    pendingTwoFactorUserId?: string;
   }
 }
 

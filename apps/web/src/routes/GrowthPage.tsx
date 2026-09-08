@@ -1,4 +1,5 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useParams } from "react-router-dom";
 import type {
   ChildDetail,
   CreateGrowthEntryRequest,
@@ -6,10 +7,12 @@ import type {
   UpdateGrowthEntryRequest,
 } from "@kidcom/shared";
 
+import { Avatar } from "../components/Avatar";
 import { GrowthChart } from "../components/GrowthChart";
 import { Icon } from "../components/Icon";
 import { apiDelete, apiGet, apiPatch, apiPost, ApiRequestError } from "../lib/api";
-import { useAuth } from "../lib/AuthContext";
+import { formatHeight, formatWeight, getUnitSystem } from "../lib/preferences";
+import { shouldUseBmiForWeight } from "../lib/whoGrowthStandards";
 
 function ageLabel(birthday: string) {
   const now = new Date();
@@ -25,10 +28,12 @@ function ageLabel(birthday: string) {
 
 // Matches docs/stitch_splitkid/growth_charts/code.html, minus the WHO
 // percentile shading (needs real WHO LMS reference data — see chunk 3 plan).
-// If the user has more than one child, a simple switcher picks which one.
+// Reached from a specific child's profile (/children/:childId/growth) —
+// Growth is no longer a top-level tab, so there's no in-page child switcher
+// here anymore; picking a different child means going back to their profile.
 export function GrowthPage() {
-  const { children } = useAuth();
-  const [selectedId, setSelectedId] = useState<string | undefined>(children[0]?.id);
+  const { childId } = useParams<{ childId: string }>();
+  const units = useMemo(() => getUnitSystem(), []);
   const [child, setChild] = useState<ChildDetail | null>(null);
   const [entries, setEntries] = useState<GrowthEntryDto[]>([]);
   const [metric, setMetric] = useState<"height" | "weight">("height");
@@ -41,8 +46,6 @@ export function GrowthPage() {
   const [submitting, setSubmitting] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
-
-  const childId = selectedId ?? children[0]?.id;
 
   useEffect(() => {
     if (!childId) {
@@ -119,17 +122,6 @@ export function GrowthPage() {
     }
   }
 
-  if (children.length === 0) {
-    return (
-      <section className="px-container-padding pt-6 flex flex-col gap-2">
-        <h1 className="font-headline-lg-mobile text-headline-lg-mobile text-on-surface">Growth</h1>
-        <p className="font-body-md text-body-md text-on-surface-variant">
-          Add a child first to start tracking growth.
-        </p>
-      </section>
-    );
-  }
-
   if (loading || !child) {
     return (
       <section className="px-container-padding pt-6">
@@ -141,51 +133,38 @@ export function GrowthPage() {
   const latest = [...entries].reverse().find((e) => e.heightCm != null);
   const latestWeight = [...entries].reverse().find((e) => e.weightKg != null);
   const recentLogs = [...entries].reverse().slice(0, 5);
+  const isBmiMode = metric === "weight" && shouldUseBmiForWeight(child.birthday, child.gender);
 
   return (
     <div className="flex flex-col w-full px-container-padding gap-section-margin pt-4 relative">
       <section className="flex flex-col gap-element-gap">
         <div className="flex items-center gap-element-gap">
-          <div className="relative w-16 h-16 rounded-full overflow-hidden shadow-sm bg-surface-container-high flex items-center justify-center">
-            <Icon name="child_care" className="text-2xl text-on-surface-variant" />
-          </div>
+          <Avatar
+            name={child.firstName}
+            avatarAssetId={child.profileImageUrl}
+            kind="child"
+            size="lg"
+            className="shadow-sm"
+          />
           <div className="flex flex-col">
             <h1 className="font-headline-lg-mobile text-text-main">{child.firstName}'s Growth</h1>
             <p className="font-body-md text-on-surface-variant">{ageLabel(child.birthday)}</p>
           </div>
         </div>
 
-        {children.length > 1 && (
-          <div className="flex gap-2 overflow-x-auto">
-            {children.map((c) => (
-              <button
-                key={c.id}
-                onClick={() => setSelectedId(c.id)}
-                className={`px-4 py-2 rounded-full font-label-md text-label-md whitespace-nowrap ${
-                  c.id === childId
-                    ? "bg-primary text-on-primary"
-                    : "bg-surface-container text-on-surface-variant"
-                }`}
-              >
-                {c.firstName}
-              </button>
-            ))}
-          </div>
-        )}
-
         <div className="grid grid-cols-2 gap-grid-gutter">
           <div className="bg-surface-container-lowest rounded-2xl p-4 shadow-sm flex flex-col items-center justify-center text-center">
             <Icon name="height" className="text-primary mb-1" />
             <span className="font-label-sm text-on-surface-variant uppercase tracking-wider">Height</span>
             <span className="font-headline-md text-text-main mt-1">
-              {latest?.heightCm ?? "—"} <span className="text-label-sm text-on-surface-variant">cm</span>
+              {latest?.heightCm != null ? formatHeight(latest.heightCm, units) : "—"}
             </span>
           </div>
           <div className="bg-surface-container-lowest rounded-2xl p-4 shadow-sm flex flex-col items-center justify-center text-center">
             <Icon name="scale" className="text-primary mb-1" />
             <span className="font-label-sm text-on-surface-variant uppercase tracking-wider">Weight</span>
             <span className="font-headline-md text-text-main mt-1">
-              {latestWeight?.weightKg ?? "—"} <span className="text-label-sm text-on-surface-variant">kg</span>
+              {latestWeight?.weightKg != null ? formatWeight(latestWeight.weightKg, units) : "—"}
             </span>
           </div>
         </div>
@@ -195,9 +174,9 @@ export function GrowthPage() {
         <div className="p-container-padding flex justify-between items-center border-b border-surface-variant/50">
           <div>
             <h2 className="font-headline-md text-text-main">
-              {metric === "height" ? "Height" : "Weight"} Chart
+              {metric === "height" ? "Height Chart" : isBmiMode ? "BMI-for-age" : "Weight Chart"}
             </h2>
-            <p className="font-label-sm text-on-surface-variant mt-1">From your own logs</p>
+            <p className="font-label-sm text-on-surface-variant mt-1">WHO Percentiles</p>
           </div>
           <div className="flex bg-surface-container rounded-full p-1">
             <button
@@ -206,7 +185,7 @@ export function GrowthPage() {
                 metric === "height" ? "bg-surface-container-lowest text-text-main shadow-sm" : "text-on-surface-variant"
               }`}
             >
-              Ht
+              cm
             </button>
             <button
               onClick={() => setMetric("weight")}
@@ -214,11 +193,11 @@ export function GrowthPage() {
                 metric === "weight" ? "bg-surface-container-lowest text-text-main shadow-sm" : "text-on-surface-variant"
               }`}
             >
-              Wt
+              kg
             </button>
           </div>
         </div>
-        <GrowthChart entries={entries} metric={metric} />
+        <GrowthChart entries={entries} metric={metric} child={{ birthday: child.birthday, gender: child.gender }} />
       </section>
 
       <section className="flex flex-col gap-element-gap mb-8">
@@ -268,10 +247,10 @@ export function GrowthPage() {
                 <div className="flex items-center gap-2 shrink-0">
                   <div className="text-right">
                     {entry.heightCm != null && (
-                      <p className="font-label-md text-text-main">{entry.heightCm} cm</p>
+                      <p className="font-label-md text-text-main">{formatHeight(entry.heightCm, units)}</p>
                     )}
                     {entry.weightKg != null && (
-                      <p className="font-label-sm text-on-surface-variant mt-0.5">{entry.weightKg} kg</p>
+                      <p className="font-label-sm text-on-surface-variant mt-0.5">{formatWeight(entry.weightKg, units)}</p>
                     )}
                   </div>
                   <button

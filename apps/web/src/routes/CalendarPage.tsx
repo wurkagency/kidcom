@@ -1,20 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import type {
   CalendarEventDto,
   CalendarRangeResponse,
   ChildFamilyMember,
-  CreateCalendarEventRequest,
   ResolveSwapRequestRequest,
   SwapRequestDto,
 } from "@kidcom/shared";
 
 import { SwapRequestCard } from "../components/SwapRequestCard";
 import { Icon } from "../components/Icon";
-import { apiGet, apiPatch, apiPost, ApiRequestError } from "../lib/api";
+import { apiGet, apiPatch, ApiRequestError } from "../lib/api";
 import { useAuth } from "../lib/AuthContext";
+import { getWeekStart, type WeekStart } from "../lib/preferences";
 
-const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const DAY_LABELS_MONDAY = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const DAY_LABELS_SUNDAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 function toDateOnly(d: Date): string {
   return d.toISOString().slice(0, 10);
@@ -31,18 +32,73 @@ function toLocalDateOnly(d: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-function startOfWeek(date: Date): Date {
+// Preference from App Preferences (Start of Week) decides whether the week
+// strip begins Sunday or Monday — read once via getWeekStart() below.
+function startOfWeek(date: Date, weekStart: WeekStart): Date {
   const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
-  const dayIdx = (d.getUTCDay() + 6) % 7; // Monday = 0
+  const dayIdx = weekStart === "sunday" ? d.getUTCDay() : (d.getUTCDay() + 6) % 7;
   d.setUTCDate(d.getUTCDate() - dayIdx);
   return d;
 }
 
-const CATEGORY_ICON: Record<CalendarEventDto["category"], string> = {
-  APPOINTMENT: "event",
-  HOLIDAY: "celebration",
-  PLANNED_HOLIDAY: "flight_takeoff",
+// One color per event kind, shared by the legend and the timeline dots so
+// they actually mean the same thing — matches
+// docs/stitch_splitkid/calendar_custody/code.html: medical events are
+// tertiary (dentistry icon), holidays are journal-peach, everything else
+// (a plain appointment) is primary-container, same as the mockup's "School
+// Drop-off" event. Sport isn't in the original mockup — added on request,
+// given its own color (secondary) so it doesn't collide with the others.
+function eventKind(event: CalendarEventDto): "medical" | "sport" | "holiday" | "appointment" {
+  if (event.isMedical) return "medical";
+  if (event.isSport) return "sport";
+  if (event.category === "HOLIDAY" || event.category === "PLANNED_HOLIDAY") return "holiday";
+  return "appointment";
+}
+
+const EVENT_DOT_CLASS: Record<ReturnType<typeof eventKind>, string> = {
+  medical: "bg-tertiary-fixed",
+  sport: "bg-secondary",
+  holiday: "bg-journal-peach",
+  appointment: "bg-primary-container",
 };
+
+const EVENT_ICON: Record<ReturnType<typeof eventKind>, string> = {
+  medical: "dentistry",
+  sport: "sports_soccer",
+  holiday: "celebration",
+  appointment: "event",
+};
+
+// Left accent bar + badge/text tint — only medical and sport get the
+// "highlighted" treatment (accent bar, tinted badge) since those are the
+// two kinds someone is most likely scanning the timeline for; plain
+// appointments and holidays stay visually quiet, same as before.
+const EVENT_ACCENT_CLASS: Partial<Record<ReturnType<typeof eventKind>, string>> = {
+  medical: "bg-tertiary-fixed",
+  sport: "bg-secondary",
+};
+const EVENT_TEXT_CLASS: Record<ReturnType<typeof eventKind>, string> = {
+  medical: "text-tertiary",
+  sport: "text-secondary",
+  holiday: "text-on-surface-variant",
+  appointment: "text-on-surface-variant",
+};
+const EVENT_BADGE_BG_CLASS: Record<ReturnType<typeof eventKind>, string> = {
+  medical: "bg-tertiary-fixed-dim/30",
+  sport: "bg-secondary-container/40",
+  holiday: "bg-surface-container",
+  appointment: "bg-surface-container",
+};
+const EVENT_ICON_COLOR_CLASS: Record<ReturnType<typeof eventKind>, string> = {
+  medical: "text-tertiary",
+  sport: "text-secondary",
+  holiday: "text-primary",
+  appointment: "text-primary",
+};
+
+function googleMapsUrl(address: string): string {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+}
 
 // Matches docs/stitch_splitkid/calendar_custody/code.html: month header with
 // week navigation, a 4-item legend, a 7-day strip, and a timeline of the
@@ -51,6 +107,7 @@ const CATEGORY_ICON: Record<CalendarEventDto["category"], string> = {
 // rather than stored events — see the chunk 4 plan.
 export function CalendarPage() {
   const { user, children } = useAuth();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const swapCardRef = useRef<HTMLDivElement>(null);
   const [selectedChildId, setSelectedChildId] = useState<string | undefined>(children[0]?.id);
@@ -60,16 +117,12 @@ export function CalendarPage() {
   const [hasPlan, setHasPlan] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showAddEvent, setShowAddEvent] = useState(false);
-  const [eventTitle, setEventTitle] = useState("");
-  const [eventTime, setEventTime] = useState("09:00");
-  const [eventIsMedical, setEventIsMedical] = useState(false);
-  const [savingEvent, setSavingEvent] = useState(false);
   const [swapRequests, setSwapRequests] = useState<SwapRequestDto[]>([]);
   const [resolvingSwapId, setResolvingSwapId] = useState<string | null>(null);
 
   const childId = selectedChildId ?? children[0]?.id;
-  const weekStart = useMemo(() => startOfWeek(new Date(selectedDate)), [selectedDate]);
+  const weekStartPref = useMemo(() => getWeekStart(), []);
+  const weekStart = useMemo(() => startOfWeek(new Date(selectedDate), weekStartPref), [selectedDate, weekStartPref]);
   const weekDays = useMemo(
     () =>
       Array.from({ length: 7 }, (_, i) => {
@@ -125,8 +178,9 @@ export function CalendarPage() {
   useEffect(() => {
     if (loading) return;
     const action = deepLinkAction;
-    if (action === "add-event") {
-      setShowAddEvent(true);
+    if (action === "add-event" && childId) {
+      navigate(`/children/${childId}/calendar-events/new`);
+      return;
     } else if (action === "swap") {
       swapCardRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
     }
@@ -135,7 +189,7 @@ export function CalendarPage() {
       setSearchParams(searchParams, { replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, deepLinkAction]);
+  }, [loading, deepLinkAction, childId]);
 
   const parents = family.filter((m) => m.role === "PARENT");
   const parentColor = (userId: string | null) => {
@@ -149,28 +203,6 @@ export function CalendarPage() {
   );
   const selectedOwner = range?.custodyByDate[selectedDate] ?? null;
   const selectedOwnerName = parents.find((p) => p.userId === selectedOwner)?.firstName;
-
-  async function handleAddEvent() {
-    if (!childId || !eventTitle.trim()) return;
-    setSavingEvent(true);
-    try {
-      const startsAt = new Date(`${selectedDate}T${eventTime}:00`).toISOString();
-      await apiPost(`/children/${childId}/calendar-events`, {
-        category: "APPOINTMENT",
-        title: eventTitle,
-        startsAt,
-        isMedical: eventIsMedical,
-      } satisfies CreateCalendarEventRequest);
-      setEventTitle("");
-      setEventIsMedical(false);
-      setShowAddEvent(false);
-      await loadRange();
-    } catch {
-      setError("Couldn't add that event — try again.");
-    } finally {
-      setSavingEvent(false);
-    }
-  }
 
   async function handleResolveSwapRequest(id: string, status: ResolveSwapRequestRequest["status"]) {
     if (!childId) return;
@@ -261,7 +293,11 @@ export function CalendarPage() {
         )}
         <div className="flex items-center gap-2 shrink-0">
           <div className="w-3 h-3 rounded-full bg-tertiary-fixed" />
-          <span className="font-label-sm text-label-sm text-on-surface-variant">Appointment</span>
+          <span className="font-label-sm text-label-sm text-on-surface-variant">Medical</span>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="w-3 h-3 rounded-full bg-secondary" />
+          <span className="font-label-sm text-label-sm text-on-surface-variant">Sport</span>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <div className="w-3 h-3 rounded-full bg-journal-peach" />
@@ -300,7 +336,7 @@ export function CalendarPage() {
                         isSelected ? "text-on-primary-container" : "text-on-surface-variant"
                       }`}
                     >
-                      {DAY_LABELS[i]}
+                      {(weekStartPref === "sunday" ? DAY_LABELS_SUNDAY : DAY_LABELS_MONDAY)[i]}
                     </span>
                     <span
                       className={`font-headline-lg-mobile text-headline-lg-mobile ${
@@ -378,84 +414,103 @@ export function CalendarPage() {
                   Nothing scheduled for this day.
                 </p>
               )}
-              {selectedDayEvents.map((event) => (
-                <div
-                  key={event.id}
-                  className="relative z-10 bg-surface-container-lowest rounded-2xl p-4 shadow-sm border border-surface-variant/50"
-                >
-                  <div className="flex justify-between items-start mb-2">
-                    <div>
-                      {!event.allDay && (
-                        <span className="font-label-sm text-label-sm text-on-surface-variant block mb-1">
-                          {new Date(event.startsAt).toLocaleTimeString(undefined, {
-                            hour: "numeric",
-                            minute: "2-digit",
-                          })}
-                        </span>
-                      )}
-                      <h4 className="font-label-md text-label-md text-on-surface">{event.title}</h4>
+              {selectedDayEvents.length > 0 && (
+                // Vertical connector line running through the dot markers,
+                // matching docs/stitch_splitkid/calendar_custody/code.html —
+                // the previous version dropped this entirely and rendered
+                // flat cards with no timeline at all.
+                <div className="absolute left-[19px] top-4 bottom-4 w-px bg-surface-variant z-0" />
+              )}
+              {selectedDayEvents.map((event) => {
+                const kind = eventKind(event);
+                const accentClass = EVENT_ACCENT_CLASS[kind];
+                const timeLabel = event.allDay
+                  ? null
+                  : event.endsAt
+                    ? `${new Date(event.startsAt).toLocaleTimeString(undefined, {
+                        hour: "numeric",
+                        minute: "2-digit",
+                      })} – ${new Date(event.endsAt).toLocaleTimeString(undefined, {
+                        hour: "numeric",
+                        minute: "2-digit",
+                      })}`
+                    : new Date(event.startsAt).toLocaleTimeString(undefined, {
+                        hour: "numeric",
+                        minute: "2-digit",
+                      });
+                return (
+                  <div key={event.id} className="relative z-10 flex gap-4">
+                    <div className="w-10 flex flex-col items-center pt-2">
+                      <div className={`w-3 h-3 rounded-full ${EVENT_DOT_CLASS[kind]} ring-4 ring-surface`} />
                     </div>
-                    <div className="bg-surface-container px-2 py-1 rounded-lg">
-                      <Icon name={CATEGORY_ICON[event.category]} className="text-[18px] text-primary" />
+                    <div
+                      role={event.editable ? "button" : undefined}
+                      tabIndex={event.editable ? 0 : undefined}
+                      onClick={() =>
+                        event.editable &&
+                        childId &&
+                        navigate(`/children/${childId}/calendar-events/${event.id}/edit`, { state: { event } })
+                      }
+                      onKeyDown={(e) => {
+                        if (!event.editable || (e.key !== "Enter" && e.key !== " ")) return;
+                        e.preventDefault();
+                        childId && navigate(`/children/${childId}/calendar-events/${event.id}/edit`, { state: { event } });
+                      }}
+                      className={`flex-1 text-left bg-surface-container-lowest rounded-2xl p-4 shadow-sm border border-surface-variant/50 relative overflow-hidden ${
+                        event.editable ? "active:scale-[0.99] transition-transform cursor-pointer" : "cursor-default"
+                      }`}
+                    >
+                      {accentClass && <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${accentClass}`} />}
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          {timeLabel && (
+                            <span className={`font-label-sm text-label-sm block mb-1 ${EVENT_TEXT_CLASS[kind]}`}>
+                              {timeLabel}
+                            </span>
+                          )}
+                          <h4 className="font-label-md text-label-md text-on-surface">{event.title}</h4>
+                          {event.recurrenceIntervalWeeks && (
+                            <span className="font-label-sm text-label-sm text-on-surface-variant flex items-center gap-1 mt-0.5">
+                              <Icon name="sync" className="text-[13px]" />
+                              {event.recurrenceIntervalWeeks === 1
+                                ? "Every week"
+                                : `Every ${event.recurrenceIntervalWeeks} weeks`}
+                            </span>
+                          )}
+                        </div>
+                        <div className={`px-2 py-1 rounded-lg ${EVENT_BADGE_BG_CLASS[kind]}`}>
+                          <Icon name={EVENT_ICON[kind]} className={`text-[18px] ${EVENT_ICON_COLOR_CLASS[kind]}`} />
+                        </div>
+                      </div>
+                      {event.location && (
+                        <a
+                          href={googleMapsUrl(event.location)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="font-label-sm text-label-sm text-primary underline flex items-center gap-1 mb-1 w-fit"
+                        >
+                          <Icon name="location_on" className="text-[14px]" />
+                          {event.location}
+                        </a>
+                      )}
+                      {event.notes && (
+                        <p className="font-body-md text-[14px] text-on-surface-variant">{event.notes}</p>
+                      )}
                     </div>
                   </div>
-                  {event.notes && (
-                    <p className="font-body-md text-[14px] text-on-surface-variant">{event.notes}</p>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
 
-            {!showAddEvent ? (
+            {childId && (
               <button
-                onClick={() => setShowAddEvent(true)}
+                onClick={() => navigate(`/children/${childId}/calendar-events/new`)}
                 className="w-full py-3 rounded-xl bg-surface-container text-primary font-label-md text-label-md flex items-center justify-center gap-2"
               >
                 <Icon name="add" />
                 Add appointment
               </button>
-            ) : (
-              <div className="bg-surface-container rounded-2xl p-4 flex flex-col gap-3">
-                <input
-                  value={eventTitle}
-                  onChange={(e) => setEventTitle(e.target.value)}
-                  placeholder="e.g. Dentist appointment"
-                  className="w-full bg-surface-container-lowest rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary font-body-md text-body-md"
-                />
-                <input
-                  type="time"
-                  value={eventTime}
-                  onChange={(e) => setEventTime(e.target.value)}
-                  className="w-full bg-surface-container-lowest rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary font-body-md text-body-md"
-                />
-                <label className="flex items-center gap-2 px-1 font-body-md text-body-md text-on-surface-variant">
-                  <input
-                    type="checkbox"
-                    checked={eventIsMedical}
-                    onChange={(e) => setEventIsMedical(e.target.checked)}
-                    className="w-5 h-5 rounded accent-primary"
-                  />
-                  Medical appointment (shows on Health page)
-                </label>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => {
-                      setShowAddEvent(false);
-                      setEventIsMedical(false);
-                    }}
-                    className="flex-1 py-3 rounded-full bg-surface-container-lowest text-on-surface-variant font-label-md text-label-md"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleAddEvent}
-                    disabled={savingEvent || !eventTitle.trim()}
-                    className="flex-1 py-3 rounded-full bg-primary text-on-primary font-label-md text-label-md disabled:opacity-60"
-                  >
-                    {savingEvent ? "Saving…" : "Save"}
-                  </button>
-                </div>
-              </div>
             )}
 
             {user && childId && (

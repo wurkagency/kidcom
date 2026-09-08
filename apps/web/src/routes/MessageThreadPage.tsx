@@ -162,9 +162,13 @@ export function MessageThreadPage() {
         <div ref={bottomRef} />
       </div>
 
+      {/* bottom-20/z-40, not bottom-0 — same fix as JournalPostPage's
+          comment composer: at bottom-0 with no z-index this sat directly
+          behind the persistent bottom nav (also fixed to the screen bottom),
+          hiding the message input under it. */}
       <form
         onSubmit={handleSend}
-        className="fixed bottom-0 inset-x-0 bg-surface p-container-padding pb-safe flex flex-col gap-2 border-t border-surface-variant/50"
+        className="fixed bottom-20 inset-x-0 z-40 bg-surface p-container-padding pb-safe flex flex-col gap-2 border-t border-surface-variant/50"
       >
         {pendingMedia && (
           <div className="flex items-center gap-2 self-start bg-surface-container rounded-full px-3 py-1.5">

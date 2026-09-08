@@ -1,5 +1,5 @@
 import { Router, type Request } from "express";
-import type { CreateJournalPostRequest, JournalPostDto, MediaAssetDto } from "@kidcom/shared";
+import type { CreateJournalPostRequest, JournalMediaDto, JournalPostDto, MediaAssetDto } from "@kidcom/shared";
 
 import { prisma } from "../../db";
 import { ApiError } from "../../middleware/errorHandler";
@@ -81,6 +81,64 @@ journalRouter.get("/", async (req: Request<ChildParams>, res, next) => {
       items: page.map((p) => toPostDto({ ...p, currentUserId: userId })),
       nextCursor: hasMore ? page[page.length - 1]?.id ?? null : null,
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Flat, month-groupable list of every READY media asset attached to this
+// child's journal posts — backs the Media Gallery screen, which shows all
+// photos/videos across posts rather than one post's media at a time.
+// Registered before "/:postId" below so "media" is never captured as a
+// post id.
+journalRouter.get("/media", async (req: Request<ChildParams>, res, next) => {
+  try {
+    const assets = await prisma.mediaAsset.findMany({
+      where: {
+        status: "READY",
+        journalPost: { children: { some: { childId: req.params.childId } } },
+      },
+      include: { journalPost: { include: { children: { select: { childId: true } } } } },
+      orderBy: { journalPost: { createdAt: "desc" } },
+    });
+    const items: JournalMediaDto[] = assets
+      .filter((a) => a.journalPost)
+      .map((a) => ({
+        ...toMediaDto(a),
+        postId: a.journalPost!.id,
+        postCreatedAt: a.journalPost!.createdAt.toISOString(),
+        childIds: a.journalPost!.children.map((c) => c.childId),
+      }));
+    res.json({ items });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Single-post fetch — added because JournalPostPage previously had no way
+// to load a post's own content except carrying it over as router-navigation
+// state from the feed card's link. That broke on a page reload, a deep
+// link, or (the reported bug) any link that forgot to pass that state, such
+// as the dashboard's "Latest Journal Entry" card — the page would silently
+// show only comments with no post above them, reading as if it had linked
+// to the wrong place. Fetching for real here removes that whole class of
+// bug instead of chasing down every call site that needs to remember to
+// pass state.
+journalRouter.get("/:postId", async (req: Request<PostParams>, res, next) => {
+  try {
+    const userId = req.session.userId!;
+    const post = await prisma.journalPost.findFirst({
+      where: { id: req.params.postId, children: { some: { childId: req.params.childId } } },
+      include: {
+        author: true,
+        media: true,
+        children: { select: { childId: true } },
+        _count: { select: { comments: true, reactions: true } },
+        reactions: { where: { userId }, select: { userId: true } },
+      },
+    });
+    if (!post) throw new ApiError(404, "Post not found");
+    res.json(toPostDto({ ...post, currentUserId: userId }));
   } catch (err) {
     next(err);
   }

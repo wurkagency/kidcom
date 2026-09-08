@@ -25,7 +25,7 @@ export function WelcomePage() {
           </div>
           <div className="text-center space-y-4 max-w-sm mt-8">
             <h1 className="font-display-lg text-display-lg text-on-primary-fixed-variant">
-              Welcome to KidCom
+              Welcome to SplitKid
             </h1>
             <p className="font-body-lg text-body-lg text-on-surface-variant leading-relaxed px-4">
               Putting your child at the center of co-parenting.

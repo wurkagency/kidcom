@@ -182,24 +182,31 @@ export function ChildProfilePage() {
       )}
 
       <div className="px-container-padding mb-section-margin flex flex-col gap-element-gap">
-        <div className="flex gap-3">
+        <div className="grid grid-cols-2 gap-3">
           <Link
             to={`/children/${childId}/medical`}
-            className="flex-1 bg-surface-container-lowest rounded-xl p-4 shadow-sm flex flex-col items-center gap-2 text-center"
+            className="bg-surface-container-lowest rounded-xl p-4 shadow-sm flex flex-col items-center gap-2 text-center"
           >
             <Icon name="medical_information" className="text-tertiary" />
             <span className="font-label-md text-label-md text-on-surface">Medical Info</span>
           </Link>
           <Link
             to={`/children/${childId}/contacts`}
-            className="flex-1 bg-surface-container-lowest rounded-xl p-4 shadow-sm flex flex-col items-center gap-2 text-center"
+            className="bg-surface-container-lowest rounded-xl p-4 shadow-sm flex flex-col items-center gap-2 text-center"
           >
             <Icon name="contact_support" className="text-primary" />
             <span className="font-label-md text-label-md text-on-surface">Contacts</span>
           </Link>
           <Link
-            to={`/children/${childId}/lists`}
-            className="flex-1 bg-surface-container-lowest rounded-xl p-4 shadow-sm flex flex-col items-center gap-2 text-center"
+            to={`/children/${childId}/growth`}
+            className="bg-surface-container-lowest rounded-xl p-4 shadow-sm flex flex-col items-center gap-2 text-center"
+          >
+            <Icon name="monitoring" className="text-growth-green" />
+            <span className="font-label-md text-label-md text-on-surface">Growth</span>
+          </Link>
+          <Link
+            to={`/lists?child=${childId}`}
+            className="bg-surface-container-lowest rounded-xl p-4 shadow-sm flex flex-col items-center gap-2 text-center"
           >
             <Icon name="checkroom" className="text-secondary" />
             <span className="font-label-md text-label-md text-on-surface">Shared List</span>

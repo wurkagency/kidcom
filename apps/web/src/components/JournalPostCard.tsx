@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import type { JournalPostDto, MediaAssetDto } from "@kidcom/shared";
 
 import { Icon } from "./Icon";
@@ -14,15 +14,12 @@ import { apiPost, apiDelete, ApiRequestError } from "../lib/api";
 // the whole file is fetched as a blob via the same authenticated flow images
 // already use, no HTTP Range/streaming support, which is an acceptable
 // tradeoff for a family-journal feature rather than a video product.
-export function MediaThumb({
-  media,
-  alt,
-  aspect = "h-48",
-}: {
-  media: MediaAssetDto;
-  alt: string;
-  aspect?: string;
-}) {
+// Landscape 4:3 for every preview — image, video poster, and every loading/
+// error/processing placeholder state — so the feed and gallery grid don't
+// jump around as media loads in at different aspect ratios.
+const PREVIEW_ASPECT = "aspect-[4/3]";
+
+export function MediaThumb({ media, alt }: { media: MediaAssetDto; alt: string }) {
   const [posterUrl, setPosterUrl] = useState<string | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
@@ -59,7 +56,7 @@ export function MediaThumb({
 
   if (media.status === "FAILED") {
     return (
-      <div className={`w-full ${aspect} rounded-lg bg-surface-container-high flex flex-col items-center justify-center gap-1`}>
+      <div className={`w-full ${PREVIEW_ASPECT} rounded-lg bg-surface-container-high flex flex-col items-center justify-center gap-1`}>
         <Icon name="broken_image" className="text-2xl text-on-surface-variant" />
         <span className="font-label-sm text-label-sm text-on-surface-variant">
           Couldn't process this file
@@ -70,13 +67,13 @@ export function MediaThumb({
 
   if (media.status !== "READY") {
     return (
-      <div className={`w-full ${aspect} rounded-lg bg-surface-container-high flex items-center justify-center`}>
+      <div className={`w-full ${PREVIEW_ASPECT} rounded-lg bg-surface-container-high flex items-center justify-center`}>
         <span className="font-label-sm text-label-sm text-on-surface-variant">Processing…</span>
       </div>
     );
   }
   if (!posterUrl) {
-    return <div className={`w-full ${aspect} rounded-lg bg-surface-container-high animate-pulse`} />;
+    return <div className={`w-full ${PREVIEW_ASPECT} rounded-lg bg-surface-container-high animate-pulse`} />;
   }
 
   if (media.type === "VIDEO") {
@@ -87,18 +84,24 @@ export function MediaThumb({
           poster={posterUrl}
           controls
           autoPlay
-          className={`w-full ${aspect} object-cover rounded-lg bg-black`}
+          className={`w-full ${PREVIEW_ASPECT} object-cover rounded-lg bg-black`}
         />
       );
     }
     return (
       <button
         type="button"
-        onClick={handlePlay}
+        onClick={(e) => {
+          // The card this sits in is itself a click target that navigates
+          // to the full post — without this, pressing Play would both start
+          // the video AND navigate away from under it.
+          e.stopPropagation();
+          handlePlay();
+        }}
         aria-label="Play video"
         className="relative block w-full"
       >
-        <img src={posterUrl} alt={alt} className={`w-full ${aspect} object-cover rounded-lg`} />
+        <img src={posterUrl} alt={alt} className={`w-full ${PREVIEW_ASPECT} object-cover rounded-lg`} />
         <span className="absolute inset-0 flex items-center justify-center">
           <span className="w-12 h-12 rounded-full bg-black/60 text-white flex items-center justify-center">
             <Icon name="play_arrow" className="text-2xl" />
@@ -108,7 +111,7 @@ export function MediaThumb({
     );
   }
 
-  return <img src={posterUrl} alt={alt} className={`w-full ${aspect} object-cover rounded-lg`} />;
+  return <img src={posterUrl} alt={alt} className={`w-full ${PREVIEW_ASPECT} object-cover rounded-lg`} />;
 }
 
 // A grid when there's more than one attachment, a single full-width item
@@ -121,7 +124,7 @@ export function MediaGallery({ media, alt }: { media: MediaAssetDto[]; alt: stri
   return (
     <div className="grid grid-cols-2 gap-2">
       {media.map((m) => (
-        <MediaThumb key={m.id} media={m} alt={alt} aspect="h-32" />
+        <MediaThumb key={m.id} media={m} alt={alt} />
       ))}
     </div>
   );
@@ -150,6 +153,7 @@ export function JournalPostCard({
   onReacted: (postId: string, reactedByMe: boolean, reactionCount: number) => void;
   onDeleted?: (postId: string) => void;
 }) {
+  const navigate = useNavigate();
   const [reacting, setReacting] = useState(false);
   const [reactError, setReactError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -183,10 +187,31 @@ export function JournalPostCard({
     }
   }
 
+  function openPost() {
+    navigate(`/journal/${post.id}?childId=${childId}`, { state: { post } });
+  }
+
   return (
-    <div className="bg-surface-container-lowest rounded-xl shadow-sm p-4 flex flex-col gap-4">
+    // The card itself opens the full post/comment thread on click — a plain
+    // div with a click+keyboard handler rather than wrapping it in <Link>,
+    // since it contains real interactive children (the delete button, the
+    // Love button, the video Play button) and nesting those inside an <a>
+    // is invalid HTML; each of those stops propagation so they act on
+    // themselves instead of also navigating.
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={openPost}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          openPost();
+        }
+      }}
+      className="bg-surface-container-lowest rounded-xl shadow-sm p-4 flex flex-col gap-4 cursor-pointer"
+    >
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 min-w-0">
           <Avatar name={post.authorName} avatarAssetId={post.authorAvatarUrl} kind="adult" size="md" />
           <div className="min-w-0">
             <h3 className="font-label-md text-label-md text-on-surface line-clamp-1">
@@ -199,10 +224,13 @@ export function JournalPostCard({
         </div>
         {currentUserId && post.authorId === currentUserId && (
           <button
-            onClick={handleDelete}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDelete();
+            }}
             disabled={deleting}
             aria-label="Delete post"
-            className="w-8 h-8 flex items-center justify-center text-on-surface-variant hover:text-error transition-colors disabled:opacity-60"
+            className="w-8 h-8 flex items-center justify-center text-on-surface-variant hover:text-error transition-colors disabled:opacity-60 shrink-0"
           >
             <Icon name="delete" className="text-lg" />
           </button>
@@ -219,7 +247,10 @@ export function JournalPostCard({
 
       <div className="flex items-center gap-4 pt-2">
         <button
-          onClick={handleReact}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleReact();
+          }}
           disabled={reacting}
           className={`flex items-center gap-1.5 transition-colors disabled:opacity-60 ${
             post.reactedByMe ? "text-primary" : "text-on-surface-variant hover:text-primary"
@@ -233,6 +264,7 @@ export function JournalPostCard({
         <Link
           to={`/journal/${post.id}?childId=${childId}`}
           state={{ post }}
+          onClick={(e) => e.stopPropagation()}
           className="flex items-center gap-1.5 text-on-surface-variant hover:text-primary transition-colors"
         >
           <Icon name="chat_bubble" className="text-lg" />

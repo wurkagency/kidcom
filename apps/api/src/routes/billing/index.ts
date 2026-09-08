@@ -41,50 +41,103 @@ billingRouter.get("/status", requireAuth, async (req, res, next) => {
   }
 });
 
-// Starts (or restarts) a checkout for a paid tier. Sets the local row to the
-// requested tier/status:PENDING immediately (so the UI can reflect "upgrade
-// in progress"), then redirects the browser to QuickPay's hosted payment
-// window. The webhook below is what actually confirms the charge.
+// Switches the caller's plan. Three cases:
 //
-// An abandoned checkout leaves the subscription at tier:PARENTS/FAMILY,
-// status:PENDING indefinitely (no reconciliation job yet) — but this is safe:
-// requireActiveAccess and childCapForTier both gate on effectiveTier(), which
-// only grants paid-tier benefits for status ACTIVE/TRIALING, treating
-// PENDING/PAST_DUE/CANCELED as FREE regardless of `tier`. See
-// middleware/billing.ts.
+// 1. tier:FREE — never touches QuickPay, in any environment. There's nothing
+//    to pay for, so this always just resets the row directly and returns
+//    redirectUrl:null. This is also what makes "switch back to Free" possible
+//    at all — there was previously no way to change `tier` back, only
+//    `status` (via /cancel).
+// 2. tier:PARENTS|FAMILY in production — unchanged real QuickPay checkout:
+//    sets status:PENDING, redirects to QuickPay's hosted payment window, and
+//    the webhook below confirms the charge.
+// 3. tier:PARENTS|FAMILY outside production — this app is local-dev-only and
+//    never deployed (no QuickPay account is configured here — quickpay.ts
+//    throws immediately without QUICKPAY_API_KEY), so skip QuickPay entirely
+//    and activate the tier directly, the same way case 1 does. A real
+//    deployment (config.isProduction) always takes the real-payment path;
+//    only local/dev testing gets the bypass.
+//
+// An abandoned real checkout (case 2) leaves the subscription at
+// tier:PARENTS/FAMILY, status:PENDING indefinitely (no reconciliation job
+// yet) — but this is safe: requireActiveAccess and childCapForTier both gate
+// on effectiveTier(), which only grants paid-tier benefits for status
+// ACTIVE/TRIALING, treating PENDING/PAST_DUE/CANCELED as FREE regardless of
+// `tier`. See middleware/billing.ts.
 billingRouter.post("/subscribe", requireAuth, async (req, res, next) => {
   try {
     const userId = req.session.userId!;
     const body = req.body as Partial<SubscribeRequest>;
-    if (body.tier !== "PARENTS" && body.tier !== "FAMILY") {
-      throw new ApiError(400, "tier must be PARENTS or FAMILY");
+    if (body.tier !== "FREE" && body.tier !== "PARENTS" && body.tier !== "FAMILY") {
+      throw new ApiError(400, "tier must be FREE, PARENTS, or FAMILY");
     }
+
+    if (body.tier === "FREE") {
+      await prisma.subscription.upsert({
+        where: { ownerId: userId },
+        update: {
+          tier: "FREE",
+          status: "ACTIVE",
+          billingPeriod: null,
+          currentPeriodEnd: null,
+          quickpaySubscriptionId: null,
+        },
+        create: { ownerId: userId, tier: "FREE" },
+      });
+      res.json({ redirectUrl: null } satisfies SubscribeResponse);
+      return;
+    }
+
     if (body.billingPeriod !== "MONTHLY" && body.billingPeriod !== "ANNUAL") {
       throw new ApiError(400, "billingPeriod must be MONTHLY or ANNUAL");
     }
+    const tier = body.tier;
+    const billingPeriod = body.billingPeriod;
 
-    const amountMinorUnits = BILLING_PRICES_ORE[body.tier][body.billingPeriod];
+    if (!config.isProduction) {
+      await prisma.subscription.upsert({
+        where: { ownerId: userId },
+        update: {
+          tier,
+          status: "ACTIVE",
+          billingPeriod,
+          currentPeriodEnd: new Date(Date.now() + BILLING_PERIOD_DAYS[billingPeriod] * 24 * 60 * 60 * 1000),
+          quickpaySubscriptionId: null,
+        },
+        create: {
+          ownerId: userId,
+          tier,
+          status: "ACTIVE",
+          billingPeriod,
+          currentPeriodEnd: new Date(Date.now() + BILLING_PERIOD_DAYS[billingPeriod] * 24 * 60 * 60 * 1000),
+        },
+      });
+      res.json({ redirectUrl: null } satisfies SubscribeResponse);
+      return;
+    }
+
+    const amountMinorUnits = BILLING_PRICES_ORE[tier][billingPeriod];
     const orderId = crypto.randomUUID().replace(/-/g, "").slice(0, 20);
 
     const created = await quickpay.createSubscription({
       orderId,
       currency: "DKK",
-      description: `KidCom ${body.tier} (${body.billingPeriod})`,
+      description: `KidCom ${tier} (${billingPeriod})`,
     });
 
     await prisma.subscription.upsert({
       where: { ownerId: userId },
       update: {
-        tier: body.tier,
+        tier,
         status: "PENDING",
-        billingPeriod: body.billingPeriod,
+        billingPeriod,
         quickpaySubscriptionId: String(created.id),
       },
       create: {
         ownerId: userId,
-        tier: body.tier,
+        tier,
         status: "PENDING",
-        billingPeriod: body.billingPeriod,
+        billingPeriod,
         quickpaySubscriptionId: String(created.id),
       },
     });

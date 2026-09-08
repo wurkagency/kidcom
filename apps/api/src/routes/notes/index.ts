@@ -1,5 +1,5 @@
 import { Router } from "express";
-import type { CreatePersonalNoteRequest, PersonalNoteDto, UpdatePersonalNoteRequest } from "@kidcom/shared";
+import type { CreatePersonalNoteRequest, NoteCategory, PersonalNoteDto, UpdatePersonalNoteRequest } from "@kidcom/shared";
 
 import { prisma } from "../../db";
 import { requireAuth } from "../../middleware/session";
@@ -11,10 +11,19 @@ export const notesRouter = Router();
 
 notesRouter.use(requireAuth);
 
-function toDto(row: { id: string; text: string; createdAt: Date; updatedAt: Date }): PersonalNoteDto {
+const VALID_CATEGORIES: NoteCategory[] = ["ROUTINE", "MILESTONE", "HEALTH", "GENERAL"];
+
+function toDto(row: {
+  id: string;
+  text: string;
+  category: NoteCategory | null;
+  createdAt: Date;
+  updatedAt: Date;
+}): PersonalNoteDto {
   return {
     id: row.id,
     text: row.text,
+    category: row.category,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -38,8 +47,11 @@ notesRouter.post("/", async (req, res, next) => {
     if (!body.text?.trim()) {
       throw new ApiError(400, "text is required");
     }
+    if (body.category != null && !VALID_CATEGORIES.includes(body.category)) {
+      throw new ApiError(400, "Invalid category");
+    }
     const row = await prisma.personalNote.create({
-      data: { userId: req.session.userId!, text: body.text.trim() },
+      data: { userId: req.session.userId!, text: body.text.trim(), category: body.category ?? null },
     });
     res.status(201).json(toDto(row));
   } catch (err) {
@@ -50,8 +62,11 @@ notesRouter.post("/", async (req, res, next) => {
 notesRouter.patch("/:noteId", async (req, res, next) => {
   try {
     const body = req.body as Partial<UpdatePersonalNoteRequest>;
-    if (!body.text?.trim()) {
-      throw new ApiError(400, "text is required");
+    if (body.text !== undefined && !body.text.trim()) {
+      throw new ApiError(400, "text cannot be empty");
+    }
+    if (body.category != null && !VALID_CATEGORIES.includes(body.category)) {
+      throw new ApiError(400, "Invalid category");
     }
     const existing = await prisma.personalNote.findFirst({
       where: { id: req.params.noteId, userId: req.session.userId! },
@@ -60,7 +75,10 @@ notesRouter.patch("/:noteId", async (req, res, next) => {
 
     const row = await prisma.personalNote.update({
       where: { id: existing.id },
-      data: { text: body.text.trim() },
+      data: {
+        ...(body.text !== undefined ? { text: body.text.trim() } : {}),
+        ...(body.category !== undefined ? { category: body.category } : {}),
+      },
     });
     res.json(toDto(row));
   } catch (err) {

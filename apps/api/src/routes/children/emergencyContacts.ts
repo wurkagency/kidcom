@@ -34,6 +34,7 @@ emergencyContactsRouter.get("/", async (req: Request<ChildParams>, res, next) =>
       role: a.role === "PARENT" ? "Parent" : "Family member",
       phone: a.user.phone,
       location: null,
+      avatarUrl: a.user.avatarUrl,
       derived: true,
     }));
 
@@ -44,6 +45,9 @@ emergencyContactsRouter.get("/", async (req: Request<ChildParams>, res, next) =>
       role: row.role,
       phone: row.phone,
       location: row.location,
+      // Manually-added contacts (pediatrician, school, etc.) have no photo
+      // field — only real family-member users (above) do.
+      avatarUrl: null,
       derived: false,
     }));
 
@@ -79,6 +83,7 @@ emergencyContactsRouter.post("/", async (req: Request<ChildParams>, res, next) =
       role: row.role,
       phone: row.phone,
       location: row.location,
+      avatarUrl: null,
       derived: false,
     } satisfies EmergencyContactDto);
   } catch (err) {
@@ -111,6 +116,7 @@ emergencyContactsRouter.patch("/:id", async (req: Request<ChildEntryParams>, res
       role: row.role,
       phone: row.phone,
       location: row.location,
+      avatarUrl: null,
       derived: false,
     } satisfies EmergencyContactDto);
   } catch (err) {
