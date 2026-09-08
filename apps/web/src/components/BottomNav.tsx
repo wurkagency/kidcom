@@ -2,14 +2,15 @@ import { NavLink } from "react-router-dom";
 
 import { Icon } from "./Icon";
 
-// Mirrors the bottom nav in docs/stitch_splitkid/home_dashboard/code.html:
-// Home, Calendar, Journal, Growth, Profile.
+// Mirrors the bottom nav in docs/stitch_splitkid/shared_lists/code.html:
+// Home, Calendar, Journal, Lists, Profile. Growth moved under each child's
+// profile (see ChildProfilePage) — this nav slot is now Shared Lists.
 const NAV_ITEMS = [
   { to: "/", label: "Home", icon: "grid_view", end: true },
   { to: "/calendar", label: "Calendar", icon: "calendar_month" },
   { to: "/journal", label: "Journal", icon: "photo_library" },
-  { to: "/growth", label: "Growth", icon: "monitoring" },
-  { to: "/profile", label: "Profile", icon: "child_care" },
+  { to: "/lists", label: "Lists", icon: "format_list_bulleted" },
+  { to: "/profile", label: "Profile", icon: "person" },
 ] as const;
 
 export function BottomNav() {

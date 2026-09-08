@@ -1,27 +1,28 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
+import type { MeResponse, SubscriptionDto, UpdateProfileRequest } from "@kidcom/shared";
 
-import { Avatar } from "../components/Avatar";
 import { AvatarUpload } from "../components/AvatarUpload";
 import { Icon } from "../components/Icon";
-import { apiFetch, apiPatch } from "../lib/api";
+import { apiFetch, apiGet, apiPatch, ApiRequestError } from "../lib/api";
 import { useAuth } from "../lib/AuthContext";
-import { disablePush, enablePush, getPushSubscriptionState } from "../lib/push";
+
+// Matches docs/stitch_splitkid/account_settings/code.html: avatar + name +
+// email header (with an inline edit affordance — the mockup only shows the
+// avatar's edit pencil, so name/email editing reuses this codebase's own
+// established "tap to expand a small form in place" pattern from
+// PrivacySecurityPage's ChangePasswordCard), a real Subscription Plan card,
+// Preferences (Notifications/Privacy & Security/App Settings) and Support
+// (Help Center/Contact Us) sections, Log Out, and an app-version line. The
+// old Children list + Family Tools grid are gone from this screen — children
+// are already reachable from Home (its own child switcher + "Add a child"),
+// and Messages already has its own persistent entry point (the bell icon in
+// Header.tsx), so nothing here is stranded.
+const APP_VERSION = "0.1.0";
 
 export function ProfilePage() {
-  const { user, children, refresh } = useAuth();
+  const { user, refresh } = useAuth();
   const [loggingOut, setLoggingOut] = useState(false);
-  const [pushState, setPushState] = useState<
-    "unsupported" | "denied" | "subscribed" | "unsubscribed" | "loading"
-  >("loading");
-  const [pushError, setPushError] = useState<string | null>(null);
-  const [pushBusy, setPushBusy] = useState(false);
-
-  useEffect(() => {
-    getPushSubscriptionState()
-      .then(setPushState)
-      .catch(() => setPushState("unsubscribed"));
-  }, []);
 
   async function handleLogout() {
     setLoggingOut(true);
@@ -33,177 +34,267 @@ export function ProfilePage() {
     }
   }
 
-  async function handlePushToggle() {
-    setPushBusy(true);
-    setPushError(null);
-    try {
-      if (pushState === "subscribed") {
-        await disablePush();
-        setPushState("unsubscribed");
-      } else {
-        await enablePush();
-        setPushState("subscribed");
-      }
-    } catch (err) {
-      setPushError(err instanceof Error ? err.message : "Couldn't update notification settings");
-      setPushState(await getPushSubscriptionState());
-    } finally {
-      setPushBusy(false);
-    }
-  }
-
   return (
-    <section className="px-container-padding pt-6 flex flex-col gap-section-margin">
-      <div className="flex flex-col gap-2">
-        <h1 className="font-headline-lg-mobile text-headline-lg-mobile text-on-surface">
-          Profile
-        </h1>
-        <p className="font-body-md text-body-md text-on-surface-variant">
-          Child details, medical info, and account settings.
-        </p>
-      </div>
+    <div className="flex flex-col w-full pb-8">
       {user && (
-        <div className="bg-surface-container rounded-lg p-6 flex flex-col items-center gap-3">
+        <div className="px-container-padding pt-section-margin pb-element-gap flex flex-col items-center">
           <AvatarUpload
             currentAssetId={user.avatarUrl}
             fallbackLetter={user.firstName.charAt(0)}
             size="lg"
             onUploaded={async (newAssetId) => {
-              await apiPatch("/auth/me", { avatarMediaAssetId: newAssetId });
+              await apiPatch("/auth/me", { avatarMediaAssetId: newAssetId } satisfies UpdateProfileRequest);
               await refresh();
             }}
           />
-          <div className="flex flex-col items-center gap-1">
-            <p className="font-label-md text-label-md text-on-surface">
-              {user.firstName} {user.lastName}
-            </p>
-            <p className="font-body-md text-body-md text-on-surface-variant">{user.email}</p>
-          </div>
+          <EditableIdentity />
         </div>
       )}
 
-      <div className="flex flex-col gap-2">
-        <h2 className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">
-          Children
-        </h2>
-        {children.length === 0 ? (
-          <div className="bg-surface-container rounded-lg p-6 flex flex-col gap-3">
-            <p className="font-body-md text-body-md text-on-surface-variant">
-              You haven't added a child yet.
-            </p>
-            <Link
-              to="/onboarding/child"
-              className="self-start bg-primary text-on-primary font-label-md text-label-md py-2 px-5 rounded-full"
-            >
-              Add a child
-            </Link>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-3">
-            {children.map((child) => (
-              <Link
-                key={child.id}
-                to={`/children/${child.id}`}
-                className="bg-surface-container-lowest rounded-xl p-4 shadow-sm flex items-center gap-3"
-              >
-                <Avatar
-                  name={`${child.firstName} ${child.lastName}`}
-                  avatarAssetId={child.profileImageUrl}
-                  kind="child"
-                  size="md"
-                />
-                <div className="flex-1">
-                  <p className="font-label-md text-label-md text-on-surface">
-                    {child.firstName} {child.lastName}
-                  </p>
-                </div>
-                <Icon name="chevron_right" className="text-on-surface-variant" />
-              </Link>
-            ))}
-            <Link
-              to="/onboarding/child"
-              className="w-full py-3 rounded-xl bg-surface-container text-primary font-label-md text-label-md flex items-center justify-center gap-2"
-            >
-              <Icon name="add" />
-              Add another child
-            </Link>
-          </div>
-        )}
-      </div>
+      <div className="px-container-padding flex flex-col gap-element-gap">
+        <SubscriptionCard />
 
-      <div className="flex flex-col gap-2">
-        <h2 className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">
-          Family Tools
-        </h2>
-        <div className="flex gap-3">
-          <Link
-            to="/messages"
-            className="flex-1 bg-surface-container-lowest rounded-xl p-4 shadow-sm flex flex-col items-center gap-2 text-center"
+        <SectionCard title="Preferences">
+          <NavRow to="/notifications" icon="notifications" label="Notifications" />
+          <Divider />
+          <NavRow to="/security" icon="lock" label="Privacy & Security" />
+          <Divider />
+          <NavRow to="/preferences" icon="tune" label="App Settings" />
+        </SectionCard>
+
+        <SectionCard title="Support">
+          <ExternalRow href="https://splitkid.com/help" icon="help" label="Help Center" />
+          <Divider />
+          <ExternalRow href="mailto:support@splitkid.com" icon="mail" label="Contact Us" />
+        </SectionCard>
+
+        <div className="pt-section-margin pb-element-gap flex flex-col items-center gap-4">
+          <button
+            onClick={handleLogout}
+            disabled={loggingOut}
+            className="w-full flex items-center justify-center gap-2 bg-error-container/50 text-on-error-container font-label-md text-label-md py-4 rounded-full transition-colors active:scale-[0.98] disabled:opacity-60"
           >
-            <Icon name="chat_bubble" className="text-primary" />
-            <span className="font-label-md text-label-md text-on-surface">Messages</span>
-          </Link>
-          <Link
-            to="/notes"
-            className="flex-1 bg-surface-container-lowest rounded-xl p-4 shadow-sm flex flex-col items-center gap-2 text-center"
-          >
-            <Icon name="sticky_note_2" className="text-secondary" />
-            <span className="font-label-md text-label-md text-on-surface">My Notes</span>
-          </Link>
-          <Link
-            to="/billing"
-            className="flex-1 bg-surface-container-lowest rounded-xl p-4 shadow-sm flex flex-col items-center gap-2 text-center"
-          >
-            <Icon name="workspace_premium" className="text-tertiary" />
-            <span className="font-label-md text-label-md text-on-surface">Subscription</span>
-          </Link>
+            <Icon name="logout" />
+            {loggingOut ? "Logging out…" : "Log Out"}
+          </button>
+          <p className="text-center font-body-md text-[12px] leading-[16px] text-on-surface-variant">
+            App Version {APP_VERSION}
+          </p>
         </div>
       </div>
-
-      {pushState !== "unsupported" && (
-        <div className="flex flex-col gap-2">
-          <h2 className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">
-            Notifications
-          </h2>
-          <div className="bg-surface-container-lowest rounded-xl p-4 shadow-sm flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <Icon name="notifications" className="text-primary" />
-              <div className="flex flex-col">
-                <span className="font-label-md text-label-md text-on-surface">Push notifications</span>
-                <span className="font-label-sm text-label-sm text-on-surface-variant">
-                  {pushState === "denied"
-                    ? "Blocked in your browser settings"
-                    : pushState === "subscribed"
-                      ? "New messages, swap requests, and appointment reminders"
-                      : "Off"}
-                </span>
-              </div>
-            </div>
-            <button
-              onClick={handlePushToggle}
-              disabled={pushBusy || pushState === "denied" || pushState === "loading"}
-              className={`font-label-sm text-label-sm py-2 px-4 rounded-full disabled:opacity-60 ${
-                pushState === "subscribed" ? "bg-surface-container text-on-surface-variant" : "bg-primary text-on-primary"
-              }`}
-            >
-              {pushState === "subscribed" ? "Turn off" : "Turn on"}
-            </button>
-          </div>
-          {pushError && (
-            <p className="font-body-md text-body-md text-error bg-error-container rounded-lg px-4 py-3">
-              {pushError}
-            </p>
-          )}
-        </div>
-      )}
-
-      <button
-        onClick={handleLogout}
-        disabled={loggingOut}
-        className="self-start bg-secondary-fixed text-on-secondary-fixed font-label-md text-label-md py-3 px-6 rounded-full disabled:opacity-60"
-      >
-        {loggingOut ? "Logging out…" : "Log out"}
-      </button>
-    </section>
+    </div>
   );
+}
+
+// Name + email, with a small edit icon that expands the same fields into an
+// inline form — mirrors PrivacySecurityPage.tsx's ChangePasswordCard pattern
+// (tap to expand, submit, collapse) rather than inventing a new route no
+// mockup covers.
+function EditableIdentity() {
+  const { user, refresh } = useAuth();
+  const [open, setOpen] = useState(false);
+  const [firstName, setFirstName] = useState(user?.firstName ?? "");
+  const [lastName, setLastName] = useState(user?.lastName ?? "");
+  const [email, setEmail] = useState(user?.email ?? "");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [verifyNotice, setVerifyNotice] = useState(false);
+
+  useEffect(() => {
+    if (!open && user) {
+      setFirstName(user.firstName);
+      setLastName(user.lastName);
+      setEmail(user.email);
+    }
+  }, [open, user]);
+
+  if (!user) return null;
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    setVerifyNotice(false);
+    try {
+      const wasVerified = Boolean(user!.emailVerifiedAt);
+      const res = await apiPatch<MeResponse>("/auth/me", {
+        firstName,
+        lastName,
+        email,
+      } satisfies UpdateProfileRequest);
+      await refresh();
+      if (wasVerified && res.user && !res.user.emailVerifiedAt) {
+        setVerifyNotice(true);
+      } else {
+        setOpen(false);
+      }
+    } catch (err) {
+      setError(err instanceof ApiRequestError ? err.message : "Couldn't save your changes");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex flex-col items-center gap-1 mt-4 group"
+      >
+        <span className="flex items-center gap-1.5">
+          <h2 className="font-headline-lg-mobile text-headline-lg-mobile text-text-main">
+            {user.firstName} {user.lastName}
+          </h2>
+          <Icon name="edit" className="text-outline text-[16px] group-hover:text-primary transition-colors" />
+        </span>
+        <p className="font-body-md text-body-md text-on-surface-variant">{user.email}</p>
+      </button>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="w-full max-w-sm mt-4 flex flex-col gap-3">
+      <div className="grid grid-cols-2 gap-3">
+        <input
+          required
+          placeholder="First name"
+          value={firstName}
+          onChange={(e) => setFirstName(e.target.value)}
+          className="bg-surface-container-lowest rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary text-center"
+        />
+        <input
+          required
+          placeholder="Last name"
+          value={lastName}
+          onChange={(e) => setLastName(e.target.value)}
+          className="bg-surface-container-lowest rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary text-center"
+        />
+      </div>
+      <input
+        required
+        type="email"
+        placeholder="Email address"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        className="bg-surface-container-lowest rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary text-center"
+      />
+      {error && <p className="font-body-md text-body-md text-error text-center">{error}</p>}
+      {verifyNotice && (
+        <p className="font-body-md text-body-md text-primary text-center">
+          Saved — check your inbox to verify your new email address.
+        </p>
+      )}
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          className="flex-1 py-3 rounded-full bg-surface-container text-on-surface-variant font-label-md text-label-md"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          disabled={busy}
+          className="flex-1 py-3 rounded-full bg-primary text-on-primary font-label-md text-label-md disabled:opacity-60"
+        >
+          {busy ? "Saving…" : "Save"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+// Real tier + next billing date from the same /billing/status endpoint
+// BillingPage.tsx uses — "Manage" just links there.
+function SubscriptionCard() {
+  const [sub, setSub] = useState<SubscriptionDto | null>(null);
+
+  useEffect(() => {
+    apiGet<SubscriptionDto>("/billing/status")
+      .then(setSub)
+      .catch(() => setSub(null));
+  }, []);
+
+  const tierLabel = sub ? sub.tier.charAt(0) + sub.tier.slice(1).toLowerCase() : "—";
+  const nextBilling = sub?.currentPeriodEnd ? new Date(sub.currentPeriodEnd).toLocaleDateString() : null;
+
+  return (
+    <div className="bg-surface-container-low rounded-xl p-element-gap shadow-sm">
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-primary-container/20 flex items-center justify-center text-primary">
+            <Icon name="workspace_premium" />
+          </div>
+          <div>
+            <h3 className="font-label-md text-label-md text-text-main">Subscription Plan</h3>
+            <p className="font-body-md text-[14px] leading-[20px] text-on-surface-variant">{tierLabel}</p>
+          </div>
+        </div>
+        <Link
+          to="/billing"
+          className="font-label-md text-label-md text-primary bg-primary/10 px-3 py-1.5 rounded-full"
+        >
+          Manage
+        </Link>
+      </div>
+      {nextBilling && (
+        <>
+          <div className="h-[1px] w-full bg-surface-container-highest my-3" />
+          <div className="flex items-center justify-between">
+            <p className="font-body-md text-[14px] leading-[20px] text-on-surface-variant">
+              Next billing date: <span className="font-medium text-text-main">{nextBilling}</span>
+            </p>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function SectionCard({ title, children: rows }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden">
+      <h3 className="font-label-md text-label-md text-on-surface-variant px-element-gap pt-element-gap pb-2 uppercase tracking-wider">
+        {title}
+      </h3>
+      {rows}
+    </div>
+  );
+}
+
+function NavRow({ to, icon, label }: { to: string; icon: string; label: string }) {
+  return (
+    <Link
+      to={to}
+      className="w-full flex items-center justify-between p-element-gap hover:bg-surface-container-low transition-colors text-left"
+    >
+      <div className="flex items-center gap-3">
+        <Icon name={icon} className="text-on-surface-variant" />
+        <span className="font-body-md text-body-md text-text-main">{label}</span>
+      </div>
+      <Icon name="chevron_right" className="text-on-surface-variant" />
+    </Link>
+  );
+}
+
+function ExternalRow({ href, icon, label }: { href: string; icon: string; label: string }) {
+  return (
+    <a
+      href={href}
+      target={href.startsWith("mailto:") ? undefined : "_blank"}
+      rel={href.startsWith("mailto:") ? undefined : "noreferrer"}
+      className="w-full flex items-center justify-between p-element-gap hover:bg-surface-container-low transition-colors text-left"
+    >
+      <div className="flex items-center gap-3">
+        <Icon name={icon} className="text-on-surface-variant" />
+        <span className="font-body-md text-body-md text-text-main">{label}</span>
+      </div>
+      <Icon name="chevron_right" className="text-on-surface-variant" />
+    </a>
+  );
+}
+
+function Divider() {
+  return <div className="w-full h-px bg-surface-variant" />;
 }
