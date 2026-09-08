@@ -74,12 +74,11 @@ export async function sendLoginTwoFactorCode(user: { id: string; email: string }
     timeStyle: "short",
   });
   const ttlMinutes = TWO_FACTOR_CODE_TTL_MS / (1000 * 60);
-  const formattedCode = `${code.slice(0, 3)}-${code.slice(3)}`;
 
   await mailSender.send({
     to: user.email,
     subject: "Your SplitKid verification code",
-    text: `Your SplitKid login verification code is ${formattedCode}. It's valid for ${ttlMinutes} minutes.\n\nLogin attempt details:\nDevice: ${device}\nLocation: ${location}\nTime: ${time}\n\nIf you didn't request this code, change your password immediately or contact support@splitkid.com.`,
+    text: `Your SplitKid login verification code is ${code}. It's valid for ${ttlMinutes} minutes.\n\nLogin attempt details:\nDevice: ${device}\nLocation: ${location}\nTime: ${time}\n\nIf you didn't request this code, change your password immediately or contact support@splitkid.com.`,
     html: renderLoginTwoFactorHtml({
       email: user.email,
       code,

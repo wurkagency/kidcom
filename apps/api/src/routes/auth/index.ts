@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import type {
   LoginRequest,
   MeResponse,
+  ParentRole,
   PublicUser,
   SignupRequest,
   TwoFactorRequiredResponse,
@@ -20,6 +21,7 @@ import { TWO_FACTOR_MAX_ATTEMPTS, hashTwoFactorCode, sendLoginTwoFactorCode } fr
 export const authRouter = Router();
 
 const SALT_ROUNDS = 10;
+const PARENT_ROLES: ParentRole[] = ["FATHER", "MOTHER", "PARENT"];
 
 // Basic per-IP throttling on the endpoints most attractive to abuse
 // (credential stuffing on /login, signup spam, and verification-email
@@ -40,6 +42,7 @@ function toPublicUser(user: {
   firstName: string;
   lastName: string;
   avatarUrl: string | null;
+  parentRole: ParentRole;
   emailVerifiedAt: Date | null;
 }): PublicUser {
   return {
@@ -48,6 +51,7 @@ function toPublicUser(user: {
     firstName: user.firstName,
     lastName: user.lastName,
     avatarUrl: user.avatarUrl,
+    parentRole: user.parentRole,
     emailVerifiedAt: user.emailVerifiedAt ? user.emailVerifiedAt.toISOString() : null,
   };
 }
@@ -56,16 +60,19 @@ authRouter.post("/signup", authRateLimiter, async (req, res, next) => {
   try {
     const body = req.body as Partial<SignupRequest>;
     const email = body.email?.trim().toLowerCase();
-    const { password, firstName, lastName } = body;
+    const { password, firstName, lastName, parentRole } = body;
 
-    if (!email || !password || !firstName || !lastName) {
-      throw new ApiError(400, "email, password, firstName, and lastName are required");
+    if (!email || !password || !firstName || !lastName || !parentRole) {
+      throw new ApiError(400, "email, password, firstName, lastName, and parentRole are required");
     }
     if (!isValidEmail(email)) {
       throw new ApiError(400, "Please enter a valid email address");
     }
     if (password.length < 8) {
       throw new ApiError(400, "Password must be at least 8 characters long");
+    }
+    if (!PARENT_ROLES.includes(parentRole)) {
+      throw new ApiError(400, "parentRole must be one of FATHER, MOTHER, PARENT");
     }
 
     const existing = await prisma.user.findUnique({ where: { email } });
@@ -81,7 +88,7 @@ authRouter.post("/signup", authRateLimiter, async (req, res, next) => {
     // user's Free account gets a 30-day trial clock).
     const user = await prisma.$transaction(async (tx) => {
       const created = await tx.user.create({
-        data: { email, passwordHash, firstName, lastName },
+        data: { email, passwordHash, firstName, lastName, parentRole },
       });
       await tx.subscription.create({
         data: { ownerId: created.id, tier: "FREE", status: "ACTIVE", trialEndsAt: null },
@@ -292,14 +299,15 @@ authRouter.patch("/me", async (req, res, next) => {
       throw new ApiError(401, "Not signed in");
     }
     const body = req.body as Partial<UpdateProfileRequest>;
-    const { avatarMediaAssetId, firstName, lastName } = body;
+    const { avatarMediaAssetId, firstName, lastName, parentRole } = body;
     const email = body.email?.trim().toLowerCase();
 
     if (
       avatarMediaAssetId === undefined &&
       firstName === undefined &&
       lastName === undefined &&
-      email === undefined
+      email === undefined &&
+      parentRole === undefined
     ) {
       throw new ApiError(400, "Nothing to update");
     }
@@ -311,6 +319,9 @@ authRouter.patch("/me", async (req, res, next) => {
     }
     if (email !== undefined && !isValidEmail(email)) {
       throw new ApiError(400, "Please enter a valid email address");
+    }
+    if (parentRole !== undefined && !PARENT_ROLES.includes(parentRole)) {
+      throw new ApiError(400, "parentRole must be one of FATHER, MOTHER, PARENT");
     }
 
     let avatarAsset: { id: string; ownerId: string } | null = null;
@@ -350,6 +361,7 @@ authRouter.patch("/me", async (req, res, next) => {
           ...(avatarMediaAssetId !== undefined ? { avatarUrl: avatarMediaAssetId } : {}),
           ...(firstName !== undefined ? { firstName } : {}),
           ...(lastName !== undefined ? { lastName } : {}),
+          ...(parentRole !== undefined ? { parentRole } : {}),
           ...(emailChanged ? { email, emailVerifiedAt: null } : {}),
         },
       });

@@ -15,7 +15,6 @@ export function renderLoginTwoFactorHtml(options: {
   time: string;
 }): string {
   const { email, code, ttlMinutes, device, location, time } = options;
-  const formattedCode = `${code.slice(0, 3)}–${code.slice(3)}`;
 
   const bodyHtml = `
 <h2 style="margin:16px 0 8px 0;font-size:26px;line-height:1.25;font-weight:700;color:#1b3d2b;letter-spacing:-0.015em;text-align:center;">Your verification code</h2>
@@ -27,7 +26,7 @@ export function renderLoginTwoFactorHtml(options: {
 <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border:2px dashed #b9d3b5;border-radius:18px;max-width:460px;width:100%;">
 <tbody><tr><td align="center" style="padding:24px 20px;">
   <span style="display:block;font-size:11px;font-weight:700;color:#5a876a;letter-spacing:0.14em;text-transform:uppercase;margin-bottom:8px;">One-Time Passcode</span>
-  <div style="font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:34px;font-weight:700;color:#1b3d2b;letter-spacing:0.28em;margin:6px 0;padding:6px 18px;background-color:#f6f9f4;border:1px solid #e4ede1;border-radius:8px;display:inline-block;">${formattedCode}</div>
+  <div style="font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:34px;font-weight:700;color:#1b3d2b;letter-spacing:0.28em;margin:6px 0;padding:6px 18px;background-color:#f6f9f4;border:1px solid #e4ede1;border-radius:8px;display:inline-block;">${code}</div>
   <p style="margin-top:10px;margin-bottom:0;font-size:12px;color:#527b63;font-weight:500;">&#9201; Valid for <strong style="color:#244f38;">${ttlMinutes} minutes</strong>. Do not share this code with anyone.</p>
 </td></tr></tbody>
 </table>
@@ -56,7 +55,7 @@ export function renderLoginTwoFactorHtml(options: {
 
   return renderEmailShell({
     title: "Your SplitKid verification code",
-    preheader: `Your SplitKid verification code is ${formattedCode}. Valid for ${ttlMinutes} minutes.`,
+    preheader: `Your SplitKid verification code is ${code}. Valid for ${ttlMinutes} minutes.`,
     badgeText: "\u{1F512} Security: Two-Factor Authentication",
     bodyHtml,
     footerLinks: [

@@ -6,6 +6,7 @@ import { CalendarPage } from "./routes/CalendarPage";
 import { JournalPage } from "./routes/JournalPage";
 import { GrowthPage } from "./routes/GrowthPage";
 import { ProfilePage } from "./routes/ProfilePage";
+import { ChildrenOverviewPage } from "./routes/ChildrenOverviewPage";
 import { WelcomePage } from "./routes/WelcomePage";
 import { LoginPage } from "./routes/LoginPage";
 import { SignupPage } from "./routes/SignupPage";
@@ -21,6 +22,7 @@ import { JournalPostPage } from "./routes/JournalPostPage";
 import { JournalComposePage } from "./routes/JournalComposePage";
 import { ListsPage } from "./routes/ListsPage";
 import { ListItemFormPage } from "./routes/ListItemFormPage";
+import { ListItemDetailPage } from "./routes/ListItemDetailPage";
 import { MessagesPage } from "./routes/MessagesPage";
 import { MessageComposePage } from "./routes/MessageComposePage";
 import { MessageThreadPage } from "./routes/MessageThreadPage";
@@ -101,7 +103,10 @@ export default function App() {
               <Route path="/journal" element={<JournalPage />} />
               <Route path="/lists" element={<ListsPage />} />
               <Route path="/children/:childId/lists/new" element={<ListItemFormPage />} />
+              <Route path="/children/:childId/lists/:itemId" element={<ListItemDetailPage />} />
+              <Route path="/children/:childId/lists/:itemId/edit" element={<ListItemFormPage />} />
               <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/kids" element={<ChildrenOverviewPage />} />
               <Route path="/children/:childId" element={<ChildProfilePage />} />
               <Route path="/children/:childId/medical" element={<ChildMedicalPage />} />
               <Route path="/children/:childId/contacts" element={<ChildContactsPage />} />

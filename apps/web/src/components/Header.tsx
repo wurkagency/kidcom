@@ -24,7 +24,7 @@ const TAB_TITLES: Record<string, string> = {
   "/calendar": "Calendar",
   "/journal": "Journal",
   "/lists": "Lists",
-  "/profile": "Profile",
+  "/kids": "Kids",
 };
 
 const CHILD_SUBPAGE_TITLES: Array<{ suffix: string; title: string }> = [

@@ -21,12 +21,24 @@ export type ApiHealthResponse = {
 // Auth
 // ---------------------------------------------------------------------------
 
+// A parent's own self-identified role — separate from FamilyMemberType
+// below, which describes a relationship to a specific child rather than an
+// intrinsic account attribute. PARENT is the neutral third option.
+export type ParentRole = "FATHER" | "MOTHER" | "PARENT";
+
+export const PARENT_ROLE_LABELS: Record<ParentRole, string> = {
+  FATHER: "Father",
+  MOTHER: "Mother",
+  PARENT: "Parent",
+};
+
 export type PublicUser = {
   id: string;
   email: string;
   firstName: string;
   lastName: string;
   avatarUrl: string | null;
+  parentRole: ParentRole;
   emailVerifiedAt: string | null;
 };
 
@@ -35,6 +47,7 @@ export type SignupRequest = {
   password: string;
   firstName: string;
   lastName: string;
+  parentRole: ParentRole;
 };
 
 export type LoginRequest = {
@@ -55,6 +68,7 @@ export type UpdateProfileRequest = {
   lastName?: string;
   email?: string;
   avatarMediaAssetId?: string;
+  parentRole?: ParentRole;
 };
 
 // Returned by POST /auth/login once the password check passes — a real
@@ -285,6 +299,9 @@ export type AcceptInviteRequest = {
   firstName: string;
   lastName: string;
   password: string;
+  // Self-selected by the invitee (not pre-assigned by the inviter) —
+  // required, same as firstName/lastName/password above.
+  parentRole: ParentRole;
 };
 
 // GET /invites/:token — lets the accept page branch on the invite's state
@@ -482,7 +499,11 @@ export type ListItemDto = {
   claimedByName: string | null;
   // Wishlist only: id of an optional linked calendar event (e.g. "Birthday
   // Present"), created alongside the item so it also shows on the Calendar.
+  // More than one item can share the same event id.
   calendarEventId: string | null;
+  // Single optional photo — id of a MediaAsset, fetched via GET /media/:id
+  // the same way Journal media is (see MediaAssetDto).
+  imageAssetId: string | null;
   createdAt: string;
 };
 
@@ -493,15 +514,30 @@ export type CreateListItemRequest = {
   sizeValue?: string;
   // NECESSITY only.
   assignedToId?: string;
-  // WISHLIST only — id of a CalendarEvent (for the same child) created via
-  // POST /children/:childId/calendar-events just before this request, to
-  // link the two.
+  // WISHLIST only — id of a CalendarEvent (for the same child), either just
+  // created via POST /children/:childId/calendar-events or an existing one
+  // this item is being attached to alongside other wishlist items.
   calendarEventId?: string;
+  imageAssetId?: string;
 };
 
 export type UpdateListItemAssignmentRequest = {
   assignedToId: string | null;
 };
+
+// General edit of a list item's own fields — separate from
+// UpdateListItemAssignmentRequest (which only ever drives the narrow
+// "reassign to a family member" quick action) and from the claim/reserve
+// toggle. Every field is independently optional: omitted means "leave
+// unchanged", explicit `null` (where nullable) means "clear".
+export type UpdateListItemRequest = Partial<{
+  title: string;
+  description: string | null;
+  sizeValue: string | null;
+  assignedToId: string | null;
+  calendarEventId: string | null;
+  imageAssetId: string | null;
+}>;
 
 // ---------------------------------------------------------------------------
 // Messaging

@@ -41,6 +41,19 @@ enum FamilyMemberType {
   OTHER
 }
 
+// A parent's own self-identified role, distinct from FamilyMemberType above
+// (which describes a relationship to a specific child). Chosen at signup/
+// invite-accept time and editable afterward from Edit Profile. Defaults to
+// the neutral PARENT so this column can be added non-nullable without a
+// data migration for existing users — the two account-creation endpoints
+// (POST /auth/signup, POST /invites/:token/accept) still require an
+// explicit choice at the application-validation level.
+enum ParentRole {
+  FATHER
+  MOTHER
+  PARENT
+}
+
 model User {
   id              String    @id @default(cuid())
   email           String    @unique
@@ -49,6 +62,7 @@ model User {
   firstName       String
   lastName        String
   avatarUrl       String?
+  parentRole      ParentRole @default(PARENT)
   emailVerifiedAt DateTime?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
@@ -366,9 +380,10 @@ model CalendarEvent {
   remindedAt DateTime?
   createdAt DateTime              @default(now())
   updatedAt DateTime              @updatedAt
-  // Back-relation for ListItem.calendarEventId (Wishlist-linked events) —
-  // required by Prisma for the relation above, not otherwise read directly.
-  listItem  ListItem?
+  // Back-relation for ListItem.calendarEventId (Wishlist-linked events).
+  // Many-to-one: more than one wishlist item can share the same event (e.g.
+  // several gift ideas all tied to the same "Birthday" event).
+  listItems ListItem[]
 
   @@map("calendar_events")
 }
@@ -425,6 +440,10 @@ model MediaAsset {
   avatarForUser    User?            @relation("UserAvatar", fields: [avatarForUserId], references: [id])
   avatarForChildId String?          @unique
   avatarForChild   Child?           @relation("ChildAvatar", fields: [avatarForChildId], references: [id])
+  // Same 1:1-current-asset pattern as the avatar fields above, for a
+  // Necessity/Wishlist item's single photo.
+  listItemImageForId String?        @unique
+  listItemImageFor   ListItem?      @relation("ListItemImage", fields: [listItemImageForId], references: [id])
   createdAt        DateTime         @default(now())
 
   @@map("media_assets")
@@ -513,12 +532,16 @@ model ListItem {
   claimedBy    User?        @relation("ListItemClaimedBy", fields: [claimedById], references: [id])
   // Wishlist only: an optional linked calendar event (e.g. "Birthday
   // Present" tied to the birthday itself) created alongside the item so it
-  // also shows up on the Calendar. @unique since it's a 1:1 link — one event
-  // is created per linked item, never shared. SetNull (not Cascade) so
-  // deleting the event just un-links it rather than destroying the
-  // underlying wishlist idea.
-  calendarEventId String?        @unique
+  // also shows up on the Calendar. Many-to-one — more than one wishlist item
+  // can share the same event (several gift ideas tied to one "Birthday").
+  // SetNull (not Cascade) so deleting the event just un-links it rather than
+  // destroying the underlying wishlist idea.
+  calendarEventId String?
   calendarEvent   CalendarEvent? @relation(fields: [calendarEventId], references: [id], onDelete: SetNull)
+  // Single optional photo (e.g. a picture of the item needed/wanted) — the
+  // owning FK lives on MediaAsset (see MediaAsset.listItemImageForId), same
+  // 1:1-current-asset pattern as Child/User avatars.
+  image        MediaAsset?  @relation("ListItemImage")
   createdAt    DateTime     @default(now())
 
   @@map("list_items")

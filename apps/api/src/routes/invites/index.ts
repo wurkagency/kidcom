@@ -7,6 +7,7 @@ import type {
   FamilyMemberType,
   InvitePreviewResponse,
   MeResponse,
+  ParentRole,
 } from "@kidcom/shared";
 import { familyMemberTypeToRole, isValidEmail } from "@kidcom/shared";
 
@@ -21,6 +22,8 @@ export const invitesRouter = Router();
 
 const THIRTY_DAYS_MS = 1000 * 60 * 60 * 24 * 30;
 const SALT_ROUNDS = 10;
+
+const PARENT_ROLES: ParentRole[] = ["FATHER", "MOTHER", "PARENT"];
 
 const FAMILY_MEMBER_TYPES: FamilyMemberType[] = [
   "CO_PARENT",
@@ -161,13 +164,16 @@ invitesRouter.post("/:token/accept", async (req, res, next) => {
   try {
     const { token } = req.params;
     const body = req.body as Partial<AcceptInviteRequest>;
-    const { firstName, lastName, password } = body;
+    const { firstName, lastName, password, parentRole } = body;
 
-    if (!firstName || !lastName || !password) {
-      throw new ApiError(400, "firstName, lastName, and password are required");
+    if (!firstName || !lastName || !password || !parentRole) {
+      throw new ApiError(400, "firstName, lastName, password, and parentRole are required");
     }
     if (password.length < 8) {
       throw new ApiError(400, "Password must be at least 8 characters long");
+    }
+    if (!PARENT_ROLES.includes(parentRole)) {
+      throw new ApiError(400, "parentRole must be one of FATHER, MOTHER, PARENT");
     }
 
     const invite = await prisma.invite.findUnique({ where: { token } });
@@ -193,7 +199,7 @@ invitesRouter.post("/:token/accept", async (req, res, next) => {
 
     const user = await prisma.$transaction(async (tx) => {
       const account = await tx.user.create({
-        data: { email: invite.email!, passwordHash, firstName, lastName },
+        data: { email: invite.email!, passwordHash, firstName, lastName, parentRole },
       });
       // Invited users get a 30-day trial (PRD pricing section) before
       // requireActiveAccess starts blocking mutations — see chunk 7 plan
@@ -249,6 +255,7 @@ invitesRouter.post("/:token/accept", async (req, res, next) => {
         firstName: user.firstName,
         lastName: user.lastName,
         avatarUrl: user.avatarUrl,
+        parentRole: user.parentRole,
         emailVerifiedAt: null,
       },
     } satisfies MeResponse);
@@ -312,6 +319,7 @@ invitesRouter.post(
         firstName: me.firstName,
         lastName: me.lastName,
         avatarUrl: me.avatarUrl,
+        parentRole: me.parentRole,
         emailVerifiedAt: me.emailVerifiedAt ? me.emailVerifiedAt.toISOString() : null,
       },
     } satisfies MeResponse);

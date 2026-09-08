@@ -1,6 +1,12 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
-import type { MeResponse, SubscriptionDto, UpdateProfileRequest } from "@kidcom/shared";
+import {
+  PARENT_ROLE_LABELS,
+  type MeResponse,
+  type ParentRole,
+  type SubscriptionDto,
+  type UpdateProfileRequest,
+} from "@kidcom/shared";
 
 import { AvatarUpload } from "../components/AvatarUpload";
 import { Icon } from "../components/Icon";
@@ -96,6 +102,7 @@ function EditableIdentity() {
   const [firstName, setFirstName] = useState(user?.firstName ?? "");
   const [lastName, setLastName] = useState(user?.lastName ?? "");
   const [email, setEmail] = useState(user?.email ?? "");
+  const [parentRole, setParentRole] = useState<ParentRole>(user?.parentRole ?? "PARENT");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [verifyNotice, setVerifyNotice] = useState(false);
@@ -105,6 +112,7 @@ function EditableIdentity() {
       setFirstName(user.firstName);
       setLastName(user.lastName);
       setEmail(user.email);
+      setParentRole(user.parentRole);
     }
   }, [open, user]);
 
@@ -121,6 +129,7 @@ function EditableIdentity() {
         firstName,
         lastName,
         email,
+        parentRole,
       } satisfies UpdateProfileRequest);
       await refresh();
       if (wasVerified && res.user && !res.user.emailVerifiedAt) {
@@ -179,6 +188,20 @@ function EditableIdentity() {
         onChange={(e) => setEmail(e.target.value)}
         className="bg-surface-container-lowest rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary text-center"
       />
+      <div className="flex p-1 bg-surface-container-high rounded-full w-full">
+        {(Object.keys(PARENT_ROLE_LABELS) as ParentRole[]).map((role) => (
+          <button
+            key={role}
+            type="button"
+            onClick={() => setParentRole(role)}
+            className={`flex-1 py-2 text-center rounded-full font-label-sm text-label-sm transition-colors ${
+              parentRole === role ? "bg-primary text-on-primary shadow-sm" : "text-on-surface-variant"
+            }`}
+          >
+            {PARENT_ROLE_LABELS[role]}
+          </button>
+        ))}
+      </div>
       {error && <p className="font-body-md text-body-md text-error text-center">{error}</p>}
       {verifyNotice && (
         <p className="font-body-md text-body-md text-primary text-center">

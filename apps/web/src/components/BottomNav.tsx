@@ -5,12 +5,15 @@ import { Icon } from "./Icon";
 // Mirrors the bottom nav in docs/stitch_splitkid/shared_lists/code.html:
 // Home, Calendar, Journal, Lists, Profile. Growth moved under each child's
 // profile (see ChildProfilePage) — this nav slot is now Shared Lists.
+// The final slot was later switched from Profile to Kids (see
+// ChildrenOverviewPage) — the user's own profile/settings stays reachable
+// via the header avatar on every tab root instead (see Header.tsx).
 const NAV_ITEMS = [
   { to: "/", label: "Home", icon: "grid_view", end: true },
   { to: "/calendar", label: "Calendar", icon: "calendar_month" },
   { to: "/journal", label: "Journal", icon: "photo_library" },
   { to: "/lists", label: "Lists", icon: "format_list_bulleted" },
-  { to: "/profile", label: "Profile", icon: "person" },
+  { to: "/kids", label: "Kids", icon: "child_care" },
 ] as const;
 
 export function BottomNav() {
