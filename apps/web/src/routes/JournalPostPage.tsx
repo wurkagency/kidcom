@@ -200,7 +200,9 @@ export function JournalPostPage() {
               </div>
             </div>
             <MediaDetailGallery media={post.media} alt={post.title} />
-            <p className="font-body-md text-body-md text-text-main whitespace-pre-wrap">{post.text}</p>
+            {post.text && (
+              <p className="font-body-md text-body-md text-text-main whitespace-pre-wrap">{post.text}</p>
+            )}
           </div>
         )}
         {loading && <p className="font-body-md text-body-md text-on-surface-variant">Loading…</p>}

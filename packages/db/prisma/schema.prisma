@@ -366,6 +366,9 @@ model CalendarEvent {
   remindedAt DateTime?
   createdAt DateTime              @default(now())
   updatedAt DateTime              @updatedAt
+  // Back-relation for ListItem.calendarEventId (Wishlist-linked events) —
+  // required by Prisma for the relation above, not otherwise read directly.
+  listItem  ListItem?
 
   @@map("calendar_events")
 }
@@ -432,7 +435,9 @@ model JournalPost {
   authorId  String
   author    User     @relation(fields: [authorId], references: [id])
   title     String
-  text      String
+  // Description is optional — only the title is required to post. Empty
+  // posts (media-only, or just a title) store this as null rather than "".
+  text      String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -506,6 +511,14 @@ model ListItem {
   // Wishlist: self-claim/"Reserve" — whoever claims it is giving that gift.
   claimedById  String?
   claimedBy    User?        @relation("ListItemClaimedBy", fields: [claimedById], references: [id])
+  // Wishlist only: an optional linked calendar event (e.g. "Birthday
+  // Present" tied to the birthday itself) created alongside the item so it
+  // also shows up on the Calendar. @unique since it's a 1:1 link — one event
+  // is created per linked item, never shared. SetNull (not Cascade) so
+  // deleting the event just un-links it rather than destroying the
+  // underlying wishlist idea.
+  calendarEventId String?        @unique
+  calendarEvent   CalendarEvent? @relation(fields: [calendarEventId], references: [id], onDelete: SetNull)
   createdAt    DateTime     @default(now())
 
   @@map("list_items")

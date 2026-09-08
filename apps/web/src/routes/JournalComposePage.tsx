@@ -77,7 +77,7 @@ export function JournalComposePage() {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!title.trim() || !text.trim()) return;
+    if (!title.trim()) return;
     if (selectedChildIds.length === 0) {
       setChildError("Tag at least one child");
       return;
@@ -102,7 +102,7 @@ export function JournalComposePage() {
     }
   }
 
-  const canSubmit = !submitting && !uploading && title.trim().length > 0 && text.trim().length > 0;
+  const canSubmit = !submitting && !uploading && title.trim().length > 0;
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col w-full min-h-screen">
@@ -117,10 +117,9 @@ export function JournalComposePage() {
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="What happened?"
+          placeholder="What happened? (optional)"
           rows={4}
           className="w-full bg-surface-container-lowest rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary font-body-md text-body-md"
-          required
         />
 
         <div className="flex flex-col gap-2">

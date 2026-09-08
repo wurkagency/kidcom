@@ -1,16 +1,10 @@
-import { useEffect, useState, type FormEvent } from "react";
-import { useSearchParams } from "react-router-dom";
-import type {
-  ChildDetail,
-  ChildFamilyMember,
-  CreateListItemRequest,
-  ListItemDto,
-  ListItemType,
-} from "@kidcom/shared";
+import { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import type { ChildDetail, ChildFamilyMember, ListItemDto, ListItemType } from "@kidcom/shared";
 
 import { Avatar } from "../components/Avatar";
 import { Icon } from "../components/Icon";
-import { apiDelete, apiGet, apiPatch, apiPost, ApiRequestError } from "../lib/api";
+import { apiDelete, apiGet, apiPatch, ApiRequestError } from "../lib/api";
 import { useAuth } from "../lib/AuthContext";
 
 type Member = { userId: string; firstName: string; lastName: string; avatarUrl: string | null };
@@ -22,6 +16,7 @@ type Member = { userId: string; firstName: string; lastName: string; avatarUrl: 
 // the existing self-claim mechanic, relabeled "Reserve" per the mockup.
 export function ListsPage() {
   const { children, user } = useAuth();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const requestedChildId = searchParams.get("child");
   const [selectedId, setSelectedId] = useState<string | undefined>(
@@ -35,7 +30,6 @@ export function ListsPage() {
   const [tab, setTab] = useState<ListItemType>("NECESSITY");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showAdd, setShowAdd] = useState(false);
   const [assigningItem, setAssigningItem] = useState<ListItemDto | null>(null);
   const [busyItemId, setBusyItemId] = useState<string | null>(null);
 
@@ -211,25 +205,13 @@ export function ListsPage() {
             ))}
       </div>
 
-      <button
-        onClick={() => setShowAdd(true)}
-        className="fixed bottom-24 right-container-padding w-14 h-14 bg-primary text-on-primary rounded-full shadow-lg flex items-center justify-center hover:bg-surface-tint active:scale-95 transition-transform z-40"
-      >
-        <Icon name="add" className="text-[28px]" />
-      </button>
-
-      {showAdd && childId && (
-        <AddItemSheet
-          childId={childId}
-          type={tab}
-          members={members}
-          childSizeHint={child.clothingSize ?? child.shoeSize ?? null}
-          onClose={() => setShowAdd(false)}
-          onAdded={(created) => {
-            setItems((prev) => [...prev, created]);
-            setShowAdd(false);
-          }}
-        />
+      {childId && (
+        <button
+          onClick={() => navigate(`/children/${childId}/lists/new?type=${tab}`)}
+          className="fixed bottom-24 right-container-padding w-14 h-14 bg-primary text-on-primary rounded-full shadow-lg flex items-center justify-center hover:bg-surface-tint active:scale-95 transition-transform z-40"
+        >
+          <Icon name="add" className="text-[28px]" />
+        </button>
       )}
 
       {assigningItem && (
@@ -263,7 +245,7 @@ function NecessityCard({
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-2 mb-1">
-          <h3 className="font-label-md text-on-surface truncate">{item.title}</h3>
+          <h3 className="font-label-md text-on-surface line-clamp-2">{item.title}</h3>
           <div className="flex items-center gap-2 shrink-0">
             {item.sizeValue && (
               <span className="bg-tertiary-container/20 text-on-tertiary-container px-2 py-0.5 rounded-md font-label-sm whitespace-nowrap">
@@ -280,7 +262,7 @@ function NecessityCard({
           </div>
         </div>
         {item.description && (
-          <p className="font-body-md text-sm text-on-surface-variant mb-3 line-clamp-2">{item.description}</p>
+          <p className="font-body-md text-sm text-on-surface-variant mb-3 line-clamp-3">{item.description}</p>
         )}
         <button onClick={onOpenAssign} disabled={busy} className="flex items-center gap-2 disabled:opacity-60">
           {item.assignedToId ? (
@@ -328,7 +310,7 @@ function WishlistCard({
         </div>
         <div className="flex-1 min-w-0 pt-1">
           <div className="flex items-start justify-between gap-2">
-            <h3 className="font-label-md text-on-surface truncate mb-1">{item.title}</h3>
+            <h3 className="font-label-md text-on-surface line-clamp-2 mb-1">{item.title}</h3>
             <button
               onClick={onDelete}
               disabled={busy}
@@ -421,118 +403,6 @@ function AssignSheet({
           </button>
         ))}
       </div>
-    </div>
-  );
-}
-
-function AddItemSheet({
-  childId,
-  type,
-  members,
-  childSizeHint,
-  onClose,
-  onAdded,
-}: {
-  childId: string;
-  type: ListItemType;
-  members: Member[];
-  childSizeHint: string | null;
-  onClose: () => void;
-  onAdded: (item: ListItemDto) => void;
-}) {
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [sizeValue, setSizeValue] = useState("");
-  const [assignedToId, setAssignedToId] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    if (!title.trim()) return;
-    setSubmitting(true);
-    setError(null);
-    try {
-      const created = await apiPost<ListItemDto>(`/children/${childId}/lists`, {
-        type,
-        title: title.trim(),
-        description: description.trim() || undefined,
-        sizeValue: type === "NECESSITY" ? sizeValue.trim() || undefined : undefined,
-        assignedToId: type === "NECESSITY" ? assignedToId || undefined : undefined,
-      } satisfies CreateListItemRequest);
-      onAdded(created);
-    } catch (err) {
-      setError(err instanceof ApiRequestError ? err.message : "Couldn't add that item");
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-end justify-center">
-      <form
-        onSubmit={handleSubmit}
-        className="w-full max-w-md bg-surface rounded-t-2xl p-container-padding flex flex-col gap-4 pb-safe"
-      >
-        <div className="flex items-center justify-between">
-          <h3 className="font-headline-md text-headline-md text-on-surface">
-            Add to {type === "NECESSITY" ? "Necessities" : "Wishlist"}
-          </h3>
-          <button type="button" onClick={onClose}>
-            <Icon name="close" />
-          </button>
-        </div>
-        <input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="Item, e.g. Winter coat"
-          className="w-full bg-surface-container-lowest rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary font-body-md text-body-md"
-          required
-          autoFocus
-        />
-        <textarea
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="Notes (optional)"
-          rows={2}
-          className="w-full bg-surface-container-lowest rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary font-body-md text-body-md resize-none"
-        />
-        {type === "NECESSITY" && (
-          <>
-            <input
-              value={sizeValue}
-              onChange={(e) => setSizeValue(e.target.value)}
-              placeholder={childSizeHint ? `Size (e.g. ${childSizeHint})` : "Size (optional)"}
-              className="w-full bg-surface-container-lowest rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary font-body-md text-body-md"
-            />
-            <label className="flex flex-col gap-1 font-label-md text-label-md text-text-main">
-              Assign to (optional)
-              <select
-                value={assignedToId}
-                onChange={(e) => setAssignedToId(e.target.value)}
-                className="bg-surface-container-lowest rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary"
-              >
-                <option value="">Still Needed (unassigned)</option>
-                {members.map((m) => (
-                  <option key={m.userId} value={m.userId}>
-                    {m.firstName} {m.lastName}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </>
-        )}
-        {error && (
-          <p className="font-body-md text-body-md text-error bg-error-container rounded-lg px-4 py-3">{error}</p>
-        )}
-        <button
-          type="submit"
-          disabled={!title.trim() || submitting}
-          className="w-full py-4 bg-primary text-on-primary rounded-full font-label-md text-label-md disabled:opacity-60"
-        >
-          {submitting ? "Adding…" : "Add"}
-        </button>
-      </form>
     </div>
   );
 }

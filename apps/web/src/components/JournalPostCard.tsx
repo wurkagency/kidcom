@@ -239,7 +239,9 @@ export function JournalPostCard({
 
       <MediaGallery media={post.media} alt={post.title} />
 
-      <p className="font-body-md text-body-md text-text-main line-clamp-3">{post.text}</p>
+      {post.text && (
+        <p className="font-body-md text-body-md text-text-main line-clamp-3">{post.text}</p>
+      )}
 
       {reactError && (
         <p className="font-label-sm text-label-sm text-error -mt-2">{reactError}</p>

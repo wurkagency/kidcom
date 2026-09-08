@@ -25,6 +25,7 @@ function toDto(row: {
   assignedTo: { firstName: string; lastName: string } | null;
   claimedById: string | null;
   claimedBy: { firstName: string; lastName: string } | null;
+  calendarEventId: string | null;
   createdAt: Date;
 }): ListItemDto {
   return {
@@ -38,6 +39,7 @@ function toDto(row: {
     assignedToName: row.assignedTo ? `${row.assignedTo.firstName} ${row.assignedTo.lastName}`.trim() : null,
     claimedById: row.claimedById,
     claimedByName: row.claimedBy ? `${row.claimedBy.firstName} ${row.claimedBy.lastName}`.trim() : null,
+    calendarEventId: row.calendarEventId,
     createdAt: row.createdAt.toISOString(),
   };
 }
@@ -82,6 +84,18 @@ listItemsRouter.post("/", async (req: Request<ChildParams>, res, next) => {
       }
       await assertChildMember(req.params.childId, body.assignedToId);
     }
+    if (body.calendarEventId) {
+      if (body.type !== "WISHLIST") {
+        throw new ApiError(400, "calendarEventId only applies to WISHLIST items");
+      }
+      // Verify the linked event actually belongs to this child before
+      // wiring it up — prevents linking to another child's (or a
+      // nonexistent) event by guessing/forging an id.
+      const event = await prisma.calendarEvent.findFirst({
+        where: { id: body.calendarEventId, childId: req.params.childId },
+      });
+      if (!event) throw new ApiError(404, "Linked calendar event not found");
+    }
     const row = await prisma.listItem.create({
       data: {
         childId: req.params.childId,
@@ -90,6 +104,7 @@ listItemsRouter.post("/", async (req: Request<ChildParams>, res, next) => {
         description: body.description?.trim() || null,
         sizeValue: body.sizeValue?.trim() || null,
         assignedToId: body.assignedToId || null,
+        calendarEventId: body.calendarEventId || null,
       },
       include: INCLUDE,
     });

@@ -21,6 +21,18 @@ function toDateOnly(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
+// An event "occurs" on a given date if that date falls anywhere in its
+// [startsAt, endsAt] span (inclusive on both ends), not just on its exact
+// start date — otherwise a multi-day event only ever shows on the day it
+// began. Uses UTC-based toDateOnly (not toLocalDateOnly, which this file
+// scopes to "what is today" only) to stay consistent with how startsAt is
+// compared everywhere else here.
+function eventSpansDate(event: CalendarEventDto, dateIso: string): boolean {
+  const startIso = toDateOnly(new Date(event.startsAt));
+  const endIso = event.endsAt ? toDateOnly(new Date(event.endsAt)) : startIso;
+  return dateIso >= startIso && dateIso <= endIso;
+}
+
 // Local calendar date (not UTC) — used only for "what is today" display
 // purposes so a viewer west/east of UTC sees their own current day, not
 // the UTC one. The custody-resolution math itself works in UTC-day terms
@@ -198,9 +210,7 @@ export function CalendarPage() {
     return idx === 0 ? "primary" : idx === 1 ? "secondary" : null;
   };
 
-  const selectedDayEvents = (range?.events ?? []).filter(
-    (e) => toDateOnly(new Date(e.startsAt)) === selectedDate
-  );
+  const selectedDayEvents = (range?.events ?? []).filter((e) => eventSpansDate(e, selectedDate));
   const selectedOwner = range?.custodyByDate[selectedDate] ?? null;
   const selectedOwnerName = parents.find((p) => p.userId === selectedOwner)?.firstName;
 
@@ -318,9 +328,7 @@ export function CalendarPage() {
                 const isSelected = iso === selectedDate;
                 const owner = range?.custodyByDate[iso] ?? null;
                 const color = parentColor(owner);
-                const dayEvents = (range?.events ?? []).filter(
-                  (e) => toDateOnly(new Date(e.startsAt)) === iso
-                );
+                const dayEvents = (range?.events ?? []).filter((e) => eventSpansDate(e, iso));
                 return (
                   <button
                     key={iso}

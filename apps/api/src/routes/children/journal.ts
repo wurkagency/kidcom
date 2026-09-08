@@ -31,7 +31,7 @@ function toPostDto(post: {
   authorId: string;
   author: { firstName: string; lastName: string; avatarUrl: string | null };
   title: string;
-  text: string;
+  text: string | null;
   createdAt: Date;
   media: Parameters<typeof toMediaDto>[0][];
   _count: { comments: number; reactions: number };
@@ -45,7 +45,10 @@ function toPostDto(post: {
     authorName: `${post.author.firstName} ${post.author.lastName}`.trim(),
     authorAvatarUrl: post.author.avatarUrl,
     title: post.title,
-    text: post.text,
+    // DTO keeps text as a plain string (never null) so every existing
+    // frontend read site keeps working unchanged — description is optional
+    // to the user, but "" is simpler for callers than string | null.
+    text: post.text ?? "",
     createdAt: post.createdAt.toISOString(),
     media: post.media.map(toMediaDto),
     commentCount: post._count.comments,
@@ -147,8 +150,8 @@ journalRouter.get("/:postId", async (req: Request<PostParams>, res, next) => {
 journalRouter.post("/", async (req: Request<ChildParams>, res, next) => {
   try {
     const body = req.body as Partial<CreateJournalPostRequest>;
-    if (!body.title || !body.text) {
-      throw new ApiError(400, "title and text are required");
+    if (!body.title) {
+      throw new ApiError(400, "title is required");
     }
     const userId = req.session.userId!;
 
@@ -168,7 +171,7 @@ journalRouter.post("/", async (req: Request<ChildParams>, res, next) => {
         data: {
           authorId: userId,
           title: body.title!,
-          text: body.text!,
+          text: body.text?.trim() || null,
         },
       });
       await tx.journalPostChild.createMany({

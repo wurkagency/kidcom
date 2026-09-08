@@ -116,14 +116,23 @@ calendarRouter.get("/", async (req: Request<ChildParams>, res, next) => {
         where: { childId: req.params.childId },
         orderBy: { createdAt: "desc" },
       }),
-      // One-off events: same as before, just excluding recurring templates
-      // (those are expanded separately below, since their own startsAt is
-      // just the series anchor and may sit long before this range).
+      // One-off events: excluding recurring templates (those are expanded
+      // separately below, since their own startsAt is just the series
+      // anchor and may sit long before this range). Range-overlap, not
+      // range-containment: a multi-day event that started before `start`
+      // but whose endsAt still falls on/after `start` must still be
+      // fetched, or it silently disappears from every day but its first —
+      // mirrors the same OR-on-end-field shape the recurring-template
+      // query below already uses for recurrenceEndsAt.
       prisma.calendarEvent.findMany({
         where: {
           childId: req.params.childId,
           recurrenceIntervalWeeks: null,
-          startsAt: { gte: start, lt: endExclusive },
+          startsAt: { lt: endExclusive },
+          OR: [
+            { endsAt: null, startsAt: { gte: start } },
+            { endsAt: { gte: start } },
+          ],
         },
         orderBy: { startsAt: "asc" },
       }),

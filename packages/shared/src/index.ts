@@ -452,7 +452,9 @@ export type JournalPostDto = {
 
 export type CreateJournalPostRequest = {
   title: string;
-  text: string;
+  // Optional — only the title is required to post. Media-only or
+  // title-only posts are both valid.
+  text?: string;
   mediaAssetIds?: string[];
   // Which children this post is tagged to. Defaults to the child in the URL
   // (`/children/:childId/journal`) when omitted, for backward compatibility.
@@ -478,6 +480,9 @@ export type ListItemDto = {
   // Wishlist: self-claim/"Reserve".
   claimedById: string | null;
   claimedByName: string | null;
+  // Wishlist only: id of an optional linked calendar event (e.g. "Birthday
+  // Present"), created alongside the item so it also shows on the Calendar.
+  calendarEventId: string | null;
   createdAt: string;
 };
 
@@ -488,6 +493,10 @@ export type CreateListItemRequest = {
   sizeValue?: string;
   // NECESSITY only.
   assignedToId?: string;
+  // WISHLIST only — id of a CalendarEvent (for the same child) created via
+  // POST /children/:childId/calendar-events just before this request, to
+  // link the two.
+  calendarEventId?: string;
 };
 
 export type UpdateListItemAssignmentRequest = {

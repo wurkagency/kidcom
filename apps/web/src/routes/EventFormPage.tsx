@@ -111,7 +111,13 @@ export function EventFormPage() {
     setSaving(true);
     try {
       const startsAt = new Date(`${startDate}T${allDay ? "00:00" : startTime}:00`).toISOString();
-      const endsAt = allDay ? undefined : new Date(`${endDate}T${endTime}:00`).toISOString();
+      // Always derive endsAt from endDate — including all-day events, which
+      // previously dropped it entirely (endsAt: undefined) so a multi-day
+      // all-day event silently collapsed to a single day. All-day end uses
+      // start-of-day on endDate, matching startsAt's own all-day convention;
+      // CalendarPage's eventSpansDate treats the end date inclusively so
+      // end-of-day isn't needed.
+      const endsAt = new Date(`${endDate}T${allDay ? "00:00" : endTime}:00`).toISOString();
       const payload: CreateCalendarEventRequest = {
         category: category === "MEDICAL" || category === "SPORT" ? "APPOINTMENT" : category,
         title: title.trim(),
@@ -314,28 +320,27 @@ export function EventFormPage() {
               )}
             </div>
           </div>
-          {!allDay && (
-            <>
-              <div className="h-px w-full bg-surface-variant ml-4 max-w-[calc(100%-16px)]" />
-              <div className="flex items-center justify-between p-4">
-                <span className="font-body-md text-body-md text-on-surface">Ends</span>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="date"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    className="px-3 py-1.5 bg-surface-container rounded-lg font-label-md text-label-md text-on-surface-variant outline-none"
-                  />
-                  <input
-                    type="time"
-                    value={endTime}
-                    onChange={(e) => setEndTime(e.target.value)}
-                    className="px-3 py-1.5 bg-surface-container rounded-lg font-label-md text-label-md text-on-surface-variant outline-none"
-                  />
-                </div>
-              </div>
-            </>
-          )}
+          <div className="h-px w-full bg-surface-variant ml-4 max-w-[calc(100%-16px)]" />
+          <div className="flex items-center justify-between p-4">
+            <span className="font-body-md text-body-md text-on-surface">Ends</span>
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                min={startDate}
+                className="px-3 py-1.5 bg-surface-container rounded-lg font-label-md text-label-md text-on-surface-variant outline-none"
+              />
+              {!allDay && (
+                <input
+                  type="time"
+                  value={endTime}
+                  onChange={(e) => setEndTime(e.target.value)}
+                  className="px-3 py-1.5 bg-surface-container rounded-lg font-label-md text-label-md text-on-surface-variant outline-none"
+                />
+              )}
+            </div>
+          </div>
           <div className="h-px w-full bg-surface-variant" />
           <div className="flex items-center justify-between p-4">
             <div className="flex items-center gap-3">

@@ -20,6 +20,7 @@ import { EventFormPage } from "./routes/EventFormPage";
 import { JournalPostPage } from "./routes/JournalPostPage";
 import { JournalComposePage } from "./routes/JournalComposePage";
 import { ListsPage } from "./routes/ListsPage";
+import { ListItemFormPage } from "./routes/ListItemFormPage";
 import { MessagesPage } from "./routes/MessagesPage";
 import { MessageComposePage } from "./routes/MessageComposePage";
 import { MessageThreadPage } from "./routes/MessageThreadPage";
@@ -99,6 +100,7 @@ export default function App() {
               <Route path="/calendar" element={<CalendarPage />} />
               <Route path="/journal" element={<JournalPage />} />
               <Route path="/lists" element={<ListsPage />} />
+              <Route path="/children/:childId/lists/new" element={<ListItemFormPage />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/children/:childId" element={<ChildProfilePage />} />
               <Route path="/children/:childId/medical" element={<ChildMedicalPage />} />
