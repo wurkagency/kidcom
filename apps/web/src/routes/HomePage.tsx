@@ -92,9 +92,18 @@ export function HomePage() {
         : null;
 
       const now = Date.now();
+      // Widened from the old "APPOINTMENT only" filter now that the old
+      // isMedical/isSport booleans have become real categories (MEDICAL,
+      // SCHOOL, ACTIVITY) — without this, the card would silently narrow to
+      // only plain appointments and stop surfacing e.g. an upcoming doctor
+      // visit as "Next Appointment".
       const nextAppointment =
         rangeRes.events
-          .filter((e) => e.category === "APPOINTMENT" && new Date(e.startsAt).getTime() >= now)
+          .filter(
+            (e) =>
+              ["APPOINTMENT", "MEDICAL", "SCHOOL", "ACTIVITY"].includes(e.category) &&
+              new Date(e.startsAt).getTime() >= now
+          )
           .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime())[0] ??
         null;
 

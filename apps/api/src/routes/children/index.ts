@@ -98,9 +98,14 @@ childrenRouter.post("/", requireVerifiedEmail, async (req, res, next) => {
       throw new ApiError(400, "gender must be one of BOY, GIRL, OTHER");
     }
 
-    // Free and Parents cap at 1 child, Family is unlimited (PRD pricing
-    // section) — counted as however many children this user currently has
-    // PARENT-role ChildAccess to, however they got it.
+    // Free caps at 1 child; Parents and Family are both unlimited — counted
+    // as however many children this user currently has PARENT-role
+    // ChildAccess to, however they got it. Trial accounts (status
+    // TRIALING, trial not yet expired) get the same unlimited cap while
+    // trialing even though their nominal tier is FREE — a trialing account
+    // gets full feature access so they can properly evaluate the paid
+    // tiers, per the product decision this follows; requireActiveAccess
+    // (mounted above) still blocks all of this once the trial expires.
     const [subscription, existingCount] = await Promise.all([
       prisma.subscription.upsert({
         where: { ownerId: req.session.userId! },
@@ -110,14 +115,12 @@ childrenRouter.post("/", requireVerifiedEmail, async (req, res, next) => {
       prisma.childAccess.count({ where: { userId: req.session.userId!, role: "PARENT" } }),
     ]);
     const tier = effectiveTier(subscription);
-    const cap = childCapForTier(tier);
+    const isTrialing =
+      subscription.status === "TRIALING" &&
+      (!subscription.trialEndsAt || subscription.trialEndsAt.getTime() > Date.now());
+    const cap = isTrialing ? Infinity : childCapForTier(tier);
     if (existingCount >= cap) {
-      throw new ApiError(
-        403,
-        tier === "FAMILY"
-          ? "You've reached your child limit"
-          : "Your current plan is limited to 1 child — upgrade to Family for unlimited children"
-      );
+      throw new ApiError(403, "Your current plan is limited to 1 child — upgrade to Parents or Family for unlimited children");
     }
 
     const child = await prisma.$transaction(async (tx) => {
@@ -237,6 +240,7 @@ childrenRouter.get("/:childId/family", requireChildAccess, async (req, res, next
         avatarUrl: a.user.avatarUrl,
         role: a.role,
         familyMemberType: a.familyMemberType,
+        parentRole: a.user.parentRole,
       })),
     });
   } catch (err) {

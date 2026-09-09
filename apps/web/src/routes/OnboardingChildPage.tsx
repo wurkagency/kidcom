@@ -17,9 +17,18 @@ const GENDERS: { value: ChildGender; label: string }[] = [
 // Matches docs/stitch_splitkid/tell_us_about_your_child/code.html. Photo
 // upload from the mockup is deferred — media handling lands with the
 // journal/media chunk, which is where file storage actually gets built.
+//
+// This same route/page is also the "Add new kid" destination from the Kids
+// tab (ChildrenOverviewPage) for a user who already has at least one child —
+// there's no separate route for that, so this component adapts: with
+// existing children present it drops the onboarding stepper/copy and, on
+// success, returns to the Kids list instead of continuing into the
+// first-run "invite a co-parent" step (which an already-onboarded family
+// has typically already been through).
 export function OnboardingChildPage() {
   const navigate = useNavigate();
-  const { refresh } = useAuth();
+  const { refresh, children } = useAuth();
+  const isAddingAnother = children.length > 0;
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [birthday, setBirthday] = useState("");
@@ -43,7 +52,7 @@ export function OnboardingChildPage() {
         shoeSize: shoeSize || undefined,
       } satisfies CreateChildRequest);
       await refresh();
-      navigate("/onboarding/invite");
+      navigate(isAddingAnother ? "/kids" : "/onboarding/invite");
     } catch (err) {
       setError(err instanceof ApiRequestError ? err.message : "Something went wrong");
     } finally {
@@ -53,11 +62,20 @@ export function OnboardingChildPage() {
 
   return (
     <div className="flex flex-col w-full min-h-screen bg-surface text-on-surface pb-safe">
-      <OnboardingProgress
-        step={2}
-        title="Let's meet your child"
-        subtitle="Adding their details helps personalize their journal and keep their sizes handy for everyone."
-      />
+      {isAddingAnother ? (
+        <div className="px-container-padding pt-6 pb-2">
+          <h1 className="font-display-lg text-display-lg text-on-surface">Add new kid</h1>
+          <p className="font-body-md text-body-md text-on-surface-variant mt-1">
+            Adding their details helps personalize their journal and keep their sizes handy for everyone.
+          </p>
+        </div>
+      ) : (
+        <OnboardingProgress
+          step={2}
+          title="Let's meet your child"
+          subtitle="Adding their details helps personalize their journal and keep their sizes handy for everyone."
+        />
+      )}
       <form onSubmit={handleSubmit} className="flex-1 px-container-padding py-4 flex flex-col gap-6">
         <div className="flex flex-col items-center justify-center gap-4 py-6">
           <div className="w-32 h-32 rounded-full bg-surface-container-high flex items-center justify-center shadow-sm">
@@ -164,15 +182,15 @@ export function OnboardingChildPage() {
             disabled={submitting}
             className="w-full py-4 bg-primary text-on-primary rounded-full font-label-md text-label-md shadow-md active:scale-[0.98] transition-transform flex items-center justify-center gap-2 disabled:opacity-60"
           >
-            <span>{submitting ? "Saving…" : "Save & Continue"}</span>
+            <span>{submitting ? "Saving…" : isAddingAnother ? "Save" : "Save & Continue"}</span>
             {!submitting && <span className="material-symbols-outlined text-lg">arrow_forward</span>}
           </button>
           <button
             type="button"
-            onClick={() => navigate("/")}
+            onClick={() => navigate(isAddingAnother ? "/kids" : "/")}
             className="w-full py-3 text-on-surface-variant font-label-md text-label-md hover:text-text-main transition-colors text-center"
           >
-            I'll add this later
+            {isAddingAnother ? "Cancel" : "I'll add this later"}
           </button>
         </div>
       </form>

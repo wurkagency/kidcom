@@ -11,9 +11,14 @@ export const BILLING_PERIOD_DAYS: Record<"MONTHLY" | "ANNUAL", number> = {
   ANNUAL: 365,
 };
 
-// Free/Parents cap at 1 child, Family is unlimited (PRD: "Parent model
-// gives full access to 1 kid... Family model gives full access to
-// unlimited kids").
+// Free caps at 1 child; Parents and Family are both unlimited. (Earlier
+// pricing copy read Parents as 1-child-only, but the PRD's fuller
+// description — and the product decision this cap now follows — is that
+// Parents unlocks the same unlimited child count as Family; only Free stays
+// capped.) Trial users get the same unlimited cap while trialing regardless
+// of their nominal FREE tier — see the isTrialing check at the child-
+// creation call site in routes/children/index.ts, which bypasses this
+// function entirely for that case.
 export function childCapForTier(tier: "FREE" | "PARENTS" | "FAMILY"): number {
-  return tier === "FAMILY" ? Infinity : 1;
+  return tier === "FREE" ? 1 : Infinity;
 }

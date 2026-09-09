@@ -25,10 +25,14 @@ function toUtcDayStart(date: string | Date): number {
   return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
 }
 
-// Returns the userId who has the child on `date`, or null if `date` is
-// before the plan's startDate or the pattern is malformed (empty blocks /
-// zero cycle length).
-export function resolveCustodyForDate(plan: CustodyPlanLike, date: string | Date): string | null {
+// Shared cycle-walk used by both resolveCustodyForDate and
+// resolveCustodyBlockProgress below, so the two can never drift apart.
+// Returns null under the same "no answer" conditions resolveCustodyForDate
+// documents (malformed pattern, or date before the plan starts).
+function locateBlock(
+  plan: CustodyPlanLike,
+  date: string | Date
+): { block: CustodyBlock; dayOfBlock: number } | null {
   const { cycleLengthDays, blocks } = plan.patternDays;
   if (!cycleLengthDays || !blocks || blocks.length === 0) return null;
 
@@ -41,13 +45,63 @@ export function resolveCustodyForDate(plan: CustodyPlanLike, date: string | Date
   let cursor = 0;
   for (const block of blocks) {
     if (positionInCycle < cursor + block.days) {
-      return block.userId;
+      return { block, dayOfBlock: positionInCycle - cursor + 1 }; // 1-indexed
     }
     cursor += block.days;
   }
   // Blocks don't add up to cycleLengthDays — treat the remainder as
-  // belonging to the last block rather than throwing.
-  return blocks[blocks.length - 1]?.userId ?? null;
+  // belonging to the last block rather than throwing (matches
+  // resolveCustodyForDate's existing fallback behavior).
+  const lastBlock = blocks[blocks.length - 1];
+  if (!lastBlock) return null;
+  return { block: lastBlock, dayOfBlock: positionInCycle - cursor + 1 };
+}
+
+// Returns the userId who has the child on `date`, or null if `date` is
+// before the plan's startDate or the pattern is malformed (empty blocks /
+// zero cycle length).
+export function resolveCustodyForDate(plan: CustodyPlanLike, date: string | Date): string | null {
+  return locateBlock(plan, date)?.block.userId ?? null;
+}
+
+export type CustodyBlockProgress = {
+  userId: string;
+  // 1-indexed day-of-block, e.g. "Day 4 of 7".
+  dayOfBlock: number;
+  blockLengthDays: number;
+};
+
+// Powers the Week view's "Dad's Full Week Rotation — Day 4 of 7" banner —
+// same cycle-walk as resolveCustodyForDate, just also reporting where `date`
+// falls within its block instead of only who has the child.
+export function resolveCustodyBlockProgress(
+  plan: CustodyPlanLike,
+  date: string | Date
+): CustodyBlockProgress | null {
+  const located = locateBlock(plan, date);
+  if (!located) return null;
+  return {
+    userId: located.block.userId,
+    dayOfBlock: located.dayOfBlock,
+    blockLengthDays: located.block.days,
+  };
+}
+
+// True when `dateIso` and the day before it belong to different custody
+// owners — powers the List view's "Custody Handover Day" badge.
+// `custodyByDate` is the same "YYYY-MM-DD" -> userId map the calendar range
+// endpoint already returns, so no extra pattern-walking is needed here.
+export function isCustodyHandoverDay(
+  custodyByDate: Record<string, string | null>,
+  dateIso: string
+): boolean {
+  const date = new Date(`${dateIso}T00:00:00Z`);
+  const prevDate = new Date(date.getTime() - 24 * 60 * 60 * 1000);
+  const prevIso = prevDate.toISOString().slice(0, 10);
+  const today = custodyByDate[dateIso] ?? null;
+  const prev = prevIso in custodyByDate ? custodyByDate[prevIso] ?? null : undefined;
+  if (prev === undefined || today === null) return false;
+  return prev !== null && prev !== today;
 }
 
 // Two built-in presets offered by the CustodySetup UI. `blockDayCounts` is

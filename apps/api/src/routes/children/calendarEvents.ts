@@ -1,47 +1,27 @@
 import { Router, type Request } from "express";
-import type { CalendarEventDto, CreateCalendarEventRequest, UpdateCalendarEventRequest } from "@kidcom/shared";
+import type { CreateCalendarEventRequest, ToggleChecklistItemRequest, ToggleConfirmationRequest, UpdateCalendarEventRequest } from "@kidcom/shared";
 
 import { prisma } from "../../db";
 import { ApiError } from "../../middleware/errorHandler";
+import { CALENDAR_EVENT_INCLUDE, toCalendarEventDto } from "../../lib/calendarEventDto";
 
-// Mounted at /children/:childId/calendar-events. Only APPOINTMENT and
-// PLANNED_HOLIDAY are writable here — HOLIDAY rows are system-seeded (see
-// the calendar route's ensureHolidaysSeeded) and rejected below.
+// Mounted at /children/:childId/calendar-events. Every category except
+// HOLIDAY is writable here — HOLIDAY rows are system-seeded (see the
+// calendar route's ensureHolidaysSeeded) and rejected below.
 export const calendarEventsRouter = Router({ mergeParams: true });
 
 type ChildParams = { childId: string };
 type ChildEventParams = { childId: string; id: string };
+type ChecklistItemParams = { childId: string; id: string; itemId: string };
 
-function toDto(row: {
-  id: string;
-  category: string;
-  title: string;
-  startsAt: Date;
-  endsAt: Date | null;
-  allDay: boolean;
-  notes: string | null;
-  location: string | null;
-  isMedical: boolean;
-  isSport: boolean;
-  recurrenceIntervalWeeks: number | null;
-  recurrenceEndsAt: Date | null;
-}): CalendarEventDto {
-  return {
-    id: row.id,
-    category: row.category as CalendarEventDto["category"],
-    title: row.title,
-    startsAt: row.startsAt.toISOString(),
-    endsAt: row.endsAt?.toISOString() ?? null,
-    allDay: row.allDay,
-    notes: row.notes,
-    location: row.location,
-    editable: row.category !== "HOLIDAY",
-    isMedical: row.isMedical,
-    isSport: row.isSport,
-    recurrenceIntervalWeeks: row.recurrenceIntervalWeeks,
-    recurrenceEndsAt: row.recurrenceEndsAt?.toISOString() ?? null,
-  };
-}
+const WRITABLE_CATEGORIES: CreateCalendarEventRequest["category"][] = [
+  "CUSTODY",
+  "APPOINTMENT",
+  "MEDICAL",
+  "SCHOOL",
+  "ACTIVITY",
+  "PLANNED_HOLIDAY",
+];
 
 function validateRecurrence(body: Partial<CreateCalendarEventRequest>) {
   if (body.recurrenceIntervalWeeks === undefined || body.recurrenceIntervalWeeks === null) return;
@@ -59,6 +39,22 @@ function toRecurrenceEndsAtInput(value: string | null | undefined): Date | null 
   return new Date(value);
 }
 
+// Replaces an event's checklist wholesale — simplest correct semantics for a
+// short freeform list edited as a unit from EventFormPage. `tx` is a Prisma
+// transaction client, typed loosely (`any`) to match this codebase's
+// existing convention for transaction-callback params elsewhere.
+async function replaceChecklist(tx: any, calendarEventId: string, items: { label: string }[]) {
+  await tx.calendarEventChecklistItem.deleteMany({ where: { calendarEventId } });
+  if (items.length === 0) return;
+  await tx.calendarEventChecklistItem.createMany({
+    data: items.map((item, index) => ({
+      calendarEventId,
+      label: item.label,
+      sortOrder: index,
+    })),
+  });
+}
+
 // List events for this child — currently only used to power the "attach to
 // an existing event" picker on Wishlist items (?linkedToWishlist=1), which
 // needs a lightweight lookup of this child's wishlist-originated events. Not
@@ -72,9 +68,10 @@ calendarEventsRouter.get("/", async (req: Request<ChildParams>, res, next) => {
         childId: req.params.childId,
         ...(linkedToWishlist ? { listItems: { some: { type: "WISHLIST" } } } : {}),
       },
+      include: CALENDAR_EVENT_INCLUDE,
       orderBy: { startsAt: "asc" },
     });
-    res.json({ items: rows.map(toDto) });
+    res.json({ items: rows.map(toCalendarEventDto) });
   } catch (err) {
     next(err);
   }
@@ -84,9 +81,10 @@ calendarEventsRouter.get("/:id", async (req: Request<ChildEventParams>, res, nex
   try {
     const row = await prisma.calendarEvent.findFirst({
       where: { id: req.params.id, childId: req.params.childId },
+      include: CALENDAR_EVENT_INCLUDE,
     });
     if (!row) throw new ApiError(404, "Event not found");
-    res.json(toDto(row));
+    res.json(toCalendarEventDto(row));
   } catch (err) {
     next(err);
   }
@@ -98,27 +96,35 @@ calendarEventsRouter.post("/", async (req: Request<ChildParams>, res, next) => {
     if (!body.category || !body.title || !body.startsAt) {
       throw new ApiError(400, "category, title, and startsAt are required");
     }
-    if (body.category !== "APPOINTMENT" && body.category !== "PLANNED_HOLIDAY") {
-      throw new ApiError(400, "category must be APPOINTMENT or PLANNED_HOLIDAY");
+    if (!WRITABLE_CATEGORIES.includes(body.category)) {
+      throw new ApiError(400, `category must be one of: ${WRITABLE_CATEGORIES.join(", ")}`);
     }
     validateRecurrence(body);
-    const row = await prisma.calendarEvent.create({
-      data: {
-        childId: req.params.childId,
-        category: body.category,
-        title: body.title,
-        startsAt: new Date(body.startsAt),
-        endsAt: body.endsAt ? new Date(body.endsAt) : undefined,
-        allDay: body.allDay ?? false,
-        notes: body.notes,
-        location: body.location,
-        isMedical: body.isMedical ?? false,
-        isSport: body.isSport ?? false,
-        recurrenceIntervalWeeks: body.recurrenceIntervalWeeks ?? undefined,
-        recurrenceEndsAt: toRecurrenceEndsAtInput(body.recurrenceEndsAt) ?? undefined,
-      },
+    const row = await prisma.$transaction(async (tx) => {
+      const created = await tx.calendarEvent.create({
+        data: {
+          childId: req.params.childId,
+          category: body.category!,
+          title: body.title!,
+          startsAt: new Date(body.startsAt!),
+          endsAt: body.endsAt ? new Date(body.endsAt) : undefined,
+          allDay: body.allDay ?? false,
+          notes: body.notes,
+          location: body.location,
+          assignedNote: body.assignedNote,
+          contactName: body.contactName,
+          contactDetail: body.contactDetail,
+          confirmable: body.confirmable ?? false,
+          recurrenceIntervalWeeks: body.recurrenceIntervalWeeks ?? undefined,
+          recurrenceEndsAt: toRecurrenceEndsAtInput(body.recurrenceEndsAt) ?? undefined,
+        },
+      });
+      if (body.checklist?.length) {
+        await replaceChecklist(tx, created.id, body.checklist);
+      }
+      return tx.calendarEvent.findUniqueOrThrow({ where: { id: created.id }, include: CALENDAR_EVENT_INCLUDE });
     });
-    res.status(201).json(toDto(row));
+    res.status(201).json(toCalendarEventDto(row));
   } catch (err) {
     next(err);
   }
@@ -135,24 +141,35 @@ calendarEventsRouter.patch("/:id", async (req: Request<ChildEventParams>, res, n
     }
 
     const body = req.body as UpdateCalendarEventRequest;
+    if (body.category && !WRITABLE_CATEGORIES.includes(body.category)) {
+      throw new ApiError(400, `category must be one of: ${WRITABLE_CATEGORIES.join(", ")}`);
+    }
     validateRecurrence(body);
-    const row = await prisma.calendarEvent.update({
-      where: { id: req.params.id },
-      data: {
-        category: body.category,
-        title: body.title,
-        startsAt: body.startsAt ? new Date(body.startsAt) : undefined,
-        endsAt: body.endsAt ? new Date(body.endsAt) : undefined,
-        allDay: body.allDay,
-        notes: body.notes,
-        location: body.location,
-        isMedical: body.isMedical,
-        isSport: body.isSport,
-        recurrenceIntervalWeeks: body.recurrenceIntervalWeeks,
-        recurrenceEndsAt: toRecurrenceEndsAtInput(body.recurrenceEndsAt),
-      },
+    const row = await prisma.$transaction(async (tx) => {
+      await tx.calendarEvent.update({
+        where: { id: req.params.id },
+        data: {
+          category: body.category,
+          title: body.title,
+          startsAt: body.startsAt ? new Date(body.startsAt) : undefined,
+          endsAt: body.endsAt ? new Date(body.endsAt) : undefined,
+          allDay: body.allDay,
+          notes: body.notes,
+          location: body.location,
+          assignedNote: body.assignedNote,
+          contactName: body.contactName,
+          contactDetail: body.contactDetail,
+          confirmable: body.confirmable,
+          recurrenceIntervalWeeks: body.recurrenceIntervalWeeks,
+          recurrenceEndsAt: toRecurrenceEndsAtInput(body.recurrenceEndsAt),
+        },
+      });
+      if (body.checklist !== undefined) {
+        await replaceChecklist(tx, req.params.id, body.checklist);
+      }
+      return tx.calendarEvent.findUniqueOrThrow({ where: { id: req.params.id }, include: CALENDAR_EVENT_INCLUDE });
     });
-    res.json(toDto(row));
+    res.json(toCalendarEventDto(row));
   } catch (err) {
     next(err);
   }
@@ -170,6 +187,78 @@ calendarEventsRouter.delete("/:id", async (req: Request<ChildEventParams>, res, 
 
     await prisma.calendarEvent.delete({ where: { id: req.params.id } });
     res.status(204).end();
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Toggle a single checklist item without resending the whole list —
+// EventFormPage's editor still uses the full-replace PATCH above, but the
+// calendar views' inline checklist ("Packed" badge tap) uses this instead.
+calendarEventsRouter.patch("/:id/checklist/:itemId", async (req: Request<ChecklistItemParams>, res, next) => {
+  try {
+    const event = await prisma.calendarEvent.findFirst({
+      where: { id: req.params.id, childId: req.params.childId },
+    });
+    if (!event) throw new ApiError(404, "Event not found");
+
+    const body = req.body as Partial<ToggleChecklistItemRequest>;
+    if (typeof body.isChecked !== "boolean") {
+      throw new ApiError(400, "isChecked (boolean) is required");
+    }
+
+    const { count } = await prisma.calendarEventChecklistItem.updateMany({
+      where: { id: req.params.itemId, calendarEventId: req.params.id },
+      data: { isChecked: body.isChecked },
+    });
+    if (count === 0) throw new ApiError(404, "Checklist item not found");
+
+    const row = await prisma.calendarEvent.findUniqueOrThrow({
+      where: { id: req.params.id },
+      include: CALENDAR_EVENT_INCLUDE,
+    });
+    res.json(toCalendarEventDto(row));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Self-service confirm/unconfirm — always acts on the caller's own userId
+// from the session, never a body-supplied one, so no one can confirm on
+// someone else's behalf.
+calendarEventsRouter.patch("/:id/confirm", async (req: Request<ChildEventParams>, res, next) => {
+  try {
+    const event = await prisma.calendarEvent.findFirst({
+      where: { id: req.params.id, childId: req.params.childId },
+    });
+    if (!event) throw new ApiError(404, "Event not found");
+    if (!event.confirmable) {
+      throw new ApiError(400, "This event isn't open for confirmation");
+    }
+
+    const body = req.body as Partial<ToggleConfirmationRequest>;
+    if (typeof body.confirmed !== "boolean") {
+      throw new ApiError(400, "confirmed (boolean) is required");
+    }
+    const userId = req.session.userId!;
+
+    if (body.confirmed) {
+      await prisma.calendarEventConfirmation.upsert({
+        where: { calendarEventId_userId: { calendarEventId: req.params.id, userId } },
+        create: { calendarEventId: req.params.id, userId },
+        update: {},
+      });
+    } else {
+      await prisma.calendarEventConfirmation.deleteMany({
+        where: { calendarEventId: req.params.id, userId },
+      });
+    }
+
+    const row = await prisma.calendarEvent.findUniqueOrThrow({
+      where: { id: req.params.id },
+      include: CALENDAR_EVENT_INCLUDE,
+    });
+    res.json(toCalendarEventDto(row));
   } catch (err) {
     next(err);
   }

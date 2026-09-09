@@ -87,6 +87,7 @@ model User {
   notificationPreferences NotificationPreferences?
   emailVerificationTokens EmailVerificationToken[]
   twoFactorCodes LoginTwoFactorCode[]
+  calendarEventConfirmations CalendarEventConfirmation[]
 
   @@map("users")
 }
@@ -314,6 +315,9 @@ model EmergencyContact {
 enum CalendarEventCategory {
   CUSTODY
   APPOINTMENT
+  MEDICAL
+  SCHOOL
+  ACTIVITY
   HOLIDAY
   PLANNED_HOLIDAY
 }
@@ -356,14 +360,22 @@ model CalendarEvent {
   allDay    Boolean               @default(false)
   notes     String?
   location  String?
-  // Marks an APPOINTMENT as medical (doctor/dentist/etc.) vs. a general
-  // appointment (school event, activity, ...). Only meaningful for
-  // APPOINTMENT rows — the Medical Info page's "Appointments" section
-  // filters on this instead of showing every appointment on the calendar.
-  isMedical Boolean               @default(false)
-  // Same idea as isMedical, for sport/activity events (practice, games,
-  // lessons) — its own category tag rather than overloading isMedical.
-  isSport   Boolean               @default(false)
+  // Free-text note on who/what this event is for beyond the assigned
+  // child(ren) — e.g. "Leo & Maya" vs. a single-child default, or a plain
+  // note like "Whole family". Purely descriptive; assignment itself is
+  // still one CalendarEvent row per assigned child (see EventFormPage's
+  // "Both" picker) — this is not a relation.
+  assignedNote String?
+  // Optional contact card shown on the event (doctor's office, coach,
+  // school office, ...). Both null = no contact card rendered.
+  contactName   String?
+  contactDetail String?
+  // Opt-in per event: when true, family members can mark themselves as
+  // "confirmed" for this event (see CalendarEventConfirmation below). Not
+  // implied by category — a creator turns it on explicitly.
+  confirmable Boolean               @default(false)
+  checklistItems  CalendarEventChecklistItem[]
+  confirmations   CalendarEventConfirmation[]
   // Weekly recurrence — null means a one-off event. When set, this row is
   // the recurring series' anchor: `startsAt`/`endsAt` are the first
   // occurrence's date+time, and later occurrences fall every N weeks after
@@ -386,6 +398,41 @@ model CalendarEvent {
   listItems ListItem[]
 
   @@map("calendar_events")
+}
+
+// A short, freeform checklist attached to a CalendarEvent (e.g. "Bring:
+// swim bag", "Bring: signed permission slip"). Full-replace on edit
+// (delete-then-recreate) — see PATCH /calendar-events/:id — so `id` is not
+// meaningful across edits; per-item toggling (PATCH .../checklist/:itemId)
+// is the only thing that mutates a row in place.
+model CalendarEventChecklistItem {
+  id              String        @id @default(cuid())
+  calendarEventId String
+  calendarEvent   CalendarEvent @relation(fields: [calendarEventId], references: [id], onDelete: Cascade)
+  label           String
+  isChecked       Boolean       @default(false)
+  sortOrder       Int           @default(0)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@map("calendar_event_checklist_items")
+}
+
+// One row per family member who has confirmed a `confirmable` CalendarEvent
+// (e.g. "Both parents confirmed" on a custody handover). Self-service only
+// — PATCH /calendar-events/:id/confirm always acts on the caller's own
+// userId, upserting or deleting this row; there's no confirming on behalf
+// of someone else.
+model CalendarEventConfirmation {
+  id              String        @id @default(cuid())
+  calendarEventId String
+  calendarEvent   CalendarEvent @relation(fields: [calendarEventId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  confirmedAt     DateTime      @default(now())
+
+  @@unique([calendarEventId, userId])
+  @@map("calendar_event_confirmations")
 }
 
 // Requests to swap a computed custody day, not tied to a stored CalendarEvent

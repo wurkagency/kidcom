@@ -67,6 +67,14 @@ export function ChildrenOverviewPage() {
           );
         })}
       </div>
+
+      <Link
+        to="/onboarding/child"
+        className="w-full py-3.5 px-4 rounded-full bg-growth-green text-on-primary font-label-md text-label-md shadow-md hover:brightness-110 transition-all flex items-center justify-center gap-2"
+      >
+        <Icon name="add" className="text-base" />
+        <span className="font-semibold">Add new kid</span>
+      </Link>
     </div>
   );
 }

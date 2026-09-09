@@ -1,10 +1,11 @@
 import { Router, type Request } from "express";
 import { resolveCustodyForDate } from "@kidcom/shared";
-import type { CalendarEventDto, CalendarRangeResponse, CustodyPattern } from "@kidcom/shared";
+import type { CalendarRangeResponse, CustodyPattern } from "@kidcom/shared";
 
 import { prisma } from "../../db";
 import { ApiError } from "../../middleware/errorHandler";
 import { getDkHolidays } from "../../lib/dkHolidays";
+import { CALENDAR_EVENT_INCLUDE, toCalendarEventDto } from "../../lib/calendarEventDto";
 
 // Mounted at /children/:childId/calendar?start=&end=. Combines the computed
 // custody schedule (see packages/shared/src/custody.ts) with real
@@ -134,6 +135,7 @@ calendarRouter.get("/", async (req: Request<ChildParams>, res, next) => {
             { endsAt: { gte: start } },
           ],
         },
+        include: CALENDAR_EVENT_INCLUDE,
         orderBy: { startsAt: "asc" },
       }),
       // Recurring templates that could still have an occurrence landing in
@@ -146,6 +148,7 @@ calendarRouter.get("/", async (req: Request<ChildParams>, res, next) => {
           startsAt: { lt: endExclusive },
           OR: [{ recurrenceEndsAt: null }, { recurrenceEndsAt: { gte: start } }],
         },
+        include: CALENDAR_EVENT_INCLUDE,
       }),
     ]);
 
@@ -166,21 +169,7 @@ calendarRouter.get("/", async (req: Request<ChildParams>, res, next) => {
       }
     }
 
-    const eventDtos: CalendarEventDto[] = events.map((e) => ({
-      id: e.id,
-      category: e.category as CalendarEventDto["category"],
-      title: e.title,
-      startsAt: e.startsAt.toISOString(),
-      endsAt: e.endsAt?.toISOString() ?? null,
-      allDay: e.allDay,
-      notes: e.notes,
-      location: e.location,
-      editable: e.category !== "HOLIDAY",
-      isMedical: e.isMedical,
-      isSport: e.isSport,
-      recurrenceIntervalWeeks: e.recurrenceIntervalWeeks,
-      recurrenceEndsAt: e.recurrenceEndsAt?.toISOString() ?? null,
-    }));
+    const eventDtos = events.map(toCalendarEventDto);
 
     const response: CalendarRangeResponse = { custodyByDate, events: eventDtos };
     res.json(response);

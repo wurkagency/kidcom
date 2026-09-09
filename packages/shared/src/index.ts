@@ -8,8 +8,14 @@
 // static named-export detection for CJS packages (it silently drops names,
 // including ones declared directly in this file). Explicit exports compile
 // to statically analyzable per-name bindings instead.
-export type { CustodyBlock, CustodyPattern, CustodyPlanLike } from "./custody";
-export { resolveCustodyForDate, CUSTODY_PRESETS, describeCustodyPattern } from "./custody";
+export type { CustodyBlock, CustodyPattern, CustodyPlanLike, CustodyBlockProgress } from "./custody";
+export {
+  resolveCustodyForDate,
+  resolveCustodyBlockProgress,
+  isCustodyHandoverDay,
+  CUSTODY_PRESETS,
+  describeCustodyPattern,
+} from "./custody";
 import type { CustodyPattern } from "./custody";
 
 export type ApiHealthResponse = {
@@ -150,6 +156,12 @@ export type ChildFamilyMember = {
   // Null for the account owner (never went through an invite) and for any
   // access granted before this field existed.
   familyMemberType: FamilyMemberType | null;
+  // The member's self-identified parent role (see ParentRole above) —
+  // powers real "Dad's Time"/"Mom's Time" custody labeling on the calendar
+  // instead of positional/generic labels. Null only for pre-ParentRole
+  // rows that predate a client migration having run (not expected in
+  // practice, since the column defaults to PARENT).
+  parentRole: ParentRole | null;
 };
 
 // ---------------------------------------------------------------------------
@@ -335,7 +347,24 @@ export type SetCustodyPlanRequest = {
   patternDays: CustodyPattern;
 };
 
-export type CalendarEventCategory = "APPOINTMENT" | "HOLIDAY" | "PLANNED_HOLIDAY";
+// CUSTODY existed in the DB enum from the start but was unused by the API;
+// MEDICAL/SCHOOL/ACTIVITY replace the old isMedical/isSport booleans as
+// real, filterable categories in their own right.
+export type CalendarEventCategory =
+  | "CUSTODY"
+  | "APPOINTMENT"
+  | "MEDICAL"
+  | "SCHOOL"
+  | "ACTIVITY"
+  | "HOLIDAY"
+  | "PLANNED_HOLIDAY";
+
+export type CalendarEventChecklistItemDto = {
+  id: string;
+  label: string;
+  isChecked: boolean;
+  sortOrder: number;
+};
 
 export type CalendarEventDto = {
   id: string;
@@ -349,13 +378,17 @@ export type CalendarEventDto = {
   // HOLIDAY rows are system-seeded (see apps/api's dkHolidays helper) and
   // can't be edited/deleted through the calendar-events endpoints.
   editable: boolean;
-  // Only meaningful for APPOINTMENT rows — marks a doctor/dentist/etc. visit
-  // vs. a general appointment (school event, activity, ...). The child's
-  // Medical Info "Appointments" section filters on this instead of showing
-  // every appointment on the calendar.
-  isMedical: boolean;
-  // Same idea as isMedical, for sport/activity events.
-  isSport: boolean;
+  // Free-text note on who/what this event is for, beyond the assigned
+  // child(ies) — e.g. "Leo & Maya", "Whole family". Purely descriptive.
+  assignedNote: string | null;
+  // Optional contact card (doctor's office, coach, school office, ...).
+  contactName: string | null;
+  contactDetail: string | null;
+  // Opt-in per event — when true, family members can confirm attendance/
+  // awareness via PATCH .../confirm. `confirmedByUserIds` lists who has.
+  confirmable: boolean;
+  confirmedByUserIds: string[];
+  checklist: CalendarEventChecklistItemDto[];
   // Weekly recurrence — null means one-off. See the CalendarEvent model
   // comment in schema.prisma for the full expansion/edit-scope behavior.
   // On an expanded occurrence (not the series anchor), `id` still refers to
@@ -365,16 +398,26 @@ export type CalendarEventDto = {
   recurrenceEndsAt: string | null;
 };
 
+// HOLIDAY stays system-seeded/read-only (excluded here, same as before);
+// every other category is now creatable, including CUSTODY (a manually
+// logged handover/custody-related event — not an auto-generated one, see
+// the calendar redesign plan's open issues).
 export type CreateCalendarEventRequest = {
-  category: Extract<CalendarEventCategory, "APPOINTMENT" | "PLANNED_HOLIDAY">;
+  category: Exclude<CalendarEventCategory, "HOLIDAY">;
   title: string;
   startsAt: string;
   endsAt?: string;
   allDay?: boolean;
   notes?: string;
   location?: string;
-  isMedical?: boolean;
-  isSport?: boolean;
+  assignedNote?: string;
+  contactName?: string;
+  contactDetail?: string;
+  confirmable?: boolean;
+  // Full-replace on edit: a PATCH with this field set deletes and recreates
+  // the event's checklist rows from this list (order = array order). Omit
+  // to leave the existing checklist unchanged.
+  checklist?: { label: string }[];
   // Explicit `null` (as opposed to omitting the field) clears an existing
   // series when editing — needed since Update is `Partial<Create...>` and
   // an omitted field there means "leave unchanged," not "clear."
@@ -383,6 +426,17 @@ export type CreateCalendarEventRequest = {
 };
 
 export type UpdateCalendarEventRequest = Partial<CreateCalendarEventRequest>;
+
+// PATCH /children/:childId/calendar-events/:id/checklist/:itemId
+export type ToggleChecklistItemRequest = {
+  isChecked: boolean;
+};
+
+// PATCH /children/:childId/calendar-events/:id/confirm — always acts on the
+// caller's own userId (from the session), never a body-supplied one.
+export type ToggleConfirmationRequest = {
+  confirmed: boolean;
+};
 
 export type CalendarRangeResponse = {
   custodyByDate: Record<string, string | null>; // "YYYY-MM-DD" -> userId

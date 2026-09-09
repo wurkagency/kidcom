@@ -38,7 +38,7 @@ const PLANS: Plan[] = [
       "Invite the other parent",
       "Shared custody calendar",
       "Shared journal & media gallery",
-      "Manage 1 child profile",
+      "Unlimited child profiles",
     ],
   },
   {
@@ -253,8 +253,8 @@ export function BillingPage() {
           <div>
             <h4 className="font-label-md text-on-tertiary-container mb-1">Invited users get 30 days free</h4>
             <p className="font-label-sm text-on-tertiary-container/80 leading-relaxed">
-              When you invite a co-parent or family member, they'll receive a 30-day free trial to explore shared
-              features before needing their own plan.
+              When you invite a co-parent or family member, they'll receive a 30-day free trial with full access to
+              every feature — including adding multiple children — so they can see what fits before choosing a plan.
             </p>
           </div>
         </div>

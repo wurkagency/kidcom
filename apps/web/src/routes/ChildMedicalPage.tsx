@@ -63,10 +63,11 @@ function groupScheduleItems(items: ScheduleItem[]): ScheduleGroup[] {
 // "Appointments" section used to be a placeholder note ("needs the
 // Calendar, a later chunk") left over from chunk 3 — the calendar has been
 // built (and re-verified) since chunk 4, so this now pulls real upcoming
-// appointments the same way HomePage/CalendarPage do. Only events flagged
-// isMedical (see CalendarPage's "Medical appointment" checkbox) show here —
-// every other APPOINTMENT-category event (school events, activities, ...)
-// stays out, since this is the child's Health page, not a full agenda.
+// appointments the same way HomePage/CalendarPage do. Only MEDICAL-category
+// events show here (replaces the old APPOINTMENT + isMedical boolean check,
+// now that Medical is its own real category) — every other category
+// (school events, activities, plain appointments, ...) stays out, since
+// this is the child's Health page, not a full agenda.
 export function ChildMedicalPage() {
   const { childId } = useParams<{ childId: string }>();
   const [child, setChild] = useState<ChildDetail | null>(null);
@@ -101,9 +102,7 @@ export function ChildMedicalPage() {
         const now = Date.now();
         setAppointments(
           calendarRes.events
-            .filter(
-              (e) => e.category === "APPOINTMENT" && e.isMedical && new Date(e.startsAt).getTime() >= now
-            )
+            .filter((e) => e.category === "MEDICAL" && new Date(e.startsAt).getTime() >= now)
             .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime())
         );
       } catch (err) {

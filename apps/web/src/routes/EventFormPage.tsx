@@ -1,30 +1,23 @@
-import { useMemo, useState } from "react";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import type { CalendarEventDto, CreateCalendarEventRequest, UpdateCalendarEventRequest } from "@kidcom/shared";
 
 import { Avatar } from "../components/Avatar";
 import { Icon } from "../components/Icon";
-import { apiDelete, apiPatch, apiPost, ApiRequestError } from "../lib/api";
+import { apiDelete, apiGet, apiPatch, apiPost, ApiRequestError } from "../lib/api";
 import { useAuth } from "../lib/AuthContext";
+import { CALENDAR_CATEGORY_META, CALENDAR_WRITABLE_CATEGORIES } from "../lib/calendarCategories";
 
-// Matches docs/stitch_splitkid/add_new_event/code.html: full-screen
-// Cancel/Save header, title input, an "Assigned To" child picker, category
-// chips, an all-day toggle, starts/ends, location and notes. Used for both
-// creating a new event and editing an existing one (the calendar has no
-// GET-single-event endpoint, so editing carries the event over via router
-// state from CalendarPage rather than re-fetching it here).
-type FormCategory = "APPOINTMENT" | "MEDICAL" | "SPORT" | "PLANNED_HOLIDAY";
+// Matches docs/stitch_splitkid/calendar_{month,week,list}_view's event
+// detail fields: full-screen Cancel/Save header, title input, an "Assigned
+// To" child picker, real category chips, all-day toggle, starts/ends,
+// location/notes, an optional contact card, a short checklist editor, and a
+// "confirmable" toggle. Used for both creating a new event and editing an
+// existing one — edit mode fetches the event by id (GET
+// /calendar-events/:id) on mount instead of depending on router state, so a
+// page refresh mid-edit no longer loses the event and bounces to /calendar.
+type ChecklistDraftItem = { key: string; label: string };
 
-const CATEGORY_OPTIONS: { value: FormCategory; label: string; dotClass: string }[] = [
-  { value: "APPOINTMENT", label: "Appointment", dotClass: "bg-primary" },
-  { value: "MEDICAL", label: "Medical", dotClass: "bg-tertiary" },
-  { value: "SPORT", label: "Sport", dotClass: "bg-secondary" },
-  { value: "PLANNED_HOLIDAY", label: "Holiday", dotClass: "bg-journal-peach" },
-];
-
-// Every N weeks, matching the "each week / every 2nd week" asks — the
-// series' own anchor date supplies which weekday it lands on, so this is
-// the only knob needed for a plain weekly-style recurrence.
 const REPEAT_OPTIONS: { value: number | null; label: string }[] = [
   { value: null, label: "Does not repeat" },
   { value: 1, label: "Every week" },
@@ -40,22 +33,41 @@ function toTimeInput(iso: string): string {
   return new Date(iso).toTimeString().slice(0, 5);
 }
 
+let checklistKeySeq = 0;
+function nextChecklistKey(): string {
+  checklistKeySeq += 1;
+  return `checklist-${checklistKeySeq}`;
+}
+
 export function EventFormPage() {
   const { childId, eventId } = useParams<{ childId: string; eventId?: string }>();
   const navigate = useNavigate();
-  const location = useLocation();
   const { children } = useAuth();
-
-  // Passed by CalendarPage when navigating here to edit — see the comment
-  // above. If it's missing (e.g. a direct URL hit after a refresh) there's
-  // no way to recover the event's data, so bounce back to the calendar
-  // rather than showing a broken/empty edit form.
-  const editingEvent = (location.state as { event?: CalendarEventDto } | null)?.event ?? null;
   const isEditing = Boolean(eventId);
 
-  if (isEditing && !editingEvent) {
-    navigate(childId ? `/calendar` : "/", { replace: true });
-  }
+  const [editingEvent, setEditingEvent] = useState<CalendarEventDto | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadingEvent, setLoadingEvent] = useState(isEditing);
+
+  useEffect(() => {
+    if (!isEditing || !childId || !eventId) return;
+    let cancelled = false;
+    apiGet<CalendarEventDto>(`/children/${childId}/calendar-events/${eventId}`)
+      .then((event) => {
+        if (!cancelled) setEditingEvent(event);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setLoadError(err instanceof ApiRequestError ? err.message : "Couldn't load that event");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingEvent(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isEditing, childId, eventId]);
 
   const now = new Date();
   const nowDate = now.toISOString().slice(0, 10);
@@ -64,35 +76,51 @@ export function EventFormPage() {
   const [assignedChildIds, setAssignedChildIds] = useState<string[]>(() =>
     childId ? [childId] : children[0] ? [children[0].id] : []
   );
-  const [title, setTitle] = useState(editingEvent?.title ?? "");
-  const [category, setCategory] = useState<FormCategory>(() => {
-    if (!editingEvent) return "APPOINTMENT";
-    if (editingEvent.category === "PLANNED_HOLIDAY") return "PLANNED_HOLIDAY";
-    if (editingEvent.isMedical) return "MEDICAL";
-    if (editingEvent.isSport) return "SPORT";
-    return "APPOINTMENT";
-  });
-  const [allDay, setAllDay] = useState(editingEvent?.allDay ?? false);
-  const [startDate, setStartDate] = useState(editingEvent ? toDateInput(editingEvent.startsAt) : nowDate);
-  const [startTime, setStartTime] = useState(editingEvent ? toTimeInput(editingEvent.startsAt) : nowTime);
-  const [endDate, setEndDate] = useState(
-    editingEvent?.endsAt ? toDateInput(editingEvent.endsAt) : editingEvent ? toDateInput(editingEvent.startsAt) : nowDate
-  );
-  const [endTime, setEndTime] = useState(editingEvent?.endsAt ? toTimeInput(editingEvent.endsAt) : nowTime);
-  const [location_, setLocation] = useState(editingEvent?.location ?? "");
-  const [notes, setNotes] = useState(editingEvent?.notes ?? "");
-  const [repeatIntervalWeeks, setRepeatIntervalWeeks] = useState<number | null>(
-    editingEvent?.recurrenceIntervalWeeks ?? null
-  );
-  const [repeatUntil, setRepeatUntil] = useState(
-    editingEvent?.recurrenceEndsAt ? toDateInput(editingEvent.recurrenceEndsAt) : ""
-  );
+  const [title, setTitle] = useState("");
+  const [category, setCategory] = useState<CreateCalendarEventRequest["category"]>("APPOINTMENT");
+  const [allDay, setAllDay] = useState(false);
+  const [startDate, setStartDate] = useState(nowDate);
+  const [startTime, setStartTime] = useState(nowTime);
+  const [endDate, setEndDate] = useState(nowDate);
+  const [endTime, setEndTime] = useState(nowTime);
+  const [location_, setLocation] = useState("");
+  const [notes, setNotes] = useState("");
+  const [assignedNote, setAssignedNote] = useState("");
+  const [contactName, setContactName] = useState("");
+  const [contactDetail, setContactDetail] = useState("");
+  const [confirmable, setConfirmable] = useState(false);
+  const [checklist, setChecklist] = useState<ChecklistDraftItem[]>([]);
+  const [newChecklistLabel, setNewChecklistLabel] = useState("");
+  const [repeatIntervalWeeks, setRepeatIntervalWeeks] = useState<number | null>(null);
+  const [repeatUntil, setRepeatUntil] = useState("");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const canEditAssignment = !isEditing && children.length > 1;
+  // Once the event loads (edit mode), seed every field from it — mirrors
+  // the old useState(editingEvent?.x ?? default) pattern, just deferred
+  // until the fetch resolves instead of running at mount time.
+  useEffect(() => {
+    if (!editingEvent) return;
+    setTitle(editingEvent.title);
+    setCategory(editingEvent.category === "HOLIDAY" ? "PLANNED_HOLIDAY" : editingEvent.category);
+    setAllDay(editingEvent.allDay);
+    setStartDate(toDateInput(editingEvent.startsAt));
+    setStartTime(toTimeInput(editingEvent.startsAt));
+    setEndDate(editingEvent.endsAt ? toDateInput(editingEvent.endsAt) : toDateInput(editingEvent.startsAt));
+    setEndTime(editingEvent.endsAt ? toTimeInput(editingEvent.endsAt) : toTimeInput(editingEvent.startsAt));
+    setLocation(editingEvent.location ?? "");
+    setNotes(editingEvent.notes ?? "");
+    setAssignedNote(editingEvent.assignedNote ?? "");
+    setContactName(editingEvent.contactName ?? "");
+    setContactDetail(editingEvent.contactDetail ?? "");
+    setConfirmable(editingEvent.confirmable);
+    setChecklist(editingEvent.checklist.map((item) => ({ key: item.id, label: item.label })));
+    setRepeatIntervalWeeks(editingEvent.recurrenceIntervalWeeks);
+    setRepeatUntil(editingEvent.recurrenceEndsAt ? toDateInput(editingEvent.recurrenceEndsAt) : "");
+  }, [editingEvent]);
 
+  const canEditAssignment = !isEditing && children.length > 1;
   const canDelete = isEditing && editingEvent?.editable;
 
   function toggleChild(id: string) {
@@ -105,6 +133,17 @@ export function EventFormPage() {
 
   const bothSelected = assignedChildIds.length === children.length && children.length > 1;
 
+  function addChecklistItem() {
+    const label = newChecklistLabel.trim();
+    if (!label) return;
+    setChecklist((prev) => [...prev, { key: nextChecklistKey(), label }]);
+    setNewChecklistLabel("");
+  }
+
+  function removeChecklistItem(key: string) {
+    setChecklist((prev) => prev.filter((item) => item.key !== key));
+  }
+
   async function handleSave() {
     if (!title.trim() || assignedChildIds.length === 0) return;
     setError(null);
@@ -115,19 +154,22 @@ export function EventFormPage() {
       // previously dropped it entirely (endsAt: undefined) so a multi-day
       // all-day event silently collapsed to a single day. All-day end uses
       // start-of-day on endDate, matching startsAt's own all-day convention;
-      // CalendarPage's eventSpansDate treats the end date inclusively so
-      // end-of-day isn't needed.
+      // the calendar views' eventSpansDate treats the end date inclusively
+      // so end-of-day isn't needed.
       const endsAt = new Date(`${endDate}T${allDay ? "00:00" : endTime}:00`).toISOString();
       const payload: CreateCalendarEventRequest = {
-        category: category === "MEDICAL" || category === "SPORT" ? "APPOINTMENT" : category,
+        category,
         title: title.trim(),
         startsAt,
         endsAt,
         allDay,
         notes: notes.trim() || undefined,
         location: location_.trim() || undefined,
-        isMedical: category === "MEDICAL",
-        isSport: category === "SPORT",
+        assignedNote: assignedNote.trim() || undefined,
+        contactName: contactName.trim() || undefined,
+        contactDetail: contactDetail.trim() || undefined,
+        confirmable,
+        checklist: checklist.map((item) => ({ label: item.label })),
         // Explicit null (not undefined) so editing an event back down to
         // "Does not repeat" actually clears an existing series — see the
         // CreateCalendarEventRequest comment in shared/index.ts.
@@ -170,6 +212,30 @@ export function EventFormPage() {
   }
 
   const availableChildren = useMemo(() => children, [children]);
+
+  if (isEditing && loadingEvent) {
+    return (
+      <div className="flex flex-col w-full min-h-screen bg-surface px-container-padding py-6">
+        <p className="font-body-md text-body-md text-on-surface-variant">Loading…</p>
+      </div>
+    );
+  }
+
+  if (isEditing && !editingEvent) {
+    return (
+      <div className="flex flex-col w-full min-h-screen bg-surface px-container-padding py-6 gap-4">
+        <p className="font-body-md text-body-md text-error bg-error-container rounded-lg px-4 py-3">
+          {loadError ?? "That event couldn't be found."}
+        </p>
+        <button
+          onClick={() => navigate("/calendar")}
+          className="w-full py-3 rounded-full bg-surface-container text-primary font-label-md text-label-md"
+        >
+          Back to calendar
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col w-full min-h-screen bg-surface">
@@ -259,21 +325,22 @@ export function EventFormPage() {
             Category
           </label>
           <div className="flex flex-wrap gap-2">
-            {CATEGORY_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => setCategory(opt.value)}
-                className={`px-4 py-2 rounded-full font-label-md text-label-md flex items-center gap-2 transition-colors ${
-                  category === opt.value
-                    ? "bg-primary/10 text-primary"
-                    : "bg-surface-container text-on-surface-variant"
-                }`}
-              >
-                <div className={`w-2 h-2 rounded-full ${opt.dotClass}`} />
-                {opt.label}
-              </button>
-            ))}
+            {CALENDAR_WRITABLE_CATEGORIES.map((value) => {
+              const meta = CALENDAR_CATEGORY_META[value];
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setCategory(value)}
+                  className={`px-4 py-2 rounded-full font-label-md text-label-md flex items-center gap-2 transition-colors ${
+                    category === value ? "bg-primary/10 text-primary" : "bg-surface-container text-on-surface-variant"
+                  }`}
+                >
+                  <div className={`w-2 h-2 rounded-full ${meta.dotClass}`} />
+                  {meta.label}
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -414,6 +481,18 @@ export function EventFormPage() {
             />
           </div>
           <div className="h-px w-full bg-surface-variant ml-14 max-w-[calc(100%-56px)]" />
+          <div className="flex items-center p-2">
+            <div className="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant shrink-0 ml-2">
+              <Icon name="badge" />
+            </div>
+            <input
+              value={assignedNote}
+              onChange={(e) => setAssignedNote(e.target.value)}
+              placeholder="Assigned note (e.g. Leo & Maya)"
+              className="w-full bg-transparent px-4 py-3 font-body-md text-body-md text-on-surface placeholder:text-outline-variant outline-none"
+            />
+          </div>
+          <div className="h-px w-full bg-surface-variant ml-14 max-w-[calc(100%-56px)]" />
           <div className="flex items-start p-2 pb-4">
             <div className="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant shrink-0 mt-2 ml-2">
               <Icon name="notes" />
@@ -425,6 +504,89 @@ export function EventFormPage() {
               className="w-full bg-transparent px-4 py-4 font-body-md text-body-md text-on-surface placeholder:text-outline-variant outline-none resize-none min-h-[100px]"
             />
           </div>
+        </div>
+
+        <div className="bg-surface-container-lowest rounded-3xl p-5 shadow-sm flex flex-col gap-3">
+          <label className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">
+            Contact (optional)
+          </label>
+          <input
+            value={contactName}
+            onChange={(e) => setContactName(e.target.value)}
+            placeholder="Contact name (e.g. Dr. Andersen)"
+            className="w-full bg-surface-container rounded-xl px-4 py-3 font-body-md text-body-md text-on-surface placeholder:text-outline-variant outline-none"
+          />
+          <input
+            value={contactDetail}
+            onChange={(e) => setContactDetail(e.target.value)}
+            placeholder="Phone, address, or other detail"
+            className="w-full bg-surface-container rounded-xl px-4 py-3 font-body-md text-body-md text-on-surface placeholder:text-outline-variant outline-none"
+          />
+        </div>
+
+        <div className="bg-surface-container-lowest rounded-3xl p-5 shadow-sm flex flex-col gap-3">
+          <label className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">
+            Checklist (optional)
+          </label>
+          {checklist.map((item) => (
+            <div key={item.key} className="flex items-center gap-2">
+              <Icon name="check_box_outline_blank" className="text-[18px] text-on-surface-variant" />
+              <span className="flex-1 font-body-md text-body-md text-on-surface">{item.label}</span>
+              <button
+                type="button"
+                onClick={() => removeChecklistItem(item.key)}
+                aria-label={`Remove ${item.label}`}
+                className="text-on-surface-variant"
+              >
+                <Icon name="close" className="text-[16px]" />
+              </button>
+            </div>
+          ))}
+          <div className="flex items-center gap-2">
+            <input
+              value={newChecklistLabel}
+              onChange={(e) => setNewChecklistLabel(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  addChecklistItem();
+                }
+              }}
+              placeholder="Bring: swim bag"
+              className="flex-1 bg-surface-container rounded-xl px-4 py-2.5 font-body-md text-body-md text-on-surface placeholder:text-outline-variant outline-none"
+            />
+            <button
+              type="button"
+              onClick={addChecklistItem}
+              disabled={!newChecklistLabel.trim()}
+              className="py-2.5 px-4 rounded-xl bg-surface-container text-primary font-label-md text-label-md disabled:opacity-60"
+            >
+              Add
+            </button>
+          </div>
+        </div>
+
+        <div className="bg-surface-container-lowest rounded-3xl p-4 shadow-sm flex items-center justify-between">
+          <div>
+            <p className="font-body-md text-body-md text-on-surface">Allow confirmation</p>
+            <p className="font-label-sm text-label-sm text-on-surface-variant">
+              Family members can mark themselves as confirmed for this event.
+            </p>
+          </div>
+          <button
+            type="button"
+            aria-pressed={confirmable}
+            onClick={() => setConfirmable((v) => !v)}
+            className={`w-12 h-6 rounded-full relative transition-colors duration-300 shrink-0 ${
+              confirmable ? "bg-primary" : "bg-surface-container-high"
+            }`}
+          >
+            <div
+              className={`absolute top-1 w-4 h-4 rounded-full transition-transform duration-300 ${
+                confirmable ? "translate-x-6 bg-on-primary" : "translate-x-1 bg-outline"
+              }`}
+            />
+          </button>
         </div>
 
         {canDelete && (
