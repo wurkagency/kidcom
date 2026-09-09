@@ -278,6 +278,7 @@ function GalleryThumb({
         if (e.key === "Enter") (hasSelection ? onToggleSelect : onOpen)();
       }}
       className="aspect-square rounded-xl overflow-hidden relative cursor-pointer select-none bg-surface-container touch-manipulation"
+      style={{ WebkitTouchCallout: "none", WebkitUserSelect: "none" }}
     >
       {selected && (
         <div className="absolute inset-0 bg-primary/20 z-10 flex items-center justify-center border-4 border-primary rounded-xl">
@@ -294,7 +295,13 @@ function GalleryThumb({
         </div>
       )}
       {url ? (
-        <img src={url} alt="" className="w-full h-full object-cover" />
+        <img
+          src={url}
+          alt=""
+          draggable={false}
+          className="w-full h-full object-cover pointer-events-none"
+          style={{ WebkitTouchCallout: "none", WebkitUserSelect: "none" }}
+        />
       ) : (
         <div className="w-full h-full animate-pulse bg-surface-container-high" />
       )}

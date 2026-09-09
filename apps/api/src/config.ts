@@ -32,6 +32,14 @@ export const config = {
   cookieDomain: process.env.COOKIE_DOMAIN ?? "localhost",
   mediaStoragePath: process.env.MEDIA_STORAGE_PATH ?? "./media",
   isProduction: process.env.NODE_ENV === "production",
+  // Temporary testing toggle for the still-in-testing production deployment:
+  // when true, POST /billing/subscribe skips QuickPay entirely and activates
+  // whatever tier was requested directly (same bypass local dev already
+  // gets — see routes/billing/index.ts), letting any user switch freely
+  // between Free/Parents/Family without a real charge. Off by default, so a
+  // real production launch just needs this env var removed/unset — no code
+  // change — to require real QuickPay checkout again.
+  billingTestMode: process.env.BILLING_TEST_MODE === "true",
   // Optional — billing routes fail with a clear 500 if unset rather than
   // crashing boot, so the rest of the app still runs without QuickPay keys
   // in local dev (see chunk 7 plan notes).

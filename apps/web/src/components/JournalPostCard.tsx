@@ -14,10 +14,15 @@ import { apiPost, apiDelete, ApiRequestError } from "../lib/api";
 // the whole file is fetched as a blob via the same authenticated flow images
 // already use, no HTTP Range/streaming support, which is an acceptable
 // tradeoff for a family-journal feature rather than a video product.
-// Landscape 4:3 for every preview — image, video poster, and every loading/
-// error/processing placeholder state — so the feed and gallery grid don't
-// jump around as media loads in at different aspect ratios.
+// Landscape 4:3 box for every preview — image, video poster, and every
+// loading/error/processing placeholder state — so the feed and gallery grid
+// don't jump around as media loads in at different aspect ratios. The photo
+// itself is shown with object-contain (never object-cover) so its real
+// proportions are always preserved exactly — a portrait or square photo
+// letterboxes inside the 4:3 box (filled with the same neutral background as
+// the loading state) rather than being cropped or stretched.
 const PREVIEW_ASPECT = "aspect-[4/3]";
+const PREVIEW_FIT = "object-contain bg-surface-container-high";
 
 export function MediaThumb({ media, alt }: { media: MediaAssetDto; alt: string }) {
   const [posterUrl, setPosterUrl] = useState<string | null>(null);
@@ -84,7 +89,7 @@ export function MediaThumb({ media, alt }: { media: MediaAssetDto; alt: string }
           poster={posterUrl}
           controls
           autoPlay
-          className={`w-full ${PREVIEW_ASPECT} object-cover rounded-lg bg-black`}
+          className={`w-full ${PREVIEW_ASPECT} object-contain rounded-lg bg-black`}
         />
       );
     }
@@ -101,7 +106,7 @@ export function MediaThumb({ media, alt }: { media: MediaAssetDto; alt: string }
         aria-label="Play video"
         className="relative block w-full"
       >
-        <img src={posterUrl} alt={alt} className={`w-full ${PREVIEW_ASPECT} object-cover rounded-lg`} />
+        <img src={posterUrl} alt={alt} className={`w-full ${PREVIEW_ASPECT} ${PREVIEW_FIT} rounded-lg`} />
         <span className="absolute inset-0 flex items-center justify-center">
           <span className="w-12 h-12 rounded-full bg-black/60 text-white flex items-center justify-center">
             <Icon name="play_arrow" className="text-2xl" />
@@ -111,7 +116,7 @@ export function MediaThumb({ media, alt }: { media: MediaAssetDto; alt: string }
     );
   }
 
-  return <img src={posterUrl} alt={alt} className={`w-full ${PREVIEW_ASPECT} object-cover rounded-lg`} />;
+  return <img src={posterUrl} alt={alt} className={`w-full ${PREVIEW_ASPECT} ${PREVIEW_FIT} rounded-lg`} />;
 }
 
 // A grid when there's more than one attachment, a single full-width item

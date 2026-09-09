@@ -55,8 +55,12 @@ billingRouter.get("/status", requireAuth, async (req, res, next) => {
 //    never deployed (no QuickPay account is configured here — quickpay.ts
 //    throws immediately without QUICKPAY_API_KEY), so skip QuickPay entirely
 //    and activate the tier directly, the same way case 1 does. A real
-//    deployment (config.isProduction) always takes the real-payment path;
-//    only local/dev testing gets the bypass.
+//    deployment (config.isProduction) normally always takes the real-payment
+//    path — except while config.billingTestMode is on (BILLING_TEST_MODE=true
+//    in production's .env), which gets the same free bypass for as long as
+//    the production deployment is still in a testing phase. Unset that env
+//    var and restart once real billing should be enforced — no code change
+//    needed.
 //
 // An abandoned real checkout (case 2) leaves the subscription at
 // tier:PARENTS/FAMILY, status:PENDING indefinitely (no reconciliation job
@@ -94,7 +98,7 @@ billingRouter.post("/subscribe", requireAuth, async (req, res, next) => {
     const tier = body.tier;
     const billingPeriod = body.billingPeriod;
 
-    if (!config.isProduction) {
+    if (!config.isProduction || config.billingTestMode) {
       await prisma.subscription.upsert({
         where: { ownerId: userId },
         update: {
