@@ -10,19 +10,34 @@
 --
 -- After running this, regenerate the Prisma client:
 --   npm run prisma:generate
+--
+-- IMPORTANT — do not remove the BEGIN/COMMIT around step 1 below. `prisma
+-- db execute --file` sends this whole file as one implicit transaction when
+-- no explicit BEGIN/COMMIT is present, and Postgres refuses to let a
+-- newly-added enum value (MEDICAL/SCHOOL/ACTIVITY) be used in a DML
+-- statement (step 2's backfill) until the ALTER TYPE that added it has
+-- actually committed. An earlier version of this file dropped these
+-- explicit boundaries, which made step 1 fail outright — and because the
+-- failure happened *after* a separate `prisma db push` had already been run
+-- (which doesn't run this backfill at all), it silently dropped
+-- isMedical/isSport without ever folding their values into `category`
+-- first. Keep the transaction split below exactly as-is.
 
 -- 1. Extend the CalendarEventCategory enum with the new taxonomy. CUSTODY
 --    already existed in the enum but was unused by the API; MEDICAL, SCHOOL
---    and ACTIVITY are new.
+--    and ACTIVITY are new. Committed on its own, separately from the
+--    backfill below, because Postgres requires a new enum value to be
+--    committed before it can be used in a DML statement.
+BEGIN;
 ALTER TYPE "CalendarEventCategory" ADD VALUE IF NOT EXISTS 'MEDICAL';
 ALTER TYPE "CalendarEventCategory" ADD VALUE IF NOT EXISTS 'SCHOOL';
 ALTER TYPE "CalendarEventCategory" ADD VALUE IF NOT EXISTS 'ACTIVITY';
+COMMIT;
 
--- Postgres requires a new enum value to be committed before it can be used
--- in a DML statement in the same connection, so everything below runs as
--- its own statements rather than one wrapping transaction (prisma db
--- execute already runs the whole file outside an explicit transaction by
--- default when no BEGIN/COMMIT is present, which is what we want here).
+-- 2-5. Backfill, drop the old columns, and add everything else — as one
+-- transaction so a failure partway through (steps 3-5) can't leave the
+-- backfill applied but the rest half-done.
+BEGIN;
 
 -- 2. Backfill: fold the old isMedical/isSport booleans into the new
 --    category values BEFORE dropping the columns. Guarded — skipped
@@ -115,3 +130,5 @@ BEGIN
       ON DELETE CASCADE ON UPDATE CASCADE;
   END IF;
 END $$;
+
+COMMIT;
