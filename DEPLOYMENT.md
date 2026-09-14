@@ -87,6 +87,29 @@ use Plesk's "Add Repository" flow from step 0.4 instead of cloning by hand —
 Plesk needs to own the clone for its Git panel (pull/webhook/deploy actions)
 to work against it afterward.
 
+**Prune non-app files from the checkout.** The Document Root change in step
+0.5 is the primary reason none of this is web-reachable, but Plesk's Git
+integration pulls the *whole* monorepo into `httpdocs` on every deploy —
+including project planning/ops docs that have nothing to do with the running
+app (`tasks/` — backlog notes, `docs/` — specs and design-mockup references,
+`DEPLOYMENT.md` itself, `README.md`, `scripts/` — a dev-only icon generator,
+`docker-compose.yml` — local dev Postgres/Redis, `.env.example`). None of
+these are read by the app at build or run time (verified: no `import`/`fs`
+reference to any of them anywhere in `apps/` or `packages/`), so removing
+them from the deployed checkout is free — it's a second, independent layer
+under the Document Root scoping, not a replacement for it. Run this right
+after every pull:
+
+```bash
+rm -rf tasks docs DEPLOYMENT.md README.md scripts docker-compose.yml .env.example
+```
+
+This is also folded into step 8's automated deploy script below, so it
+re-runs (and re-prunes whatever the next `git pull` brought back) on every
+future deploy — these files stay fully present in the GitHub repo and your
+local checkout for development, they just never persist on the production
+box.
+
 ## 2. Environment variables
 
 Create `apps/api/.env` (this exact path — `config.ts`'s `dotenv/config` import
@@ -248,15 +271,20 @@ grep -rl "localhost:4000" apps/web/dist/ && echo "BAD — VITE_API_URL wasn't se
 ## 4. Confirm the site serves the build, not the repo
 
 ```bash
-curl -sI https://kidcom.org/ | head -1     # expect 200, and view-source should show the built <title>KidCom</title>
-curl -sI https://kidcom.org/package.json   # expect 404 — proves Document Root is scoped correctly
+curl -sI https://kidcom.org/ | head -1              # expect 200, and view-source should show the built <title>KidCom</title>
+curl -sI https://kidcom.org/package.json | head -1  # expect 404 — proves Document Root is scoped correctly
+curl -sI https://kidcom.org/DEPLOYMENT.md | head -1 # expect 404 — proves the prune step above actually ran
+curl -sI https://kidcom.org/tasks/todo.md | head -1 # expect 404 — same, for the pruned tasks/ folder
 ```
 
 If the second command returns the raw `package.json` instead of a 404, the
 Document Root change from step 0.5 didn't take (or was reverted) — fix that
 before going further; don't try to patch this with `.htaccess`/deny rules
 instead, since a new file added later could slip past a hand-maintained rule
-list in a way a scoped Document Root simply can't.
+list in a way a scoped Document Root simply can't. The last two are checking
+a second, independent layer (the files aren't even on disk) — if either
+comes back non-404 while `package.json` correctly 404s, the prune step
+didn't run, not a Document Root problem.
 
 ## 5. Nginx: SPA fallback for client-side routes on kidcom.org
 
@@ -392,11 +420,16 @@ automatically:
 
 ```bash
 cd /var/www/vhosts/kidcom.org/httpdocs \
+  && rm -rf tasks docs DEPLOYMENT.md README.md scripts docker-compose.yml .env.example \
   && npm install \
   && npx dotenv -e apps/api/.env -- npm run build \
   && npx dotenv -e apps/api/.env -- npx prisma migrate deploy --schema packages/db/prisma/schema.prisma \
   && pm2 restart ecosystem.config.cjs
 ```
+
+The `rm -rf` up front is step 1's prune, repeated here because a `git pull`
+via Plesk's automatic-deploy path brings those files right back before this
+script runs — pruning has to happen on every deploy, not just the first one.
 
 Paste that into the repository's "Additional deploy actions" field in Plesk,
 then switch the repository's deployment mode from manual to automatic. No
@@ -435,6 +468,7 @@ restarted (`pm2 restart kidcom-api`).
 cd /var/www/vhosts/kidcom.org/httpdocs
 git log --oneline -5                # find the commit to roll back to
 git checkout <commit-sha>
+rm -rf tasks docs DEPLOYMENT.md README.md scripts docker-compose.yml .env.example  # step 1's prune — `git checkout` brings these back too
 npm install && npx dotenv -e apps/api/.env -- npm run build
 pm2 restart ecosystem.config.cjs
 ```

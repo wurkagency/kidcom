@@ -438,3 +438,42 @@ encryption (not disk-level).
   long-press fix (Phase J) needs confirming on a real Android device — jsdom can't
   reproduce the native browser gesture the bug came from, only the app-level logic
   around it.
+
+### `/security-review` pass (2026-09-14)
+
+- [x] Open redirect fixed: `?redirect=` in `LoginPage.tsx`/`LoginTwoFactorPage.tsx`
+  was only checked with `startsWith("/")`, which a `//evil.com` or `/\evil.com`
+  payload bypasses (backslash is browser-normalized to `//`, same bypass class as
+  react-router's own advisory). New `apps/web/src/lib/safeRedirect.ts` resolves
+  through the real `URL` parser and compares origins instead. 7 new tests.
+- [x] `helmet` added to the API for baseline response headers (CORP relaxed to
+  `cross-origin` so cross-origin media loading from `api.kidcom.org` still works).
+- [x] `sharp`/`nodemailer` upgraded (high-severity CVEs, both production-reachable —
+  user-uploaded image processing, real SMTP sending); `npm audit fix` for `qs`.
+- [x] `react-router-dom`/`geoip-lite` upgrades deliberately skipped — no reachable
+  exploit path in this codebase's actual usage (reasoning in `tasks/lessons.md`).
+- [x] **Leaked secrets** — `DEPLOYMENT.md` had a real Postgres password + SMTP
+  password committed in plain text (predates this session, already pushed to
+  `origin/master`); `tasks/todo.md` had a real but already-abandoned VAPID keypair.
+  Both redacted in the working tree. **Confirmed by the user (2026-09-14): the DB
+  and SMTP credentials have been rotated** — will be updated in production after
+  deployment. Git history was NOT rewritten (not requested).
+- [x] **Deploy hardening, explicit user request**: `DEPLOYMENT.md`'s deploy steps
+  (first deploy, the automated "every deploy after the first" script, and rollback)
+  now `rm -rf tasks docs DEPLOYMENT.md README.md scripts docker-compose.yml
+  .env.example` right after every `git pull`/`checkout` — none of these are read by
+  the app at build or run time, so pruning them from the production checkout is a
+  second, independent layer under the existing Document Root scoping (step 0.5),
+  not a replacement for it. Step 4's verification extended with two more curl 404
+  checks (`DEPLOYMENT.md`, `tasks/todo.md`) proving the prune actually ran, distinct
+  from the existing `package.json` check which only proves Document Root is scoped.
+  These files stay fully present in the git repo and local checkouts for
+  development — only the production filesystem is pruned.
+- Reviewed, no change needed: session cookie config (`httpOnly`/`secure`/`sameSite`/
+  Redis-backed), password-reset rate limiting (already on both routes), media upload
+  (random UUID keys, no path traversal; `fluent-ffmpeg` spawns, no shell string
+  concatenation), raw SQL (`$executeRawUnsafe` only in test-only `resetDb()`, not
+  user-input-driven), no `dangerouslySetInnerHTML` anywhere in `apps/web`.
+- `npm run test` (126 API + 22 web, 7 new) + `npm run typecheck` clean from repo
+  root. Committed as `2acf200` (security fixes) — the deploy-hardening `DEPLOYMENT.md`
+  edit above is a separate, later commit. Neither pushed yet.
