@@ -207,7 +207,7 @@ export function CalendarShell() {
 
   function openEvent(event: CalendarEventWithChild) {
     if (!event.editable) return;
-    navigate(`/children/${event.childId}/calendar-events/${event.id}/edit`);
+    navigate(`/children/${event.childId}/calendar-events/${event.id}`);
   }
 
   async function toggleChecklistItem(event: CalendarEventWithChild, itemId: string, isChecked: boolean) {

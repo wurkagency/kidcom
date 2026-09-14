@@ -20,6 +20,7 @@ import { ChildProfilePage } from "./routes/ChildProfilePage";
 import { ChildMedicalPage } from "./routes/ChildMedicalPage";
 import { ChildContactsPage } from "./routes/ChildContactsPage";
 import { EventFormPage } from "./routes/EventFormPage";
+import { EventDetailPage } from "./routes/EventDetailPage";
 import { JournalPostPage } from "./routes/JournalPostPage";
 import { JournalComposePage } from "./routes/JournalComposePage";
 import { ListsPage } from "./routes/ListsPage";
@@ -116,6 +117,7 @@ export default function App() {
               <Route path="/children/:childId/contacts" element={<ChildContactsPage />} />
               <Route path="/children/:childId/growth" element={<GrowthPage />} />
               <Route path="/children/:childId/calendar-events/new" element={<EventFormPage />} />
+              <Route path="/children/:childId/calendar-events/:eventId" element={<EventDetailPage />} />
               <Route path="/children/:childId/calendar-events/:eventId/edit" element={<EventFormPage />} />
               <Route path="/journal/new" element={<JournalComposePage />} />
               <Route path="/journal/media" element={<Navigate to="/journal?tab=media" replace />} />
