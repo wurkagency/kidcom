@@ -2,10 +2,14 @@
 // Easter-relative ones, computed with the standard "Meeus/Jones/Butcher"
 // Gregorian Easter algorithm (no external dependency needed for this).
 //
-// NOTE: this is a first-pass list for prototyping, same caveat as the chunk 3
-// medical schedule seed — double-check against an authoritative Danish
-// calendar source before this is real-user-facing (e.g. Store Bededag was
-// abolished as a public holiday from 2024 onward; confirm current status).
+// Post-launch backlog Phase K — cross-checked against Wikipedia's "Public
+// holidays in Denmark" article: this is the complete, current list of the
+// 10 legally recognized helligdage. Confirmed Store Bededag (Great Prayer
+// Day) was abolished effective 2024 (Danish Parliament vote, 28 Feb 2023,
+// 95-68) — correctly absent below, not an oversight. Also confirmed
+// Christmas Eve (24 Dec) and New Year's Eve (31 Dec) are NOT official
+// public holidays in Denmark (despite the retail-closure law covering
+// them) — correctly absent too.
 export type HolidayDef = { title: string; date: Date };
 
 function addDays(date: Date, days: number): Date {

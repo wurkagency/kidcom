@@ -112,6 +112,13 @@ REDIS_URL=redis://localhost:6379
 # it invalidates every logged-in session).
 SESSION_SECRET=<paste output of `openssl rand -hex 32` here>
 
+# Generate once with: openssl rand -hex 32 — then never change it (rotating
+# it makes every already-encrypted MedicalInfo row unreadable, not just
+# logged-in sessions this time). GDPR Art. 9 special-category data about a
+# minor (condition/description/emergencyNote) is encrypted at rest with
+# this key — see apps/api/src/lib/medicalEncryption.ts.
+MEDICAL_INFO_ENCRYPTION_KEY=<paste output of `openssl rand -hex 32` here>
+
 API_BASE_URL=https://api.kidcom.org
 CORS_ORIGIN=https://kidcom.org
 COOKIE_DOMAIN=.kidcom.org

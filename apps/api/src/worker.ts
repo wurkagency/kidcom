@@ -14,12 +14,15 @@ import ffprobeStatic from "ffprobe-static";
 import { prisma } from "./db";
 import { bullConnection, type ProcessMediaJob } from "./lib/mediaQueue";
 import { mediaStorage } from "./lib/mediaStorage";
-import { billingQueue, type RenewSubscriptionsJob } from "./lib/billingQueue";
+import { billingQueue, reconciliationQueue, type RenewSubscriptionsJob, type ReconcileSubscriptionsJob } from "./lib/billingQueue";
 import { BILLING_PERIOD_DAYS, BILLING_PRICES_ORE } from "./lib/billingPricing";
 import * as quickpay from "./lib/quickpay";
+import { reconcilePendingSubscriptions } from "./lib/billingReconciliation";
 import { pushQueue, type PushJob } from "./lib/pushQueue";
 import { sendPushToUser } from "./lib/webPush";
 import { remindersQueue, type RemindAppointmentsJob } from "./lib/remindersQueue";
+import { childPurgeQueue, type PurgeDeletedChildrenJob } from "./lib/childPurgeQueue";
+import { purgeExpiredDeletedChildren } from "./lib/childPurge";
 
 if (ffmpegPath) {
   ffmpeg.setFfmpegPath(ffmpegPath);
@@ -177,6 +180,37 @@ billingWorker.on("error", (err) => {
   console.error("Billing worker error:", err);
 });
 
+// Post-launch backlog Phase E (D7) — cleans up subscriptions abandoned
+// mid-checkout (see lib/billingReconciliation.ts's own comment for why).
+// Separate queue/worker from renewals above so a slow QuickPay lookup here
+// never delays the renewal job's own run.
+const reconciliationWorker = new Worker<ReconcileSubscriptionsJob>(
+  "reconcile-subscriptions",
+  async () => {
+    const { healed, reverted } = await reconcilePendingSubscriptions();
+    if (healed || reverted) {
+      // eslint-disable-next-line no-console
+      console.log(`reconcile-subscriptions: healed ${healed}, reverted ${reverted}`);
+    }
+  },
+  { connection: bullConnection }
+);
+
+reconciliationWorker.on("ready", async () => {
+  await reconciliationQueue.add(
+    "reconcile-subscriptions",
+    {},
+    { repeat: { pattern: "30 3 * * *" } } // 03:30 daily, just after renewals
+  );
+  // eslint-disable-next-line no-console
+  console.log("KidCom reconciliation worker ready, reconcile-subscriptions scheduled daily at 03:30");
+});
+
+reconciliationWorker.on("error", (err) => {
+  // eslint-disable-next-line no-console
+  console.error("Reconciliation worker error:", err);
+});
+
 // Fans out a single push notification to every device the target user has
 // subscribed on (see lib/webPush.ts). Fire-and-forget — enqueued from
 // messages/index.ts and children/swapRequests.ts, and from the reminder
@@ -244,4 +278,32 @@ remindersWorker.on("ready", async () => {
 remindersWorker.on("error", (err) => {
   // eslint-disable-next-line no-console
   console.error("Reminders worker error:", err);
+});
+
+// Post-launch backlog Phase H — the GDPR-retention follow-through Phase
+// 10's soft-delete/30-day-restore window needed but never got: hard-
+// deletes any Child whose deletedAt is more than RESTORE_WINDOW_DAYS in
+// the past (see lib/childPurge.ts). Content cascades via the same
+// onDelete: Cascade relations every other Child.delete() call relies on.
+const childPurgeWorker = new Worker<PurgeDeletedChildrenJob>(
+  "purge-deleted-children",
+  async () => {
+    const { purged } = await purgeExpiredDeletedChildren();
+    if (purged) {
+      // eslint-disable-next-line no-console
+      console.log(`purge-deleted-children: hard-deleted ${purged} child(ren) past their restore window`);
+    }
+  },
+  { connection: bullConnection }
+);
+
+childPurgeWorker.on("ready", async () => {
+  await childPurgeQueue.add("purge-deleted-children", {}, { repeat: { pattern: "0 4 * * *" } }); // daily at 04:00
+  // eslint-disable-next-line no-console
+  console.log("KidCom child-purge worker ready, purge-deleted-children scheduled daily at 04:00");
+});
+
+childPurgeWorker.on("error", (err) => {
+  // eslint-disable-next-line no-console
+  console.error("Child-purge worker error:", err);
 });

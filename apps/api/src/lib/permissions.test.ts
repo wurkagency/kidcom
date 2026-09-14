@@ -14,6 +14,8 @@ const CAREGIVER = { role: "FAMILY" as const, relationship: "CAREGIVER" as const 
 const ALL_CAPABILITIES: Capability[] = [
   "custody_plan:edit",
   "calendar_event:manage",
+  "calendar_event_request:create",
+  "calendar_event_request:approve",
   "swap_request:create",
   "swap_request:approve",
   "child:edit_basic_info",
@@ -31,6 +33,8 @@ describe("permission matrix (spec §1.4) — PARENT/GUARDIAN/FAMILY columns", ()
   const rows: { capability: Capability; parent: boolean; guardian: boolean; family: boolean }[] = [
     { capability: "custody_plan:edit", parent: true, guardian: true, family: false },
     { capability: "calendar_event:manage", parent: true, guardian: true, family: false },
+    { capability: "calendar_event_request:create", parent: true, guardian: true, family: true },
+    { capability: "calendar_event_request:approve", parent: true, guardian: true, family: false },
     { capability: "swap_request:create", parent: true, guardian: true, family: true },
     { capability: "swap_request:approve", parent: true, guardian: true, family: false },
     { capability: "child:edit_basic_info", parent: true, guardian: true, family: false },
@@ -68,6 +72,8 @@ describe("Guardian — full parity with Parent on the child's own record, except
     const recordCapabilities: Capability[] = [
       "custody_plan:edit",
       "calendar_event:manage",
+      "calendar_event_request:create",
+      "calendar_event_request:approve",
       "swap_request:create",
       "swap_request:approve",
       "child:edit_basic_info",
@@ -102,6 +108,11 @@ describe("Caregiver restrictions (spec 9.5) — a strict subset of FAMILY", () =
     expect(can(CAREGIVER, "swap_request:create")).toBe(false);
   });
 
+  it("denies calendar_event_request:create (FAMILY may request an event, Caregiver may not — same treatment as swap requests)", () => {
+    expect(can(FAMILY, "calendar_event_request:create")).toBe(true);
+    expect(can(CAREGIVER, "calendar_event_request:create")).toBe(false);
+  });
+
   it("denies journal:post (comment-only, not post)", () => {
     expect(can(FAMILY, "journal:post")).toBe(true);
     expect(can(CAREGIVER, "journal:post")).toBe(false);
@@ -113,7 +124,12 @@ describe("Caregiver restrictions (spec 9.5) — a strict subset of FAMILY", () =
   });
 
   it("does not restrict capabilities FAMILY already can't do (no double-deny surprises)", () => {
-    for (const capability of ["custody_plan:edit", "calendar_event:manage", "child:edit_basic_info"] as Capability[]) {
+    for (const capability of [
+      "custody_plan:edit",
+      "calendar_event:manage",
+      "calendar_event_request:approve",
+      "child:edit_basic_info",
+    ] as Capability[]) {
       expect(can(FAMILY, capability)).toBe(false);
       expect(can(CAREGIVER, capability)).toBe(false);
     }

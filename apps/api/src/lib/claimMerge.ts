@@ -20,21 +20,42 @@ export async function findClaimableChild(userId: string, candidateChildId: strin
   return match?.id ?? null;
 }
 
-// Moves every OTHER member's ChildAccess from the duplicate record onto the
-// real one (the accepting user already has their own access to the real
-// child — nothing to move for them), then deletes the duplicate. Auto-merge,
-// no confirmation step: once a match is found, keeping two records for the
-// same human is never the right outcome, so there's no real choice to offer.
+// Every child-scoped model whose content should survive a merge, reassigned
+// onto the real child before the duplicate is deleted rather than lost to
+// cascade delete (post-launch backlog Phase A — this function used to move
+// ChildAccess only, flagged in its own comment as a scope limit). Deliberately
+// NOT included:
+//   - `childScheduleOccurrence` — has `@@unique([childId, templateId,
+//     sequence])`; both children very plausibly already generated the same
+//     country-default template's occurrence (the medical schedule is lazily
+//     seeded per child on first load), so a blind reassign risks a unique-
+//     constraint collision. This is auto-regenerated progress-tracking state,
+//     not user-authored content, so it's simpler and safer to just let it
+//     cascade-delete with the duplicate — the target's own schedule page
+//     regenerates whatever's missing next time it loads.
+//   - `childDeletionRequest` — a pending deletion vote on a record that's
+//     about to be deleted is moot; let it cascade-delete too.
+const CHILD_SCOPED_MODELS_TO_MIGRATE = [
+  "journalPostChild",
+  "medicalInfo",
+  "growthEntry",
+  "emergencyContact",
+  "custodyPlan",
+  "calendarEvent",
+  "calendarEventRequest",
+  "swapRequest",
+  "listItem",
+  "upgradeRequest",
+] as const;
+
+// Moves every OTHER member's ChildAccess, plus all real content (journal
+// posts via the join table, medical info, growth entries, emergency
+// contacts, custody plans, calendar events, swap requests, lists, upgrade
+// requests), from the duplicate record onto the real one, then deletes the
+// duplicate. Auto-merge, no confirmation step: once a match is found,
+// keeping two records for the same human is never the right outcome, so
+// there's no real choice to offer.
 //
-// Scope limitation, flagged not silently assumed complete: this merges
-// ACCESS only. Content authored on the duplicate before the claim happens
-// (journal posts, photos, medical info, growth entries, a custody plan) is
-// NOT migrated — it's deleted along with the duplicate record (Prisma's
-// onDelete: Cascade relations). This is safe for the realistic timing this
-// flow is built for (a claim-link is meant to be caught quickly, before any
-// real content accumulates on the bootstrap record) but would lose data for
-// a duplicate that's been in active use for a while. A full content
-// migration across every child-scoped table is out of scope for this phase.
 // `tx` is a Prisma transaction client, typed loosely (`any`) to match this
 // codebase's existing convention for transaction-callback params elsewhere
 // (see e.g. listItems.ts's setListItemImage).
@@ -59,5 +80,18 @@ export async function mergeChildAccessInto(
       },
     });
   }
+
+  for (const model of CHILD_SCOPED_MODELS_TO_MIGRATE) {
+    await tx[model].updateMany({ where: { childId: duplicateChildId }, data: { childId: targetChildId } });
+  }
+
+  // MediaAsset.avatarForChildId is a @unique FK to Child with no onDelete
+  // clause — left pointing at the duplicate, `tx.child.delete()` below would
+  // throw a foreign-key-constraint error. Clear it rather than move it onto
+  // the target: the target keeps whatever avatar it already has (or none) —
+  // importing the duplicate's own identity photo isn't what merging access
+  // means, and the target more likely already has its own correct one.
+  await tx.mediaAsset.updateMany({ where: { avatarForChildId: duplicateChildId }, data: { avatarForChildId: null } });
+
   await tx.child.delete({ where: { id: duplicateChildId } });
 }

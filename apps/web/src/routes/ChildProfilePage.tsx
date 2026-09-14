@@ -1,13 +1,17 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
+  ALL_RELATIONSHIP_TYPES,
   RELATIONSHIP_TYPE_LABELS,
   describeCustodyPattern,
+  isParentShapedRelationship,
   type ChildDetail,
   type ChildFamilyMember,
   type ChildGender,
   type CustodyPlanDto,
+  type RelationshipType,
   type UpdateChildRequest,
+  type UpdateMemberRelationshipRequest,
 } from "@kidcom/shared";
 
 import { Avatar } from "../components/Avatar";
@@ -28,6 +32,24 @@ export function ChildProfilePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
+  const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
+  const [memberEditError, setMemberEditError] = useState<string | null>(null);
+  const [savingMemberId, setSavingMemberId] = useState<string | null>(null);
+
+  async function saveMemberRelationship(userId: string, relationship: RelationshipType) {
+    if (!childId) return;
+    setSavingMemberId(userId);
+    setMemberEditError(null);
+    try {
+      await apiPatch(`/children/${childId}/family/${userId}`, { relationship } satisfies UpdateMemberRelationshipRequest);
+      setFamily((prev) => prev.map((m) => (m.userId === userId ? { ...m, relationship } : m)));
+      setEditingMemberId(null);
+    } catch (err) {
+      setMemberEditError(err instanceof ApiRequestError ? err.message : "Couldn't save that");
+    } finally {
+      setSavingMemberId(null);
+    }
+  }
 
   async function loadPlan() {
     if (!childId) return;
@@ -86,8 +108,20 @@ export function ChildProfilePage() {
   });
 
   const parents = family.filter((m) => m.role === "PARENT");
-  const isParent = family.find((m) => m.userId === user?.id)?.role === "PARENT";
+  const myRole = family.find((m) => m.userId === user?.id)?.role;
+  const isParent = myRole === "PARENT";
   const parentNamesById = Object.fromEntries(family.map((m) => [m.userId, m.firstName]));
+
+  // Who may edit whose relationship label — mirrors the server's own
+  // capability tiering (PATCH /children/:childId/family/:userId): always
+  // your own row, a PARENT can edit anyone's, a GUARDIAN anyone but a
+  // PARENT's. Purely a UI convenience — the server re-checks regardless.
+  function canEditRelationship(member: ChildFamilyMember): boolean {
+    if (member.userId === user?.id) return true;
+    if (myRole === "PARENT") return true;
+    if (myRole === "GUARDIAN") return member.role !== "PARENT";
+    return false;
+  }
 
   return (
     <div className="flex flex-col w-full pb-8">
@@ -267,29 +301,67 @@ export function ChildProfilePage() {
           Family &amp; Connections
         </h3>
         <div className="flex flex-col gap-3">
-          {family.map((member) => (
-            <div
-              key={member.userId}
-              className="bg-surface-container-lowest rounded-xl p-4 shadow-sm flex items-center justify-between"
-            >
-              <div className="flex items-center gap-3">
-                <Avatar
-                  name={`${member.firstName} ${member.lastName}`}
-                  avatarAssetId={member.avatarUrl}
-                  kind="adult"
-                  size="md"
-                />
-                <div className="flex flex-col">
-                  <span className="font-label-md text-label-md text-on-surface">
-                    {member.firstName} {member.lastName}
-                  </span>
-                  <span className="font-label-sm text-label-sm text-primary">
-                    {RELATIONSHIP_TYPE_LABELS[member.relationship]} • Active
-                  </span>
+          {family.map((member) => {
+            const options = ALL_RELATIONSHIP_TYPES.filter(
+              (r) => isParentShapedRelationship(r) === (member.role === "PARENT")
+            );
+            return (
+              <div
+                key={member.userId}
+                className="bg-surface-container-lowest rounded-xl p-4 shadow-sm flex items-center justify-between gap-3"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <Avatar
+                    name={`${member.firstName} ${member.lastName}`}
+                    avatarAssetId={member.avatarUrl}
+                    kind="adult"
+                    size="md"
+                  />
+                  <div className="flex flex-col min-w-0">
+                    <span className="font-label-md text-label-md text-on-surface">
+                      {member.firstName} {member.lastName}
+                    </span>
+                    {editingMemberId === member.userId ? (
+                      <select
+                        autoFocus
+                        defaultValue={member.relationship}
+                        disabled={savingMemberId === member.userId}
+                        onChange={(e) => saveMemberRelationship(member.userId, e.target.value as RelationshipType)}
+                        onBlur={() => setEditingMemberId(null)}
+                        className="mt-1 font-label-sm text-label-sm text-primary bg-surface-container rounded px-1 py-0.5 outline-none"
+                      >
+                        {options.map((r) => (
+                          <option key={r} value={r}>
+                            {RELATIONSHIP_TYPE_LABELS[r]}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <span className="font-label-sm text-label-sm text-primary">
+                        {RELATIONSHIP_TYPE_LABELS[member.relationship]} • Active
+                      </span>
+                    )}
+                  </div>
                 </div>
+                {canEditRelationship(member) && editingMemberId !== member.userId && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMemberEditError(null);
+                      setEditingMemberId(member.userId);
+                    }}
+                    aria-label={`Edit ${member.firstName}'s relationship`}
+                    className="text-on-surface-variant hover:text-primary transition-colors shrink-0"
+                  >
+                    <Icon name="edit" className="text-[18px]" />
+                  </button>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
+          {memberEditError && (
+            <p className="font-body-sm text-body-sm text-error bg-error-container rounded-lg px-4 py-2">{memberEditError}</p>
+          )}
           <Link
             to={`/onboarding/invite?childId=${childId}`}
             className="w-full py-4 rounded-xl bg-surface-container-lowest text-primary font-label-md text-label-md flex items-center justify-center gap-2 shadow-sm hover:bg-surface-container-low transition-colors"

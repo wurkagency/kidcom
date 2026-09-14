@@ -11,6 +11,8 @@ import { ApiError } from "../middleware/errorHandler";
 export type Capability =
   | "custody_plan:edit"
   | "calendar_event:manage"
+  | "calendar_event_request:create"
+  | "calendar_event_request:approve"
   | "swap_request:create"
   | "swap_request:approve"
   | "child:edit_basic_info"
@@ -40,6 +42,13 @@ const MATRIX: Record<Capability, Record<AccessRole, boolean>> = {
   // than half-building a new subsystem in this phase — flagged in
   // tasks/todo.md as a deliberate scope decision, not an oversight.
   "calendar_event:manage": { PARENT: true, GUARDIAN: true, FAMILY: false },
+  // Post-launch backlog Phase C — the request/approve workflow the comment
+  // above used to just point at as a future follow-up. FAMILY/Caregiver
+  // still can't create an event directly, but can ask; PARENT/GUARDIAN
+  // approve (mirrors swap_request:approve exactly — request creation is
+  // FAMILY-open, approval isn't).
+  "calendar_event_request:create": { PARENT: true, GUARDIAN: true, FAMILY: true },
+  "calendar_event_request:approve": { PARENT: true, GUARDIAN: true, FAMILY: false },
   "swap_request:create": { PARENT: true, GUARDIAN: true, FAMILY: true },
   "swap_request:approve": { PARENT: true, GUARDIAN: true, FAMILY: false },
   "child:edit_basic_info": { PARENT: true, GUARDIAN: true, FAMILY: false },
@@ -64,7 +73,12 @@ const MATRIX: Record<Capability, Record<AccessRole, boolean>> = {
 // comment for why), lists claim-only (not add/manage). A capability absent
 // from this set behaves identically for every FAMILY-role holder regardless
 // of relationship.
-const CAREGIVER_DENIED: ReadonlySet<Capability> = new Set<Capability>(["swap_request:create", "journal:post", "list_item:manage"]);
+const CAREGIVER_DENIED: ReadonlySet<Capability> = new Set<Capability>([
+  "swap_request:create",
+  "calendar_event_request:create",
+  "journal:post",
+  "list_item:manage",
+]);
 
 // spec 9.16 — a sibling's own account (ChildAccess.isMinorMember) gets
 // "journal, media and lists only" — narrower even than a plain FAMILY
@@ -73,7 +87,7 @@ const CAREGIVER_DENIED: ReadonlySet<Capability> = new Set<Capability>(["swap_req
 // one FAMILY-allowed capability that isn't on that "journal/media/lists"
 // list — requesting a custody-day swap is calendar-adjacent, not one of the
 // three things a minor is meant to be able to do here.
-const MINOR_MEMBER_DENIED: ReadonlySet<Capability> = new Set<Capability>(["swap_request:create"]);
+const MINOR_MEMBER_DENIED: ReadonlySet<Capability> = new Set<Capability>(["swap_request:create", "calendar_event_request:create"]);
 
 export function can(
   access: { role: AccessRole; relationship: RelationshipType | null; isMinorMember?: boolean },

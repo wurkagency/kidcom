@@ -8,6 +8,7 @@ import type {
 import { prisma } from "../../db";
 import { ApiError } from "../../middleware/errorHandler";
 import { canViewMedicalInfo, requireCapability } from "../../lib/permissions";
+import { decryptField, decryptNullableField, encryptField, encryptNullableField } from "../../lib/medicalEncryption";
 
 // Mounted at /children/:childId/medical-info — mergeParams so req.params.childId
 // is visible here even though this router is defined in its own file.
@@ -19,6 +20,11 @@ export const medicalInfoRouter = Router({ mergeParams: true });
 type ChildParams = { childId: string };
 type ChildEntryParams = { childId: string; id: string };
 
+// Post-launch backlog Phase G — condition/description/emergencyNote are
+// stored encrypted (see lib/medicalEncryption.ts); this is the one place
+// they're decrypted back to plaintext for the API's own callers, matching
+// the "encrypted at rest, plaintext everywhere the app actually reads it"
+// goal — the API's response shape/callers are unchanged.
 function toDto(row: {
   id: string;
   category: "ALLERGY" | "CONDITION";
@@ -29,9 +35,9 @@ function toDto(row: {
   return {
     id: row.id,
     category: row.category,
-    condition: row.condition,
-    description: row.description,
-    emergencyNote: row.emergencyNote,
+    condition: decryptField(row.condition),
+    description: decryptNullableField(row.description),
+    emergencyNote: decryptNullableField(row.emergencyNote),
   };
 }
 
@@ -63,9 +69,9 @@ medicalInfoRouter.post("/", requireCapability("medical_info:edit"), async (req: 
       data: {
         childId: req.params.childId,
         category: body.category,
-        condition: body.condition,
-        description: body.description,
-        emergencyNote: body.emergencyNote,
+        condition: encryptField(body.condition),
+        description: encryptNullableField(body.description),
+        emergencyNote: encryptNullableField(body.emergencyNote),
       },
     });
     res.status(201).json(toDto(row));
@@ -86,9 +92,9 @@ medicalInfoRouter.patch("/:id", requireCapability("medical_info:edit"), async (r
       where: { id: req.params.id },
       data: {
         category: body.category,
-        condition: body.condition,
-        description: body.description,
-        emergencyNote: body.emergencyNote,
+        condition: body.condition !== undefined ? encryptField(body.condition) : undefined,
+        description: encryptNullableField(body.description),
+        emergencyNote: encryptNullableField(body.emergencyNote),
       },
     });
     res.json(toDto(row));

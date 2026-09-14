@@ -6,6 +6,7 @@ import { prisma } from "../../db";
 import { resetDb } from "../../testUtils/db";
 import { signupTestUser, verifyTestUserEmail } from "../../testUtils/auth";
 import { mailSender, MemoryMailSender } from "../../lib/mailSender";
+import { decryptField } from "../../lib/medicalEncryption";
 
 // Phase 9 proof — spec §1.4b/9.9/9.23, brief §5's two flagged open items
 // (which relationships may bootstrap-create: decided here as "every
@@ -219,6 +220,74 @@ describe("Claim/merge (spec 9.9)", () => {
 
     const stillOneChild = await prisma.child.count();
     expect(stillOneChild).toBe(1);
+  });
+
+  // Post-launch backlog Phase A — mergeChildAccessInto used to move
+  // ChildAccess only; everything else authored on the duplicate (journal,
+  // medical, custody plan, avatar) was lost to cascade delete. Also proves
+  // the fix for a latent FK-constraint bug: MediaAsset.avatarForChildId has
+  // no onDelete clause, so a duplicate with an avatar set would have thrown
+  // on tx.child.delete() before this fix.
+  it("claim/merge moves the duplicate's content (journal, medical, custody plan) onto the real child, not just access", async () => {
+    const app = createApp();
+    const { agent: parentAgent, userId: parentId } = await signupTestUser(app, { email: "content-parent@example.com" });
+    const realRes = await parentAgent
+      .post("/children")
+      .send({ firstName: "Nora", gender: "GIRL", birthday: "2021-03-01", relationship: "MOTHER" });
+    const realId = realRes.body.id;
+
+    const { agent: grandmaAgent, userId: grandmaId } = await signupTestUser(app, { email: "content-grandma@example.com" });
+    const dupRes = await grandmaAgent.post("/children").send({
+      firstName: "Nora",
+      gender: "GIRL",
+      birthday: "2021-03-01",
+      relationship: "GRANDMOTHER_MAT",
+      parentContact: { name: "Nora's Mom", wantsClaimLink: true },
+    });
+    const dupId = dupRes.body.id;
+    const claimToken = dupRes.body.parentInvite.token;
+
+    // Real content on the duplicate, authored by grandma (a genuine
+    // GUARDIAN, so this is exactly what a real pre-merge duplicate would
+    // have accumulated), plus a fabricated avatar row — fabricated directly
+    // since exercising the real multipart upload isn't what this test is
+    // proving.
+    const journalRes = await grandmaAgent.post(`/children/${dupId}/journal`).send({ title: "First smile" });
+    expect(journalRes.status).toBe(201);
+    const medicalRes = await grandmaAgent.post(`/children/${dupId}/medical-info`).send({ category: "ALLERGY", condition: "Peanuts" });
+    expect(medicalRes.status).toBe(201);
+    const custodyRes = await grandmaAgent.put(`/children/${dupId}/custody-plan`).send({
+      label: "Week on/week off",
+      startDate: "2026-01-01",
+      patternDays: { cycleLengthDays: 14, blocks: [{ userId: grandmaId, days: 7 }] },
+    });
+    expect(custodyRes.status).toBe(201);
+    const avatarAsset = await prisma.mediaAsset.create({
+      data: { ownerId: grandmaId, type: "IMAGE", status: "READY", originalPath: "x", avatarForChildId: dupId },
+    });
+
+    const acceptRes = await parentAgent.post(`/invites/${claimToken}/accept-as-me`).send({});
+    expect(acceptRes.status).toBe(200);
+
+    // The merge succeeded at all (didn't throw on the avatar FK).
+    expect(await prisma.child.findUnique({ where: { id: dupId } })).toBeNull();
+
+    const journalOnReal = await prisma.journalPostChild.findMany({ where: { childId: realId } });
+    expect(journalOnReal).toHaveLength(1);
+    // Post-launch backlog Phase G landed after this test was first written —
+    // condition is now stored encrypted, so decrypt before asserting on it.
+    const medicalOnReal = await prisma.medicalInfo.findMany({ where: { childId: realId } });
+    expect(medicalOnReal).toHaveLength(1);
+    expect(decryptField(medicalOnReal[0].condition)).toBe("Peanuts");
+    const custodyOnReal = await prisma.custodyPlan.findMany({ where: { childId: realId } });
+    expect(custodyOnReal).toHaveLength(1);
+
+    // The duplicate's avatar reference was cleared, not carried over onto
+    // the real child (the real child keeps whatever avatar it already has).
+    const avatarAfter = await prisma.mediaAsset.findUniqueOrThrow({ where: { id: avatarAsset.id } });
+    expect(avatarAfter.avatarForChildId).toBeNull();
+
+    void parentId;
   });
 });
 

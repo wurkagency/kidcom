@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import type {
+  CalendarEventRequestDto,
   CalendarRangeResponse,
   ChildFamilyMember,
   CustodyPlanDto,
+  CustodyPlanStatusResponse,
+  ResolveCalendarEventRequestRequest,
   ResolveSwapRequestRequest,
   SwapRequestDto,
   ToggleChecklistItemRequest,
@@ -11,6 +14,8 @@ import type {
 } from "@kidcom/shared";
 import type { CalendarEventCategory } from "@kidcom/shared";
 
+import { Banner } from "../../components/Banner";
+import { CalendarEventRequestCard } from "../../components/CalendarEventRequestCard";
 import { SwapRequestCard } from "../../components/SwapRequestCard";
 import { apiGet, apiPatch, ApiRequestError } from "../../lib/api";
 import { useAuth } from "../../lib/AuthContext";
@@ -60,10 +65,13 @@ export function CalendarShell() {
   const [ranges, setRanges] = useState<{ childId: string; range: CalendarRangeResponse }[]>([]);
   const [custodyPlan, setCustodyPlan] = useState<CustodyPlanDto | null>(null);
   const [hasPlan, setHasPlan] = useState<boolean | null>(null);
+  const [daysUntilLocked, setDaysUntilLocked] = useState<number | null>(null);
   const [swapRequests, setSwapRequests] = useState<SwapRequestDto[]>([]);
+  const [calendarEventRequests, setCalendarEventRequests] = useState<CalendarEventRequestDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [resolvingSwapId, setResolvingSwapId] = useState<string | null>(null);
+  const [resolvingEventRequestId, setResolvingEventRequestId] = useState<string | null>(null);
   const [lastUpdatedAt, setLastUpdatedAt] = useState(new Date());
   const [categoryFilter, setCategoryFilter] = useState<Set<CalendarEventCategory>>(
     () => new Set(CALENDAR_FILTERABLE_CATEGORIES)
@@ -102,7 +110,7 @@ export function CalendarShell() {
 
   async function loadRange() {
     if (activeChildIds.length === 0) return;
-    const [rangeResults, familyRes, swapRequestsRes, planRes] = await Promise.all([
+    const [rangeResults, familyRes, swapRequestsRes, eventRequestsRes, planRes] = await Promise.all([
       Promise.all(
         activeChildIds.map(async (childId) => ({
           childId,
@@ -113,13 +121,20 @@ export function CalendarShell() {
       ),
       primaryChildId ? apiGet<{ members: ChildFamilyMember[] }>(`/children/${primaryChildId}/family`) : Promise.resolve({ members: [] }),
       primaryChildId ? apiGet<{ items: SwapRequestDto[] }>(`/children/${primaryChildId}/swap-requests`) : Promise.resolve({ items: [] }),
-      primaryChildId ? apiGet<{ plan: CustodyPlanDto | null }>(`/children/${primaryChildId}/custody-plan`) : Promise.resolve({ plan: null }),
+      primaryChildId
+        ? apiGet<{ items: CalendarEventRequestDto[] }>(`/children/${primaryChildId}/calendar-event-requests`)
+        : Promise.resolve({ items: [] }),
+      primaryChildId
+        ? apiGet<CustodyPlanStatusResponse>(`/children/${primaryChildId}/custody-plan`)
+        : Promise.resolve({ plan: null, locked: false, daysUntilLocked: null }),
     ]);
     setRanges(rangeResults);
     setFamily(familyRes.members);
     setSwapRequests(swapRequestsRes.items);
+    setCalendarEventRequests(eventRequestsRes.items);
     setHasPlan(planRes.plan !== null);
     setCustodyPlan(planRes.plan);
+    setDaysUntilLocked(planRes.daysUntilLocked);
     setLastUpdatedAt(new Date());
   }
 
@@ -223,6 +238,22 @@ export function CalendarShell() {
     }
   }
 
+  async function handleResolveCalendarEventRequest(id: string, status: ResolveCalendarEventRequestRequest["status"]) {
+    if (!primaryChildId) return;
+    setResolvingEventRequestId(id);
+    try {
+      await apiPatch(
+        `/children/${primaryChildId}/calendar-event-requests/${id}`,
+        { status } satisfies ResolveCalendarEventRequestRequest
+      );
+      await loadRange();
+    } catch {
+      setError("Couldn't update that request — try again.");
+    } finally {
+      setResolvingEventRequestId(null);
+    }
+  }
+
   if (children.length === 0) {
     return (
       <section className="px-container-padding pt-6 flex flex-col gap-2">
@@ -235,6 +266,7 @@ export function CalendarShell() {
   }
 
   const isBothMode = selectedChild === "both";
+  const myRole = family.find((m) => m.userId === user?.id)?.role;
 
   // Prev/Next/Today step by a week in Week view, by a month everywhere else
   // (Month's own grid, and List's month-scoped range).
@@ -284,6 +316,20 @@ export function CalendarShell() {
             Set one up
           </a>
         </div>
+      )}
+
+      {/* spec 9.8's persistent banner, post-launch backlog Phase D — shown
+          only to a PARENT (the only role that could actually act on it by
+          inviting another parent). Informative, not alarmist: custody
+          *scheduling* between two homes genuinely needs both, but the
+          mechanism can't tell "co-parent hasn't joined yet" apart from "this
+          is a deliberately single-parent household" — the copy doesn't
+          presume anything is wrong. */}
+      {daysUntilLocked !== null && primaryChildId && !isBothMode && myRole === "PARENT" && (
+        <Banner icon="family_restroom" action={{ label: "Invite a co-parent", onClick: () => navigate(`/onboarding/invite?childId=${primaryChildId}`) }}>
+          Custody scheduling works best with both parents on KidCom, since it splits time between two homes.
+          Invite your co-parent whenever you're ready.
+        </Banner>
       )}
 
       {loading ? (
@@ -398,6 +444,63 @@ export function CalendarShell() {
                       ) : (
                         <span className="font-label-sm text-label-sm text-on-surface-variant">
                           Waiting for the other parent to respond
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+            </div>
+          )}
+
+          {user && primaryChildId && (
+            <CalendarEventRequestCard childId={primaryChildId} selectedDate={selectedDate} onSent={loadRange} />
+          )}
+
+          {calendarEventRequests.some((r) => r.status === "PENDING") && (
+            <div className="flex flex-col gap-3 mb-8">
+              <h3 className="font-headline-md text-headline-md text-on-surface">Pending event requests</h3>
+              {calendarEventRequests
+                .filter((r) => r.status === "PENDING")
+                .map((req) => {
+                  const requester = family.find((m) => m.userId === req.requestedById);
+                  const requesterName = requester?.userId === user?.id ? "You" : requester?.firstName ?? "Someone";
+                  const isOwnRequest = req.requestedById === user?.id;
+                  return (
+                    <div
+                      key={req.id}
+                      className="bg-surface-container-lowest rounded-2xl p-4 shadow-sm border border-surface-variant/50 flex flex-col gap-2"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-label-md text-label-md text-on-surface">
+                          {requesterName} requested "{req.title}"
+                        </span>
+                        <span className="font-label-sm text-label-sm text-on-surface-variant">
+                          {new Date(req.startsAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                        </span>
+                      </div>
+                      {req.message && (
+                        <p className="font-body-md text-[14px] text-on-surface-variant">{req.message}</p>
+                      )}
+                      {!isOwnRequest ? (
+                        <div className="flex gap-2 mt-1">
+                          <button
+                            onClick={() => handleResolveCalendarEventRequest(req.id, "DECLINED")}
+                            disabled={resolvingEventRequestId === req.id}
+                            className="flex-1 py-2 rounded-full bg-surface-container text-on-surface-variant font-label-md text-label-md disabled:opacity-60"
+                          >
+                            Decline
+                          </button>
+                          <button
+                            onClick={() => handleResolveCalendarEventRequest(req.id, "APPROVED")}
+                            disabled={resolvingEventRequestId === req.id}
+                            className="flex-1 py-2 rounded-full bg-primary text-on-primary font-label-md text-label-md disabled:opacity-60"
+                          >
+                            {resolvingEventRequestId === req.id ? "Saving…" : "Approve"}
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="font-label-sm text-label-sm text-on-surface-variant">
+                          Waiting for a parent or guardian to respond
                         </span>
                       )}
                     </div>

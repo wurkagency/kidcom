@@ -10,6 +10,7 @@ import type {
   CreateUpgradeRequestResponse,
   MinorMemberDto,
   UpdateChildRequest,
+  UpdateMemberRelationshipRequest,
   UpgradeRequestDto,
 } from "@kidcom/shared";
 import { ALL_RELATIONSHIP_TYPES, isParentShapedRelationship, isValidEmail, requiredTier } from "@kidcom/shared";
@@ -40,6 +41,7 @@ import { scheduleRouter } from "./schedule";
 import { custodyPlanRouter } from "./custodyPlan";
 import { calendarRouter } from "./calendar";
 import { calendarEventsRouter } from "./calendarEvents";
+import { calendarEventRequestsRouter } from "./calendarEventRequests";
 import { swapRequestsRouter } from "./swapRequests";
 import { journalRouter } from "./journal";
 import { listItemsRouter } from "./listItems";
@@ -69,6 +71,7 @@ childrenRouter.use("/:childId/schedule", requireChildAccess, requireChildEntitle
 childrenRouter.use("/:childId/custody-plan", requireChildAccess, custodyPlanRouter);
 childrenRouter.use("/:childId/calendar", requireChildAccess, requireChildEntitlement, calendarRouter);
 childrenRouter.use("/:childId/calendar-events", requireChildAccess, requireChildEntitlement, calendarEventsRouter);
+childrenRouter.use("/:childId/calendar-event-requests", requireChildAccess, requireChildEntitlement, calendarEventRequestsRouter);
 childrenRouter.use("/:childId/swap-requests", requireChildAccess, requireChildEntitlement, swapRequestsRouter);
 childrenRouter.use("/:childId/journal", requireChildAccess, requireChildEntitlement, journalRouter);
 childrenRouter.use("/:childId/lists", requireChildAccess, requireChildEntitlement, listItemsRouter);
@@ -438,6 +441,69 @@ childrenRouter.post("/:childId/family/minor", requireChildAccess, async (req, re
       lastName: user.lastName,
       relationship: body.relationship!,
     } satisfies MinorMemberDto);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Post-launch backlog Phase B — self-correction for a relationship label,
+// most importantly the Phase 5 migration's arbitrary GRANDPARENT→
+// Grandmother/AUNT_UNCLE→Aunt/SIBLING→Sister guesses (no gender/side was
+// ever stored, so those rows need a real person to pick the right value).
+// Never touches `role` — only `relationship`, a display label — so this
+// can't grant a new capability by itself. The one hard boundary still
+// enforced: a PATCH may never move a relationship into or out of
+// "parent-shaped" (FATHER/MOTHER/PARENT), because every PARENT-role row is
+// invariantly parent-shaped (spec §1.4b) and letting that drift would be a
+// data-integrity bug even though it wouldn't itself escalate anything (role
+// is a separate column, untouched here).
+childrenRouter.patch("/:childId/family/:userId", requireChildAccess, async (req, res, next) => {
+  try {
+    if (!req.childAccess) {
+      throw new ApiError(403, "You don't have permission to edit members on this child");
+    }
+    const body = req.body as Partial<UpdateMemberRelationshipRequest>;
+    const newRelationship = body.relationship;
+    if (!newRelationship || !ALL_RELATIONSHIP_TYPES.includes(newRelationship)) {
+      throw new ApiError(400, "relationship is required and must be a recognized value");
+    }
+
+    const target = await prisma.childAccess.findUnique({
+      where: { childId_userId: { childId: req.params.childId, userId: req.params.userId } },
+    });
+    if (!target) {
+      throw new ApiError(404, "That person doesn't have access to this child");
+    }
+
+    if (isParentShapedRelationship(newRelationship) !== (target.role === "PARENT")) {
+      throw new ApiError(400, "That relationship isn't valid for this member's role");
+    }
+
+    const isSelf = req.params.userId === req.session.userId;
+    if (!isSelf) {
+      const capability: Capability =
+        target.role === "PARENT"
+          ? "member:invite_or_remove_parent"
+          : target.role === "GUARDIAN"
+            ? "member:remove_guardian"
+            : "member:remove_family_or_caregiver";
+      if (!can(req.childAccess, capability)) {
+        throw new ApiError(403, "You don't have permission to edit this member's relationship");
+      }
+    } else if (target.role === "FAMILY" && (target.relationship === "CAREGIVER") !== (newRelationship === "CAREGIVER")) {
+      // The one relationship value with a real permission consequence
+      // (spec 9.5's CAREGIVER_DENIED set) — a member can't unilaterally
+      // shed or take on their own Caregiver restriction. Whoever already
+      // has authority to manage this member (a parent, or a guardian for a
+      // FAMILY-role member) still can, via the branch above.
+      throw new ApiError(403, "Changing this changes your own access level — ask a parent or guardian to do it instead");
+    }
+
+    const updated = await prisma.childAccess.update({
+      where: { id: target.id },
+      data: { relationship: newRelationship },
+    });
+    res.json({ userId: updated.userId, relationship: updated.relationship });
   } catch (err) {
     next(err);
   }

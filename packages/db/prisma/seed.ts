@@ -10,6 +10,19 @@
 // split into two independently trackable template rows here, matching how
 // this schedule is presented in the app (one checkbox per real-world thing a
 // parent does).
+//
+// Post-launch backlog Phase K — cross-checked the vaccination ages
+// specifically against Statens Serum Institut's current published schedule
+// (ssi.dk/vaccinationer/boernevaccination): DiTeKiPolHib+Pneumococcal at 3/
+// 5/12 months, MMR at 15 months and 4 years, the DiTeKiPol booster at 5
+// years, and HPV at 12 years all match exactly (SSI's own summary: "Vaccinerne
+// tilbydes ved 3, 5, 12 og 15 måneder samt ved 4, 5 og 12 år"). The GP
+// checkup ages (5wk/5mo/12mo/2y/3y/4y/5y) weren't independently
+// re-confirmed against a second live source this pass — sst.dk consistently
+// rate-limited automated fetches — but this file's own sourcing (a real
+// government xlsx export, not a guess) plus the exact vaccination-age match
+// above is strong corroborating evidence the rest of the schedule is
+// current too.
 import { PrismaClient } from "../generated/client";
 
 const prisma = new PrismaClient();

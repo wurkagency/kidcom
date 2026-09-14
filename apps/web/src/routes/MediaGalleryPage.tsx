@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import type { JournalMediaDto } from "@kidcom/shared";
 
@@ -198,7 +198,10 @@ export function MediaGalleryTab() {
 
 const LONG_PRESS_MS = 450;
 
-function GalleryThumb({
+// Exported (not just used internally by MediaGalleryTab) so the post-launch
+// backlog Phase J Android fix is directly testable without mounting the
+// whole gallery page and its data-fetching.
+export function GalleryThumb({
   item,
   selected,
   hasSelection,
@@ -238,7 +241,19 @@ function GalleryThumb({
   // the pointer lifts/leaves/cancels, this is a long-press — toggle
   // selection and mark the gesture "handled" so the pointerup that follows
   // doesn't also open the post.
-  function handlePointerDown() {
+  //
+  // Post-launch backlog Phase J — Android fix: on Android Chrome, a
+  // touch-and-hold over an <img> can trigger the browser's own native
+  // long-press handling (image save/open/copy menu) concurrently with our
+  // JS timer, even with pointer-events:none on the <img> and touch-action:
+  // manipulation on this container — neither of those suppresses Chrome's
+  // native long-press-on-image gesture specifically. That native handling
+  // fires a `pointercancel` before our timer resolves, which clears the
+  // timer without ever toggling selection — the reported "can't
+  // deselect/select on Android" symptom. preventDefault() on the pointer
+  // down event is what actually suppresses it.
+  function handlePointerDown(e: PointerEvent) {
+    e.preventDefault();
     longPressFiredRef.current = false;
     clearTimer();
     timerRef.current = setTimeout(() => {

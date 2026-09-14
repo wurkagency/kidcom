@@ -93,6 +93,19 @@ export async function getPayment(paymentId: number): Promise<{
   return quickpayFetch(`/payments/${paymentId}`, { method: "GET" });
 }
 
+// GET /subscriptions/:id — post-launch backlog Phase E (D7): the missing
+// piece for reconciling a checkout that started (createSubscription above)
+// but whose webhook never arrived, because the customer simply never
+// finished the hosted payment window. `accepted` mirrors whether the
+// subscription's authorization actually went through, independent of
+// whatever our own DB row's `status` still says.
+export async function getSubscription(subscriptionId: number): Promise<{
+  id: number;
+  accepted: boolean;
+}> {
+  return quickpayFetch(`/subscriptions/${subscriptionId}`, { method: "GET" });
+}
+
 // Verifies the `QuickPay-Checksum-Sha256` header against the RAW request
 // body (not the re-serialized JSON — QuickPay signs the exact bytes they
 // sent, and re-stringifying can produce different whitespace/key order).

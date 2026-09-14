@@ -132,7 +132,10 @@ deletionRouter.delete("/delete-request", async (req: Request<ChildParams>, res, 
   }
 });
 
-const RESTORE_WINDOW_DAYS = 30;
+// Exported so lib/childPurge.ts's hard-delete job (post-launch backlog
+// Phase H) uses the exact same figure as this restore-window check, rather
+// than a second "30" magic number that could drift out of sync.
+export const RESTORE_WINDOW_DAYS = 30;
 
 deletionRouter.post("/restore", async (req: Request<ChildParams>, res, next) => {
   try {

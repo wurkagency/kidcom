@@ -93,6 +93,7 @@ describe("Minor sibling accounts (spec 9.16)", () => {
     expect(can(access, "list_item:manage")).toBe(true);
     expect(can(access, "swap_request:create")).toBe(false);
     expect(can(access, "calendar_event:manage")).toBe(false);
+    expect(can(access, "calendar_event_request:create")).toBe(false);
     expect(can(access, "custody_plan:edit")).toBe(false);
     expect(canViewMedicalInfo(access)).toBe(false);
   });

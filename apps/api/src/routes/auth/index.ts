@@ -2,9 +2,11 @@ import { Router } from "express";
 import rateLimit from "express-rate-limit";
 import bcrypt from "bcryptjs";
 import type {
+  ForgotPasswordRequest,
   LoginRequest,
   MeResponse,
   PublicUser,
+  ResetPasswordRequest,
   SignupRequest,
   TwoFactorRequiredResponse,
   UpdateProfileRequest,
@@ -16,6 +18,7 @@ import { prisma } from "../../db";
 import { config } from "../../config";
 import { ApiError } from "../../middleware/errorHandler";
 import { hashVerificationToken, sendVerificationEmail } from "../../lib/emailVerification";
+import { hashResetToken, sendPasswordResetEmail } from "../../lib/passwordReset";
 import { TWO_FACTOR_MAX_ATTEMPTS, hashTwoFactorCode, sendLoginTwoFactorCode } from "../../lib/twoFactor";
 
 export const authRouter = Router();
@@ -176,6 +179,57 @@ authRouter.post("/resend-verification", authRateLimiter, async (req, res, next) 
       return;
     }
     await sendVerificationEmail(user);
+    res.status(204).end();
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Post-launch backlog Phase F — no auth required (that's the whole point: a
+// locked-out user has no session and can't prove the current password,
+// which change-password requires). Always 204s whether or not the email
+// belongs to a real account — telling the caller "no account exists" would
+// let anyone enumerate registered emails one guess at a time.
+authRouter.post("/forgot-password", authRateLimiter, async (req, res, next) => {
+  try {
+    const body = req.body as Partial<ForgotPasswordRequest>;
+    const email = body.email?.trim().toLowerCase();
+    if (!email || !isValidEmail(email)) {
+      throw new ApiError(400, "A valid email is required");
+    }
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (user) {
+      await sendPasswordResetEmail(user);
+    }
+    res.status(204).end();
+  } catch (err) {
+    next(err);
+  }
+});
+
+authRouter.post("/reset-password", authRateLimiter, async (req, res, next) => {
+  try {
+    const body = req.body as Partial<ResetPasswordRequest>;
+    const { token, password } = body;
+    if (!token || !password) {
+      throw new ApiError(400, "token and password are required");
+    }
+    if (password.length < 8) {
+      throw new ApiError(400, "Password must be at least 8 characters long");
+    }
+
+    const record = await prisma.passwordResetToken.findUnique({ where: { tokenHash: hashResetToken(token) } });
+    if (!record || record.expiresAt < new Date()) {
+      throw new ApiError(400, "This reset link is invalid or has expired");
+    }
+
+    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+    await prisma.$transaction([
+      prisma.user.update({ where: { id: record.userId }, data: { passwordHash } }),
+      // Single-use — same reasoning as email verification's token delete.
+      prisma.passwordResetToken.delete({ where: { id: record.id } }),
+    ]);
+
     res.status(204).end();
   } catch (err) {
     next(err);

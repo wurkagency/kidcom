@@ -28,6 +28,15 @@ export const config = {
   databaseUrl: required("DATABASE_URL"),
   redisUrl: process.env.REDIS_URL ?? "redis://localhost:6379",
   sessionSecret: required("SESSION_SECRET", "dev-only-secret-change-me"),
+  // Post-launch backlog Phase G — GDPR Art. 9 special-category data about a
+  // minor (MedicalInfo.condition/description/emergencyNote), encrypted at
+  // rest at the app layer. Same "required with a dev-only fallback" shape
+  // as sessionSecret above: production must set a real one (generate with
+  // `openssl rand -hex 32`, same as SESSION_SECRET), local dev works out of
+  // the box. Any-length input is fine — lib/medicalEncryption.ts derives a
+  // real 32-byte AES-256 key from whatever string this is via SHA-256, so
+  // this doesn't need to be exactly 32 bytes itself.
+  medicalInfoEncryptionKey: required("MEDICAL_INFO_ENCRYPTION_KEY", "dev-only-medical-encryption-key-change-me"),
   corsOrigin: (process.env.CORS_ORIGIN ?? "http://localhost:5173").split(","),
   cookieDomain: process.env.COOKIE_DOMAIN ?? "localhost",
   mediaStoragePath: process.env.MEDIA_STORAGE_PATH ?? "./media",

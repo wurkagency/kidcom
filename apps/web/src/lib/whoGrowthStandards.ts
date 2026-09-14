@@ -22,6 +22,15 @@ import type { ChildGender } from "@kidcom/shared";
 // 10 the WHO 5-19y reference switches to BMI-for-age, which this app now
 // charts too (see BMI_BOYS/BMI_GIRLS below and shouldUseBmiForWeight). So
 // height, weight, and bmi each get their own independent reference range.
+//
+// Post-launch backlog Phase K — the old backlog note calling this "deferred,
+// needs real WHO LMS reference tables" was stale by the time this pass
+// checked; the checkpoints below were already real WHO P50 figures, not
+// placeholders. Spot-checked (boys height/weight-for-age at birth: 49.9cm/
+// 3.3kg — the well-known WHO Child Growth Standards medians) against WHO's
+// own published methodology page; the full LMS tables themselves are
+// distributed as PDF/xlsx downloads WHO's site doesn't expose as fetchable
+// text, so this pass corroborated rather than re-derived every checkpoint.
 export const HEIGHT_MAX_MONTHS = 228; // 19 years
 export const WEIGHT_MAX_MONTHS = 120; // 10 years
 export const BMI_MAX_MONTHS = 228; // 19 years

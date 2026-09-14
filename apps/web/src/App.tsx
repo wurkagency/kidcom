@@ -9,6 +9,8 @@ import { ProfilePage } from "./routes/ProfilePage";
 import { ChildrenOverviewPage } from "./routes/ChildrenOverviewPage";
 import { WelcomePage } from "./routes/WelcomePage";
 import { LoginPage } from "./routes/LoginPage";
+import { ForgotPasswordPage } from "./routes/ForgotPasswordPage";
+import { ResetPasswordPage } from "./routes/ResetPasswordPage";
 import { SignupPage } from "./routes/SignupPage";
 import { OnboardingChildPage } from "./routes/OnboardingChildPage";
 import { OnboardingInvitePage } from "./routes/OnboardingInvitePage";
@@ -60,6 +62,8 @@ export default function App() {
         <Route path="/welcome" element={<WelcomePage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/login/verify" element={<LoginTwoFactorPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/invite/:token" element={<InviteAcceptPage />} />
         <Route path="/verify-email" element={<VerifyEmailPage />} />

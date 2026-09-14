@@ -160,3 +160,44 @@ describe("isCustodyPlanLockedPendingParent (spec 9.8)", () => {
     expect(putRes.status).toBe(201);
   });
 });
+
+// Post-launch backlog Phase D — the persistent-banner data GET
+// /custody-plan now exposes, proven at the HTTP level (the underlying
+// isCustodyPlanLockedPendingParent logic is already covered above).
+describe("GET /children/:childId/custody-plan — locked/daysUntilLocked (spec 9.8's banner data)", () => {
+  beforeEach(async () => {
+    await resetDb();
+  });
+
+  it("daysUntilLocked is null when the lock condition doesn't apply (two parents)", async () => {
+    const app = createApp();
+    const { agent: parentAgent } = await signupTestUser(app, { email: "banner-2p@example.com" });
+    const childRes = await parentAgent.post("/children").send({ firstName: "Kid", gender: "BOY", birthday: "2020-01-01", relationship: "MOTHER" });
+    const childId = childRes.body.id;
+    const inviteRes = await parentAgent.post("/invites").send({ childId, relationship: "FATHER", email: "banner-2p-dad@example.com" });
+    const dadAgent = request.agent(app);
+    await dadAgent.post(`/invites/${inviteRes.body.token}/accept`).send({ firstName: "D", lastName: "Ad", password: "password123" });
+    await verifyTestUserEmail(dadAgent, "banner-2p-dad@example.com");
+
+    const res = await parentAgent.get(`/children/${childId}/custody-plan`);
+    expect(res.status).toBe(200);
+    expect(res.body.locked).toBe(false);
+    expect(res.body.daysUntilLocked).toBeNull();
+  });
+
+  it("daysUntilLocked counts down for a fresh single-parent child, and locked flips true past 30 days", async () => {
+    const app = createApp();
+    const { agent } = await signupTestUser(app, { email: "banner-1p@example.com" });
+    const childRes = await agent.post("/children").send({ firstName: "Kid", gender: "GIRL", birthday: "2020-01-01" });
+    const childId = childRes.body.id;
+
+    const freshRes = await agent.get(`/children/${childId}/custody-plan`);
+    expect(freshRes.body.locked).toBe(false);
+    expect(freshRes.body.daysUntilLocked).toBe(30);
+
+    await prisma.child.update({ where: { id: childId }, data: { createdAt: new Date(Date.now() - 31 * 24 * 60 * 60 * 1000) } });
+    const lockedRes = await agent.get(`/children/${childId}/custody-plan`);
+    expect(lockedRes.body.locked).toBe(true);
+    expect(lockedRes.body.daysUntilLocked).toBe(0);
+  });
+});

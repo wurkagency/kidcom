@@ -1,10 +1,10 @@
 import { Router, type Request } from "express";
-import type { CustodyPattern, CustodyPlanDto, SetCustodyPlanRequest } from "@kidcom/shared";
+import type { CustodyPattern, CustodyPlanDto, CustodyPlanStatusResponse, SetCustodyPlanRequest } from "@kidcom/shared";
 
 import { prisma } from "../../db";
 import { ApiError } from "../../middleware/errorHandler";
 import { requireCapability } from "../../lib/permissions";
-import { isChildSatisfied, isCustodyPlanLockedPendingParent } from "../../lib/entitlement";
+import { getCustodyPlanLockStatus, isChildSatisfied, isCustodyPlanLockedPendingParent } from "../../lib/entitlement";
 
 // Mounted at /children/:childId/custody-plan. One active plan per child —
 // PUT replaces it (see chunk 4 plan: no plan-history UI yet).
@@ -28,11 +28,18 @@ function toDto(row: {
 
 custodyPlanRouter.get("/", async (req: Request<ChildParams>, res, next) => {
   try {
-    const plan = await prisma.custodyPlan.findFirst({
-      where: { childId: req.params.childId },
-      orderBy: { createdAt: "desc" },
-    });
-    res.json({ plan: plan ? toDto(plan) : null });
+    const [plan, lockStatus] = await Promise.all([
+      prisma.custodyPlan.findFirst({
+        where: { childId: req.params.childId },
+        orderBy: { createdAt: "desc" },
+      }),
+      getCustodyPlanLockStatus(req.params.childId),
+    ]);
+    res.json({
+      plan: plan ? toDto(plan) : null,
+      locked: lockStatus.locked,
+      daysUntilLocked: lockStatus.daysUntilLocked,
+    } satisfies CustodyPlanStatusResponse);
   } catch (err) {
     next(err);
   }

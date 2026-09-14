@@ -119,13 +119,31 @@ const PENDING_PARENT_LOCK_DAYS = 30;
 // unconditional. Fully derived from existing data (Child.createdAt + a role
 // count) — no new schema needed.
 export async function isCustodyPlanLockedPendingParent(childId: string): Promise<boolean> {
+  return (await getCustodyPlanLockStatus(childId)).locked;
+}
+
+// Post-launch backlog Phase D — the data behind the persistent banner spec
+// 9.8 asked for ("the real custody scheduler needs a second parent to mean
+// anything") but was never built; until now the lock was only discoverable
+// reactively, after a failed save. Same underlying query as
+// isCustodyPlanLockedPendingParent above (which now just calls this),
+// exposed with a day-count so the frontend can nudge before the lock hits,
+// not just report it after. `daysUntilLocked` is null whenever the lock
+// condition doesn't apply at all (0 or 2+ parents) — there's no countdown
+// to show in that case, not "0 days."
+export async function getCustodyPlanLockStatus(
+  childId: string
+): Promise<{ locked: boolean; daysUntilLocked: number | null }> {
   const [child, parentCount] = await Promise.all([
     prisma.child.findUnique({ where: { id: childId }, select: { createdAt: true } }),
     prisma.childAccess.count({ where: { childId, role: "PARENT" } }),
   ]);
-  if (!child || parentCount !== 1) return false;
+  if (!child || parentCount !== 1) return { locked: false, daysUntilLocked: null };
+
+  const lockThresholdMs = PENDING_PARENT_LOCK_DAYS * 24 * 60 * 60 * 1000;
   const ageMs = Date.now() - child.createdAt.getTime();
-  return ageMs > PENDING_PARENT_LOCK_DAYS * 24 * 60 * 60 * 1000;
+  if (ageMs > lockThresholdMs) return { locked: true, daysUntilLocked: 0 };
+  return { locked: false, daysUntilLocked: Math.ceil((lockThresholdMs - ageMs) / (24 * 60 * 60 * 1000)) };
 }
 
 // Replaces the old per-user requireActiveAccess (removed in Phase 2/D3) —

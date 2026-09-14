@@ -98,9 +98,11 @@ model User {
   messagesSent   Message[]         @relation("MessageSender")
   threadMembers  ThreadMember[]
   swapRequestsBy SwapRequest[]     @relation("SwapRequestedBy")
+  calendarEventRequestsBy CalendarEventRequest[] @relation("CalendarEventRequestedBy")
   pushSubscriptions PushSubscription[]
   notificationPreferences NotificationPreferences?
   emailVerificationTokens EmailVerificationToken[]
+  passwordResetTokens PasswordResetToken[]
   twoFactorCodes LoginTwoFactorCode[]
   calendarEventConfirmations CalendarEventConfirmation[]
   upgradeRequestsMade UpgradeRequest[]
@@ -122,6 +124,23 @@ model EmailVerificationToken {
   createdAt DateTime @default(now())
 
   @@map("email_verification_tokens")
+}
+
+// Post-launch backlog Phase F — same hash-only/single-use/short-lived
+// pattern as EmailVerificationToken above (a raw token is emailed once,
+// only its sha256 hash is ever stored, re-requesting replaces the row
+// rather than accumulating one per request). No password-reset flow
+// existed at all before this — change-password required an active session
+// + the current password, with no path for a locked-out user.
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("password_reset_tokens")
 }
 
 // A single-use, short-lived login OTP — the login-time counterpart to
@@ -197,6 +216,7 @@ model Child {
   custodyPlans       CustodyPlan[]
   calendarEvents     CalendarEvent[]
   swapRequests       SwapRequest[]
+  calendarEventRequests CalendarEventRequest[]
   journalPostTags    JournalPostChild[]
   listItems          ListItem[]
   invites            Invite[]
@@ -522,6 +542,34 @@ model SwapRequest {
   resolvedAt    DateTime?
 
   @@map("swap_requests")
+}
+
+// Post-launch backlog Phase C — a real request/approve workflow for
+// FAMILY/Caregiver members, closing the Phase 3 scope cut that denied
+// `calendar_event:manage` to them outright. Close sibling of SwapRequest
+// above: same status enum reused (not duplicated), same
+// create/approve/decline shape. Approving creates the real `CalendarEvent`
+// row (see calendarEventRequests.ts) rather than this row ever becoming
+// one in place — keeps "what did the requester ask for" and "what actually
+// got scheduled" as two distinct, independently-editable records, same as
+// SwapRequest never becomes the custody day it's about.
+model CalendarEventRequest {
+  id            String            @id @default(cuid())
+  childId       String
+  child         Child             @relation(fields: [childId], references: [id], onDelete: Cascade)
+  category      CalendarEventCategory
+  title         String
+  startsAt      DateTime
+  endsAt        DateTime?
+  notes         String?
+  requestedById String
+  requestedBy   User              @relation("CalendarEventRequestedBy", fields: [requestedById], references: [id])
+  status        SwapRequestStatus @default(PENDING)
+  message       String?
+  createdAt     DateTime          @default(now())
+  resolvedAt    DateTime?
+
+  @@map("calendar_event_requests")
 }
 
 // ---------------------------------------------------------------------------

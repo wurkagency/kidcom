@@ -210,3 +210,64 @@ current state can't be directly inspected, write it idempotently rather than req
 manual resolve step timed to a guess about that target's state — verify idempotency by
 actually constructing both the "never had it" and "already secretly has it" starting states
 and running the real migration against each, not by reasoning about the SQL in the abstract.
+
+## Adding encryption to a column breaks any earlier test that asserted the raw DB value
+
+**What happened:** Phase G's MedicalInfo field encryption landed after Phase A's claim/
+merge content-migration test (`bootstrapGuardian.test.ts`) was already written and
+passing — that test creates a medical-info entry through the real API, then reads the
+row back directly via `prisma.medicalInfo.findMany(...)` and asserts `condition ===
+"Peanuts"` to prove content actually moved during a merge. Once Phase G started
+encrypting `condition` at write time, the raw column no longer holds plaintext, so this
+assertion started failing — not because the merge logic broke, but because the earlier
+test's assumption ("the DB column holds what I sent the API") stopped being true.
+
+**Fix:** imported `decryptField` from `lib/medicalEncryption.ts` into the Phase A test
+and decrypted the raw value before asserting on it, rather than reading it through the
+API a second time (which would have masked whether the *stored* value actually moved,
+the thing the test exists to prove).
+
+**How to apply this going forward:** whenever a phase changes how a column is stored
+(encryption, encoding, a new default) — re-run the *full* suite, not just the new
+phase's own tests, and specifically look for other tests that read that column directly
+via Prisma rather than through the API. Assertions like `row.field === plaintext` are
+exactly the kind of thing that silently goes stale; the API-level round-trip tests
+(GET returns the right value) don't need touching, since the encrypt/decrypt happens
+transparently there — only direct-DB assertions do.
+
+## Gzipping stored media originals turned out to be a bad idea, not just low-value — dropped, not built
+
+**What happened:** The plan called for `LocalDiskStorage.save()` to gzip original
+files transparently before writing, with `readStream()` gunzipping on the way back
+out. Before implementing it, traced every call site of `mediaStorage.pathFor()` and
+`.readStream()` and found two real problems, not just the already-flagged "gzip
+barely shrinks JPEG/WebP/MP4" caveat:
+
+1. `worker.ts`'s `processImage`/`processVideo` hand sharp/ffmpeg the original file's
+   **raw filesystem path** (`mediaStorage.pathFor(originalKey)`) directly — they
+   read it themselves, bypassing `MediaStorage`'s own read methods entirely. Gzip
+   the file at `save()` time and sharp/ffmpeg would try to parse compressed bytes
+   as an image/video and fail outright, every time.
+2. `readStream()` is the *one* method the serving route (`GET /media/:id`) uses for
+   **both** originals and derivatives (`derivedPath ?? originalPath`). Making it
+   unconditionally gunzip would corrupt every derivative response (WebP/poster
+   JPG), which was never gzipped in the first place — there's no per-key marker
+   distinguishing "this one's compressed" from "this one isn't" without adding
+   real complexity (a schema field, or a second storage-key convention) for a
+   feature that saves close to nothing on already-entropy-coded formats.
+
+**Decision:** did not implement it. Documented why directly in the phase's
+`tasks/todo.md` entry rather than silently dropping it — the caveat in the plan
+("gzip won't meaningfully shrink these formats") was already a reason to be
+skeptical of the value; finding it would also require either breaking media
+processing or adding real complexity to avoid breaking it tipped this from
+"low-value" to "not worth building," full stop.
+
+**How to apply this going forward:** before implementing a "wrap this existing I/O
+layer transparently" change (compression, encryption-at-a-storage-layer, etc.),
+trace every actual call site of the interface being wrapped — not just the ones the
+new feature cares about. A method used by more than one caller (here, `readStream()`
+serving both originals and derivatives) can't gain new per-call behavior without
+either a way to distinguish those calls or applying to all of them, and a caller
+that bypasses the interface entirely (`pathFor()` handed to an external library)
+can't be helped by wrapping the interface at all.

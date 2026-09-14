@@ -85,6 +85,20 @@ export type VerifyTwoFactorRequest = {
   code: string;
 };
 
+// Post-launch backlog Phase F — password reset (confirmed to not exist at
+// all beforehand: change-password required an active session + the current
+// password, no path for a locked-out user). POST /auth/forgot-password
+// always 204s regardless of whether the email exists — no account-
+// enumeration leak.
+export type ForgotPasswordRequest = {
+  email: string;
+};
+
+export type ResetPasswordRequest = {
+  token: string;
+  password: string;
+};
+
 // Simple, well-understood format check — this repo has no schema-validation
 // library (zod/joi), so every server-side validator here is a small
 // hand-written function like this one rather than a dependency. Not meant to
@@ -187,6 +201,16 @@ export type ChildFamilyMember = {
   // directly (POST /children/:childId/family/minor), never for anyone
   // invited by email. Lets the UI show the reduced-access badge/explanation.
   isMinorMember: boolean;
+};
+
+// Post-launch backlog Phase B — self-correction for a relationship label that
+// was ever set by an arbitrary guess (the Phase 5 migration's GRANDPARENT→
+// Grandmother/AUNT_UNCLE→Aunt/SIBLING→Sister defaults, or just a wrong pick
+// at invite time). PATCH /children/:childId/family/:userId. Never touches
+// AccessRole — see that route's own comment for why an edit is still
+// rejected if it would cross the parent-shaped/non-parent-shaped boundary.
+export type UpdateMemberRelationshipRequest = {
+  relationship: RelationshipType;
 };
 
 // ---------------------------------------------------------------------------
@@ -435,6 +459,17 @@ export type CustodyPlanDto = {
   patternDays: CustodyPattern;
 };
 
+// GET /children/:childId/custody-plan — spec 9.8's persistent-banner data
+// (post-launch backlog Phase D): `locked` mirrors what a PUT would 403 with
+// right now; `daysUntilLocked` is a countdown to show *before* that happens,
+// null whenever the lock condition doesn't apply at all (0 or 2+ parents —
+// not "0 days").
+export type CustodyPlanStatusResponse = {
+  plan: CustodyPlanDto | null;
+  locked: boolean;
+  daysUntilLocked: number | null;
+};
+
 export type SetCustodyPlanRequest = {
   label: string;
   startDate: string;
@@ -555,6 +590,38 @@ export type CreateSwapRequestRequest = {
 };
 
 export type ResolveSwapRequestRequest = {
+  status: Extract<SwapRequestStatus, "APPROVED" | "DECLINED">;
+};
+
+// Post-launch backlog Phase C — close sibling of SwapRequest above, for
+// FAMILY/Caregiver members asking a PARENT/GUARDIAN to add a calendar event
+// rather than being able to add one directly (spec §1.4's "request" column
+// for calendar_event:manage, never built until now). Reuses SwapRequestStatus
+// rather than a duplicate enum — same three values, same meaning.
+export type CalendarEventRequestDto = {
+  id: string;
+  category: Exclude<CalendarEventCategory, "HOLIDAY">;
+  title: string;
+  startsAt: string;
+  endsAt: string | null;
+  notes: string | null;
+  requestedById: string;
+  status: SwapRequestStatus;
+  message: string | null;
+  createdAt: string;
+  resolvedAt: string | null;
+};
+
+export type CreateCalendarEventRequestRequest = {
+  category: Exclude<CalendarEventCategory, "HOLIDAY">;
+  title: string;
+  startsAt: string;
+  endsAt?: string;
+  notes?: string;
+  message?: string;
+};
+
+export type ResolveCalendarEventRequestRequest = {
   status: Extract<SwapRequestStatus, "APPROVED" | "DECLINED">;
 };
 
