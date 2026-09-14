@@ -10,8 +10,9 @@ UI doesn't cover (build steps, PM2, Nginx proxy config).
 The monorepo has three things to run, and only one of them serves the site
 directly:
 
-- `apps/web` — a static SPA build. Served straight from `kidcom.org`'s
-  document root, no Node process behind it.
+- `apps/web` — a static SPA build. Served straight from `www.kidcom.org`'s
+  document root, no Node process behind it — bare `kidcom.org` 301s to it
+  (Plesk's canonical-domain redirect, step 0.6).
 - `apps/api` — the Express API. A request-driven Node process, reverse-proxied
   from a subdomain, `api.kidcom.org`.
 - `apps/api`'s worker (`dist/worker.js`) — a standalone long-running process
@@ -52,9 +53,11 @@ PM2 process (step 6).
    → `api`. Its docroot will sit unused — Nginx will proxy past it, configured
    in step 6.
 2. **SSL**: Websites & Domains → kidcom.org → SSL/TLS Certificates → Let's
-   Encrypt → issue for both `kidcom.org` (+ `www.kidcom.org` if you want it)
-   and `api.kidcom.org`. Both are required — service workers and Web Push
-   need HTTPS, and cookies below are marked `secure`.
+   Encrypt → issue for `kidcom.org`, `www.kidcom.org`, and `api.kidcom.org`.
+   All three are required — service workers and Web Push need HTTPS, cookies
+   below are marked `secure`, and `www.kidcom.org` is the canonical domain
+   (Plesk 301s bare `kidcom.org` → `www.kidcom.org`; see step 0.6) so it
+   needs its own valid cert too, not just the redirect target's.
 3. **Redis**: confirmed already installed and running (default
    `127.0.0.1:6379`) — sessions and the BullMQ worker both depend on it.
 4. **Git repository**: Websites & Domains → kidcom.org → Git → Add
@@ -74,6 +77,19 @@ PM2 process (step 6).
    first real deploy, or the site briefly serves the raw repo listing instead
    of the app. The folder won't exist until the first build (step 3) runs,
    which is fine — Plesk accepts the path up front.
+6. **Preferred domain (canonical `www`)**: Websites & Domains → kidcom.org →
+   Hosting Settings → the SEO/canonical-redirect setting → set it so
+   `kidcom.org` 301s to `www.kidcom.org` (not the other way around). This is
+   Plesk's own domain-canonicalization redirect, separate from Document Root
+   scoping — with it on, `www.kidcom.org` is the real site and bare
+   `kidcom.org` only ever redirects to it. Every `CORS_ORIGIN`/verification
+   command below targets `www.kidcom.org` accordingly; if you'd rather make
+   bare `kidcom.org` canonical instead, flip the redirect direction here and
+   swap every `www.kidcom.org` below (and `CORS_ORIGIN` in step 2) back to
+   `kidcom.org` — pick one, don't leave it on Plesk's default with the app
+   config pointed at the other, or CORS will silently reject every real
+   browser request (`Origin` won't match `CORS_ORIGIN`) even though `curl`
+   and the page load look fine.
 
 ## 1. First deploy — get a shell (chrooted SSH) and pull the code
 
@@ -144,7 +160,13 @@ SESSION_SECRET=<paste output of `openssl rand -hex 32` here>
 MEDICAL_INFO_ENCRYPTION_KEY=<paste output of `openssl rand -hex 32` here>
 
 API_BASE_URL=https://api.kidcom.org
-CORS_ORIGIN=https://kidcom.org
+
+# Must exactly match the Origin header real browsers send — i.e. the
+# canonical domain from step 0.6, not just whatever loads without erroring.
+# This one value also builds every link the API emails out (invite accept,
+# billing checkout redirect — see config.ts's webBaseUrl) — get it wrong and
+# CORS silently rejects real logins even though curl/health checks look fine.
+CORS_ORIGIN=https://www.kidcom.org
 COOKIE_DOMAIN=.kidcom.org
 
 MEDIA_STORAGE_PATH=/var/www/vhosts/kidcom.org/kidcom-media
@@ -271,13 +293,14 @@ grep -rl "localhost:4000" apps/web/dist/ && echo "BAD — VITE_API_URL wasn't se
 ## 4. Confirm the site serves the build, not the repo
 
 ```bash
-curl -sI https://kidcom.org/ | head -1              # expect 200, and view-source should show the built <title>KidCom</title>
-curl -sI https://kidcom.org/package.json | head -1  # expect 404 — proves Document Root is scoped correctly
-curl -sI https://kidcom.org/DEPLOYMENT.md | head -1 # expect 404 — proves the prune step above actually ran
-curl -sI https://kidcom.org/tasks/todo.md | head -1 # expect 404 — same, for the pruned tasks/ folder
+curl -sI https://kidcom.org/ | head -1                  # expect 301 → www.kidcom.org (step 0.6's canonicalization redirect)
+curl -sI https://www.kidcom.org/ | head -1              # expect 200, and view-source should show the built <title>KidCom</title>
+curl -sI https://www.kidcom.org/package.json | head -1  # expect 404 — proves Document Root is scoped correctly
+curl -sI https://www.kidcom.org/DEPLOYMENT.md | head -1 # expect 404 — proves the prune step above actually ran
+curl -sI https://www.kidcom.org/tasks/todo.md | head -1 # expect 404 — same, for the pruned tasks/ folder
 ```
 
-If the second command returns the raw `package.json` instead of a 404, the
+If the third command returns the raw `package.json` instead of a 404, the
 Document Root change from step 0.5 didn't take (or was reverted) — fix that
 before going further; don't try to patch this with `.htaccess`/deny rules
 instead, since a new file added later could slip past a hand-maintained rule
@@ -317,8 +340,8 @@ request without conflicting.
 Verify:
 
 ```bash
-curl -sI https://kidcom.org/invite/doesnotexist | head -1   # expect 200, not 404 — served by index.html, React Router shows its own not-found state
-curl -sI https://kidcom.org/assets/$(ls apps/web/dist/assets | grep '\.js$' | head -1) | head -1   # expect 200 — confirms real files still serve directly, not swallowed by the fallback
+curl -sI https://www.kidcom.org/invite/doesnotexist | head -1   # expect 200, not 404 — served by index.html, React Router shows its own not-found state
+curl -sI https://www.kidcom.org/assets/$(ls apps/web/dist/assets | grep '\.js$' | head -1) | head -1   # expect 200 — confirms real files still serve directly, not swallowed by the fallback
 ```
 
 ## 6. Nginx: proxy api.kidcom.org to the PM2-managed API
@@ -408,7 +431,7 @@ curl -s http://127.0.0.1:4000/health    # should return {"status":"ok",...}
 curl -s https://api.kidcom.org/health   # same, through Nginx + SSL
 ```
 
-Open `https://kidcom.org` in a browser and confirm the app loads, and that
+Open `https://www.kidcom.org` in a browser and confirm the app loads, and that
 signup/login round-trips (proves Postgres + Redis + session cookie are all
 wired correctly end to end).
 

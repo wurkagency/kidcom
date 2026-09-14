@@ -475,5 +475,26 @@ encryption (not disk-level).
   concatenation), raw SQL (`$executeRawUnsafe` only in test-only `resetDb()`, not
   user-input-driven), no `dangerouslySetInnerHTML` anywhere in `apps/web`.
 - `npm run test` (126 API + 22 web, 7 new) + `npm run typecheck` clean from repo
-  root. Committed as `2acf200` (security fixes) — the deploy-hardening `DEPLOYMENT.md`
-  edit above is a separate, later commit. Neither pushed yet.
+  root. Committed as `2acf200` (security fixes), `7946402` (deploy hardening) — both
+  pushed to `origin/master` (2026-09-14), along with `7939f77` (Phases A-K).
+
+### First production deploy (2026-09-14)
+
+- [x] **Canonical domain found to be `www.kidcom.org`, not bare `kidcom.org`** —
+  discovered live during the actual deploy: Plesk's own preferred-domain setting was
+  301-redirecting bare `kidcom.org` → `www.kidcom.org` (confirmed via `curl -sI`
+  showing `location: https://www.kidcom.org/`), unrelated to the Document
+  Root/prune work above. User chose `www.kidcom.org` as canonical (Websites &
+  Domains → Hosting Settings → preferred-domain redirect). `DEPLOYMENT.md` updated
+  throughout to match: step 0.6 documents the setting explicitly, SSL (step 0.2)
+  now issues for all three of `kidcom.org`/`www.kidcom.org`/`api.kidcom.org`,
+  `CORS_ORIGIN=https://www.kidcom.org` (this one value also builds every emailed
+  link — invite accept, billing checkout redirect — via `config.webBaseUrl`, so
+  getting it wrong breaks more than just CORS), and every verification `curl`
+  command retargeted at `www.kidcom.org` (bare `kidcom.org` correctly 301s and
+  `curl -sI ... | head -1` doesn't follow redirects, so the old checks would've
+  silently "passed" against the redirect response, not the real page).
+  `COOKIE_DOMAIN=.kidcom.org` needed no change — the leading dot already covers
+  both. **Still to do on the server**: update the live `apps/api/.env`'s
+  `CORS_ORIGIN` to `https://www.kidcom.org` and `pm2 restart kidcom-api` (the file
+  was created before this was discovered, per step 2, using the old value).
