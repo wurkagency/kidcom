@@ -3,6 +3,7 @@ import { render, screen, cleanup, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 
 import { CalendarShell } from "./CalendarShell";
+import { toLocalDateOnly } from "../../lib/calendarDates";
 
 // Post-launch backlog Phase D — proves the persistent PENDING_PARENT banner
 // (spec 9.8) actually renders when the lock condition applies to a PARENT
@@ -86,5 +87,29 @@ describe("CalendarShell — PENDING_PARENT persistent banner (spec 9.8)", () => 
     await waitFor(() => expect(apiGetMock).toHaveBeenCalled());
     await waitFor(() => expect(screen.queryByText(/Loading…/)).toBeNull());
     expect(screen.queryByText(/Custody scheduling works best with both parents/)).toBeNull();
+  });
+});
+
+describe("CalendarShell — List view starts from today, not the 1st of the month", () => {
+  beforeEach(() => {
+    apiGetMock.mockReset();
+  });
+  afterEach(() => {
+    cleanup();
+  });
+
+  it("queries the calendar range starting at today's date, not the month start", async () => {
+    mockApiGet(null, false, "PARENT");
+    render(
+      <MemoryRouter initialEntries={["/calendar?view=list"]}>
+        <CalendarShell />
+      </MemoryRouter>
+    );
+
+    const today = toLocalDateOnly(new Date());
+    await waitFor(() => {
+      const calendarCall = apiGetMock.mock.calls.find((call) => (call[0] as string).includes("/calendar?"));
+      expect(calendarCall?.[0]).toContain(`start=${today}`);
+    });
   });
 });

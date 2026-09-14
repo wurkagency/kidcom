@@ -176,11 +176,18 @@ mediaRouter.get("/:id", requireAuth, async (req, res, next) => {
 
     // ?variant=original — used for video playback: the derivative for a
     // VIDEO asset is a JPG poster frame (see worker.ts's processVideo), not
-    // a playable file, so <video> needs the actual uploaded file instead.
-    // Default behavior (derivedPath ?? originalPath) is unchanged for the
-    // plain <img> case every other consumer already uses.
+    // a playable file, so <video> needs an actual playable file instead.
+    // Prefer playablePath (an H.264/AAC/MP4 transcode worker.ts produces —
+    // originalPath is whatever codec/container the uploading phone
+    // produced, e.g. HEVC-in-.mov from an iPhone, which most non-Safari
+    // browsers can't decode at all) and only fall back to the true original
+    // if transcoding hasn't completed/failed. Default behavior
+    // (derivedPath ?? originalPath) is unchanged for the plain <img> case
+    // every other consumer already uses.
     const wantsOriginal = req.query.variant === "original";
-    const key = wantsOriginal ? asset.originalPath : asset.derivedPath ?? asset.originalPath;
+    const key = wantsOriginal
+      ? asset.playablePath ?? asset.originalPath
+      : asset.derivedPath ?? asset.originalPath;
     if (!(await mediaStorage.exists(key))) {
       throw new ApiError(404, "Media file missing on disk");
     }

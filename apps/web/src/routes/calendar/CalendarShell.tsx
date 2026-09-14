@@ -105,7 +105,16 @@ export function CalendarShell() {
       const gridStart = startOfWeek(monthStart, weekStartPref);
       return { rangeStartIso: toDateOnly(gridStart), rangeEndIso: toDateOnly(addDays(gridStart, 41)) };
     }
-    return { rangeStartIso: toDateOnly(monthStart), rangeEndIso: toDateOnly(monthEnd) };
+    // List view — starts from selectedDate, not the 1st of the month:
+    // selectedDate defaults to today and is exactly what clicking a date in
+    // Week/Month view sets, so this makes List "start from today" on first
+    // load and "start from that day and ahead" after clicking a date
+    // elsewhere, while Prev/Next (which set selectedDate to the 1st of the
+    // stepped-to month — see goPrev/goNext below) still shows a past/future
+    // month in full. selectedDate is always within [monthStart, monthEnd]
+    // here since monthStart/monthEnd are derived from it, so this can't
+    // start after monthEnd.
+    return { rangeStartIso: selectedDate, rangeEndIso: toDateOnly(monthEnd) };
   }, [selectedDate, view, weekStartPref]);
 
   async function loadRange() {
@@ -336,58 +345,70 @@ export function CalendarShell() {
         <p className="py-6 font-body-md text-body-md text-on-surface-variant">Loading…</p>
       ) : (
         <div className="flex flex-col gap-6">
-          {view === "week" && (
-            <WeekView
-              header={headerProps}
-              anchorDate={selectedDate}
-              weekStartPref={weekStartPref}
-              events={filteredEvents}
-              custodyByDate={merged.custodyByDate}
-              family={family}
-              currentUserId={user?.id ?? null}
-              custodyPlan={custodyPlan}
-              isBothMode={isBothMode}
-              selectedDate={selectedDate}
-              onSelectDate={setSelectedDate}
-              onOpenEvent={openEvent}
-              onToggleChecklistItem={toggleChecklistItem}
-              onToggleConfirm={toggleConfirm}
-            />
-          )}
-          {view === "month" && (
-            <MonthView
-              header={headerProps}
-              monthAnchorIso={selectedDate}
-              weekStartPref={weekStartPref}
-              events={filteredEvents}
-              custodyByDate={merged.custodyByDate}
-              family={family}
-              currentUserId={user?.id ?? null}
-              selectedDate={selectedDate}
-              isBothMode={isBothMode}
-              onSelectDate={setSelectedDate}
-              onOpenEvent={openEvent}
-              onToggleChecklistItem={toggleChecklistItem}
-              onToggleConfirm={toggleConfirm}
-            />
-          )}
-          {view === "list" && (
-            <ListView
-              header={headerProps}
-              monthAnchorIso={selectedDate}
-              rangeStartIso={rangeStartIso}
-              rangeEndIso={rangeEndIso}
-              events={filteredEvents}
-              custodyByDate={merged.custodyByDate}
-              family={family}
-              currentUserId={user?.id ?? null}
-              isBothMode={isBothMode}
-              lastUpdatedAt={lastUpdatedAt}
-              onOpenEvent={openEvent}
-              onToggleChecklistItem={toggleChecklistItem}
-              onToggleConfirm={toggleConfirm}
-            />
-          )}
+          {/* Bug fix — calendar views weren't full width, padding showed on
+              both sides beyond what the mockups call for. Each view
+              (Month/Week/List) already applies px-container-padding itself,
+              per-section, matching its own mockup exactly — but this shell's
+              own wrapper (below) also applies px-container-padding to
+              everything it contains, so the views were getting that padding
+              twice. -mx-container-padding here cancels the shell's padding
+              for just this subtree; everything else in the shell (banners,
+              action buttons, swap/event-request cards) has no padding of
+              its own and still needs the shell's, so it's left alone. */}
+          <div className="-mx-container-padding">
+            {view === "week" && (
+              <WeekView
+                header={headerProps}
+                anchorDate={selectedDate}
+                weekStartPref={weekStartPref}
+                events={filteredEvents}
+                custodyByDate={merged.custodyByDate}
+                family={family}
+                currentUserId={user?.id ?? null}
+                custodyPlan={custodyPlan}
+                isBothMode={isBothMode}
+                selectedDate={selectedDate}
+                onSelectDate={setSelectedDate}
+                onOpenEvent={openEvent}
+                onToggleChecklistItem={toggleChecklistItem}
+                onToggleConfirm={toggleConfirm}
+              />
+            )}
+            {view === "month" && (
+              <MonthView
+                header={headerProps}
+                monthAnchorIso={selectedDate}
+                weekStartPref={weekStartPref}
+                events={filteredEvents}
+                custodyByDate={merged.custodyByDate}
+                family={family}
+                currentUserId={user?.id ?? null}
+                selectedDate={selectedDate}
+                isBothMode={isBothMode}
+                onSelectDate={setSelectedDate}
+                onOpenEvent={openEvent}
+                onToggleChecklistItem={toggleChecklistItem}
+                onToggleConfirm={toggleConfirm}
+              />
+            )}
+            {view === "list" && (
+              <ListView
+                header={headerProps}
+                monthAnchorIso={selectedDate}
+                rangeStartIso={rangeStartIso}
+                rangeEndIso={rangeEndIso}
+                events={filteredEvents}
+                custodyByDate={merged.custodyByDate}
+                family={family}
+                currentUserId={user?.id ?? null}
+                isBothMode={isBothMode}
+                lastUpdatedAt={lastUpdatedAt}
+                onOpenEvent={openEvent}
+                onToggleChecklistItem={toggleChecklistItem}
+                onToggleConfirm={toggleConfirm}
+              />
+            )}
+          </div>
 
           {primaryChildId && (
             <CalendarActionButtons onAdd={() => navigate(`/children/${primaryChildId}/calendar-events/new`)} />

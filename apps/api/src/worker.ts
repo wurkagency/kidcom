@@ -79,7 +79,28 @@ async function processVideo(originalKey: string, assetId: string) {
       .screenshots({ count: 1, folder: outDir, filename: path.basename(derivedPath), timestamps: ["1"] });
   });
 
-  return { derivedKey, ...dimensions };
+  // Bug fix — playback used originalPath directly (whatever codec/container
+  // the uploading phone produced) with no transcoding at all. iPhones
+  // commonly record HEVC-in-.mov (video/quicktime), which only Safari/
+  // macOS/iOS decode — Chrome/Firefox/Android just fail to play it, no
+  // error shown. Transcode to H.264 baseline + AAC in an MP4 container,
+  // the one combination every mainstream browser plays. +faststart moves
+  // the moov atom to the front of the file so playback can start before the
+  // whole (blob-fetched, see lib/media.ts) file has finished downloading.
+  const playableKey = `derived/${assetId}-playable.mp4`;
+  await mediaStorage.ensureDirFor(playableKey);
+  const playablePath = mediaStorage.pathFor(playableKey);
+  await new Promise<void>((resolve, reject) => {
+    ffmpeg(originalPath)
+      .videoCodec("libx264")
+      .outputOptions(["-profile:v baseline", "-level 3.0", "-pix_fmt yuv420p", "-movflags +faststart"])
+      .audioCodec("aac")
+      .on("end", () => resolve())
+      .on("error", reject)
+      .save(playablePath);
+  });
+
+  return { derivedKey, playableKey, ...dimensions };
 }
 
 const worker = new Worker<ProcessMediaJob>(
@@ -97,6 +118,7 @@ const worker = new Worker<ProcessMediaJob>(
         data: {
           status: "READY",
           derivedPath: result.derivedKey,
+          playablePath: "playableKey" in result ? result.playableKey : undefined,
           width: result.width,
           height: result.height,
         },

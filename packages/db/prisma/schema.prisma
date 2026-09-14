@@ -594,7 +594,16 @@ model MediaAsset {
   type             MediaType
   status           MediaAssetStatus @default(PROCESSING)
   originalPath     String           // lossless original, local disk path (see DEPLOYMENT.md storage note)
-  derivedPath      String?          // compressed WebP/WebM derivative (or JPEG poster for video) for in-app viewing
+  derivedPath      String?          // compressed WebP derivative (or JPEG poster for video) for in-app viewing
+  // Bug fix — videos weren't playing in most browsers: originalPath is
+  // whatever codec/container the uploading phone produced (iPhones commonly
+  // record HEVC-in-.mov, which only Safari/macOS/iOS decode), and playback
+  // used originalPath directly with no transcoding at all. This is a real
+  // H.264/AAC-in-MP4 transcode of the video (see worker.ts's processVideo),
+  // broadly playable everywhere — GET /media/:id?variant=original serves
+  // this when present, falling back to originalPath only if transcoding
+  // hasn't completed/failed. Null for images and for videos still PROCESSING.
+  playablePath     String?
   width            Int?
   height           Int?
   journalPostId    String?

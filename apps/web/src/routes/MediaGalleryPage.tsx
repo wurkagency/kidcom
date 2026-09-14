@@ -310,12 +310,24 @@ export function GalleryThumb({
         </div>
       )}
       {url ? (
-        <img
-          src={url}
-          alt=""
-          draggable={false}
-          className="w-full h-full object-cover pointer-events-none"
-          style={{ WebkitTouchCallout: "none", WebkitUserSelect: "none" }}
+        // Bug fix — Android Chrome still showed its native long-press
+        // image menu (save/copy/share) here even with pointer-events:none
+        // and -webkit-touch-callout:none, which stole the touch as a
+        // `pointercancel` before the selection timer below could fire —
+        // the reported "can't select on Android" symptom, still broken
+        // after the first attempt at this fix. That native gesture is tied
+        // to the presence of an actual <img> element at the touch point,
+        // not to pointer-events CSS or preventDefault() on our own
+        // handlers — a real <img> is "an image the user might want to
+        // save" to Chrome's UI shell regardless of how its events are
+        // wired up. Rendering it as a background-image on a plain <div>
+        // instead removes that native affordance entirely, on every
+        // platform, since a div is never treated as a savable image.
+        <div
+          role="img"
+          aria-hidden="true"
+          className="w-full h-full bg-cover bg-center pointer-events-none"
+          style={{ backgroundImage: `url(${url})` }}
         />
       ) : (
         <div className="w-full h-full animate-pulse bg-surface-container-high" />

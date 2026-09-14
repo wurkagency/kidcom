@@ -1,19 +1,21 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, cleanup, fireEvent } from "@testing-library/react";
+import { render, cleanup, fireEvent, waitFor } from "@testing-library/react";
 import type { JournalMediaDto } from "@kidcom/shared";
 
 import { GalleryThumb } from "./MediaGalleryPage";
 
-// Post-launch backlog Phase J — the Android "selected images automatically
-// deselected" bug. Root cause: on Android Chrome, a touch-and-hold over an
-// <img> can trigger the browser's own native long-press handling (image
-// save/open/copy menu) concurrently with this component's own JS long-press
-// timer — neither pointer-events:none on the <img> nor touch-action:
-// manipulation on the container suppresses that native gesture specifically.
-// jsdom can't reproduce the native Android menu itself, so this proves the
-// actual fix (preventDefault on pointerdown, which is what suppresses it)
-// is wired up, plus that ordinary tap-to-select/open still works —
-// regression coverage for the surrounding logic this fix touches.
+// Post-launch backlog Phase J, revisited — the Android "can't select in
+// Media" bug. The first attempt (preventDefault on pointerdown) didn't
+// actually fix it: Android Chrome's native long-press-on-image menu (save/
+// open/copy) is tied to the presence of a real <img> element at the touch
+// point, not to pointer-events CSS or to how our own JS handlers are
+// wired — a real <img> is "an image the user might want to save" to
+// Chrome's UI shell regardless of preventDefault. The actual fix is
+// rendering the thumbnail as a background-image on a plain <div> instead,
+// which has no such native affordance on any platform. jsdom can't
+// reproduce Android's native menu itself, so this proves both that no
+// <img> exists to trigger it and that ordinary tap-to-select/open still
+// works — regression coverage for the surrounding logic this fix touches.
 vi.mock("../lib/media", () => ({
   fetchMediaUrl: vi.fn().mockResolvedValue("blob:mock-url"),
 }));
@@ -32,6 +34,20 @@ const mockItem: JournalMediaDto = {
 describe("GalleryThumb — Android long-press fix (Phase J)", () => {
   afterEach(() => {
     cleanup();
+  });
+
+  it("renders the thumbnail as a background-image, not a real <img> — the actual fix, since Android's native long-press menu targets <img> elements regardless of preventDefault", async () => {
+    const onToggleSelect = vi.fn();
+    const onOpen = vi.fn();
+    const { container } = render(
+      <GalleryThumb item={mockItem} selected={false} hasSelection={false} onToggleSelect={onToggleSelect} onOpen={onOpen} />
+    );
+
+    await waitFor(() => {
+      const thumb = container.querySelector('[role="img"]') as HTMLElement | null;
+      expect(thumb?.style.backgroundImage).toContain("blob:mock-url");
+    });
+    expect(container.querySelector("img")).toBeNull();
   });
 
   it("calls preventDefault on pointerdown, suppressing the browser's native long-press handling", () => {
