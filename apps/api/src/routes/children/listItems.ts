@@ -8,6 +8,7 @@ import type {
 
 import { prisma } from "../../db";
 import { ApiError } from "../../middleware/errorHandler";
+import { can, requireCapability } from "../../lib/permissions";
 
 // Mounted at /children/:childId/lists. Necessities + wishlist share one
 // model (ListItem.type) — the frontend splits them into two tabs.
@@ -108,7 +109,10 @@ listItemsRouter.get("/", async (req: Request<ChildParams>, res, next) => {
   }
 });
 
-listItemsRouter.post("/", async (req: Request<ChildParams>, res, next) => {
+// spec 9.5: a Caregiver may claim a Wishlist item (PATCH .../claim, ungated
+// below) but not add/manage list items — everyone else with FAMILY/PARENT
+// access may.
+listItemsRouter.post("/", requireCapability("list_item:manage"), async (req: Request<ChildParams>, res, next) => {
   try {
     const body = req.body as Partial<CreateListItemRequest>;
     if (!body.title?.trim()) {
@@ -174,7 +178,7 @@ listItemsRouter.get("/:itemId", async (req: Request<ItemParams>, res, next) => {
 // imageAssetId, all independently optional (omitted = unchanged). Separate
 // from PATCH /:itemId/assign (narrow reassignment-only) and
 // PATCH /:itemId/claim (reserve toggle), which both stay as-is.
-listItemsRouter.patch("/:itemId", async (req: Request<ItemParams>, res, next) => {
+listItemsRouter.patch("/:itemId", requireCapability("list_item:manage"), async (req: Request<ItemParams>, res, next) => {
   try {
     const userId = req.session.userId!;
     const existing = await prisma.listItem.findFirst({
@@ -224,7 +228,7 @@ listItemsRouter.patch("/:itemId", async (req: Request<ItemParams>, res, next) =>
 // Set/change/clear a Necessity's assignment. Unlike claim/reserve, this is
 // real delegation — any family member may assign or reassign it to any
 // other family member, not just claim it for themselves.
-listItemsRouter.patch("/:itemId/assign", async (req: Request<ItemParams>, res, next) => {
+listItemsRouter.patch("/:itemId/assign", requireCapability("list_item:manage"), async (req: Request<ItemParams>, res, next) => {
   try {
     const existing = await prisma.listItem.findFirst({
       where: { id: req.params.itemId, childId: req.params.childId },
@@ -300,6 +304,12 @@ listItemsRouter.delete("/:itemId", async (req: Request<ItemParams>, res, next) =
     // deletion the way claim is.
     if (existing.claimedById && existing.claimedById !== userId) {
       throw new ApiError(403, "Only the person who claimed this item can delete it");
+    }
+    // An unclaimed item's deletion is a "manage" action, not a "claim" one
+    // (spec 9.5: a Caregiver may only claim) — a Caregiver deleting their
+    // own claim (branch above) is still fine.
+    if (!existing.claimedById && (!req.childAccess || !can(req.childAccess, "list_item:manage"))) {
+      throw new ApiError(403, "You don't have permission to delete this item");
     }
 
     await prisma.listItem.delete({ where: { id: existing.id } });

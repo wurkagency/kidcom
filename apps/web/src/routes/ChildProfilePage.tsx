@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
-  FAMILY_MEMBER_TYPE_LABELS,
+  RELATIONSHIP_TYPE_LABELS,
   describeCustodyPattern,
   type ChildDetail,
   type ChildFamilyMember,
@@ -284,12 +284,7 @@ export function ChildProfilePage() {
                     {member.firstName} {member.lastName}
                   </span>
                   <span className="font-label-sm text-label-sm text-primary">
-                    {member.familyMemberType
-                      ? FAMILY_MEMBER_TYPE_LABELS[member.familyMemberType]
-                      : member.role === "PARENT"
-                        ? "Parent"
-                        : "Family"}{" "}
-                    • Active
+                    {RELATIONSHIP_TYPE_LABELS[member.relationship]} • Active
                   </span>
                 </div>
               </div>

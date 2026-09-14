@@ -1,6 +1,7 @@
 import { Router } from "express";
 import crypto from "node:crypto";
-import type { SubscribeRequest, SubscribeResponse, SubscriptionDto } from "@kidcom/shared";
+import type { BillingPeriod, SubscribeRequest, SubscribeResponse, SubscriptionDto } from "@kidcom/shared";
+import { vatBreakdown } from "@kidcom/shared";
 
 import { prisma } from "../../db";
 import { config } from "../../config";
@@ -8,8 +9,39 @@ import { requireAuth } from "../../middleware/session";
 import { ApiError } from "../../middleware/errorHandler";
 import { BILLING_PERIOD_DAYS, BILLING_PRICES_ORE } from "../../lib/billingPricing";
 import * as quickpay from "../../lib/quickpay";
+import { mailSender } from "../../lib/mailSender";
+import { renderSubscriptionReceiptHtml, renderSubscriptionReceiptText } from "../../lib/emailTemplates/subscriptionReceipt";
+import { notifyPaymentFailure } from "../../lib/paymentFailureNotice";
 
 export const billingRouter = Router();
+
+const TIER_LABELS: Record<"PARENTS" | "FAMILY", string> = { PARENTS: "Parents", FAMILY: "Family" };
+const PERIOD_LABELS: Record<BillingPeriod, string> = { MONTHLY: "Monthly", ANNUAL: "Annual" };
+
+// D9 (spec 9.14/§6.3): sends the VAT-breakdown receipt this app never had
+// before. Called only for a subscription that has actually just gone
+// ACTIVE with a real paid tier — never for FREE (nothing was charged) and
+// never for a merely-PENDING checkout. Email failures are swallowed and
+// logged, same treatment as the verification email elsewhere in this repo —
+// the payment itself already succeeded and must not be rolled back over a
+// receipt delivery failure.
+async function sendReceiptEmail(ownerId: string, tier: "PARENTS" | "FAMILY", billingPeriod: BillingPeriod) {
+  try {
+    const owner = await prisma.user.findUnique({ where: { id: ownerId } });
+    if (!owner) return;
+    const vat = vatBreakdown(BILLING_PRICES_ORE[tier][billingPeriod]);
+    const chargedAt = new Date();
+    await mailSender.send({
+      to: owner.email,
+      subject: `Your KidCom ${TIER_LABELS[tier]} receipt`,
+      text: renderSubscriptionReceiptText({ tierLabel: TIER_LABELS[tier], billingPeriodLabel: PERIOD_LABELS[billingPeriod], vat, chargedAt }),
+      html: renderSubscriptionReceiptHtml({ tierLabel: TIER_LABELS[tier], billingPeriodLabel: PERIOD_LABELS[billingPeriod], vat, chargedAt }),
+    });
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error(`Failed to send subscription receipt email for owner ${ownerId}:`, err);
+  }
+}
 
 function toDto(sub: {
   tier: string;
@@ -85,6 +117,7 @@ billingRouter.post("/subscribe", requireAuth, async (req, res, next) => {
           billingPeriod: null,
           currentPeriodEnd: null,
           quickpaySubscriptionId: null,
+          pastDueSince: null,
         },
         create: { ownerId: userId, tier: "FREE" },
       });
@@ -107,6 +140,7 @@ billingRouter.post("/subscribe", requireAuth, async (req, res, next) => {
           billingPeriod,
           currentPeriodEnd: new Date(Date.now() + BILLING_PERIOD_DAYS[billingPeriod] * 24 * 60 * 60 * 1000),
           quickpaySubscriptionId: null,
+          pastDueSince: null,
         },
         create: {
           ownerId: userId,
@@ -116,6 +150,7 @@ billingRouter.post("/subscribe", requireAuth, async (req, res, next) => {
           currentPeriodEnd: new Date(Date.now() + BILLING_PERIOD_DAYS[billingPeriod] * 24 * 60 * 60 * 1000),
         },
       });
+      await sendReceiptEmail(userId, tier, billingPeriod);
       res.json({ redirectUrl: null } satisfies SubscribeResponse);
       return;
     }
@@ -136,6 +171,7 @@ billingRouter.post("/subscribe", requireAuth, async (req, res, next) => {
         status: "PENDING",
         billingPeriod,
         quickpaySubscriptionId: String(created.id),
+        pastDueSince: null,
       },
       create: {
         ownerId: userId,
@@ -169,7 +205,7 @@ billingRouter.post("/cancel", requireAuth, async (req, res, next) => {
     const userId = req.session.userId!;
     const sub = await prisma.subscription.upsert({
       where: { ownerId: userId },
-      update: { status: "CANCELED" },
+      update: { status: "CANCELED", pastDueSince: null },
       create: { ownerId: userId, status: "CANCELED" },
     });
     res.json(toDto(sub));
@@ -213,10 +249,34 @@ billingRouter.post("/webhook", async (req, res, next) => {
         data: {
           status: "ACTIVE",
           currentPeriodEnd: new Date(Date.now() + periodDays * 24 * 60 * 60 * 1000),
+          // Recovery — clears any grace window a prior failure started
+          // (spec 9.12). No-op if this was never PAST_DUE (e.g. a fresh
+          // checkout's first successful charge).
+          pastDueSince: null,
         },
       });
+      // sub.tier/billingPeriod are always PARENTS|FAMILY / MONTHLY|ANNUAL
+      // here — this webhook only ever fires for a real QuickPay checkout,
+      // which only ever exists for a paid-tier subscribe (see the
+      // production branch of POST /subscribe above; the FREE branch never
+      // touches QuickPay at all).
+      await sendReceiptEmail(
+        sub.ownerId,
+        sub.tier as "PARENTS" | "FAMILY",
+        sub.billingPeriod as BillingPeriod
+      );
     } else if (body.accepted === false) {
-      await prisma.subscription.update({ where: { id: sub.id }, data: { status: "PAST_DUE" } });
+      // Only stamp pastDueSince the *first* time this subscription enters
+      // PAST_DUE — a webhook retry (or a second failed charge attempt
+      // within the same grace window) must not push the 7-day clock back
+      // out each time it fires.
+      await prisma.subscription.update({
+        where: { id: sub.id },
+        data: { status: "PAST_DUE", pastDueSince: sub.pastDueSince ?? new Date() },
+      });
+      if (!sub.pastDueSince) {
+        await notifyPaymentFailure(sub.ownerId);
+      }
     } else {
       // `accepted` missing/undefined — QuickPay's exact payload shape for
       // this event isn't verified against a real account (see comment

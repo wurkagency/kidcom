@@ -17,6 +17,7 @@
     "build:web": "npm run build --workspace=packages/shared && npm run build --workspace=apps/web",
     "build:api": "npm run build --workspace=packages/shared && npm run build --workspace=apps/api",
     "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
     "prisma:generate": "dotenv -e .env -- npm run generate --workspace=packages/db",
     "prisma:migrate": "dotenv -e .env -- npm run migrate:dev --workspace=packages/db",
     "prisma:studio": "dotenv -e .env -- npm run studio --workspace=packages/db",

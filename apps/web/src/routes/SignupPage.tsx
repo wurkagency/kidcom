@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { PARENT_ROLE_LABELS, type MeResponse, type ParentRole, type SignupRequest } from "@kidcom/shared";
+import type { MeResponse, SignupRequest } from "@kidcom/shared";
 
 import { OnboardingProgress } from "../components/OnboardingProgress";
 import { FormInput } from "../components/FormInput";
@@ -10,6 +10,10 @@ import { useAuth } from "../lib/AuthContext";
 // Matches docs/stitch_splitkid/create_your_account/code.html, except the
 // mockup's single "Full Name" field is split into first/last name here
 // since that's what the API (and the rest of the data model) expects.
+// No "I am the..." picker (spec §1.3, Phase 6) — that question moved to
+// child-creation time (OnboardingChildPage), since it's a relationship to a
+// specific child, not an account-wide attribute; this signup form shouldn't
+// ask it before there's even a child to ask about.
 export function SignupPage() {
   const navigate = useNavigate();
   const { refresh } = useAuth();
@@ -17,13 +21,11 @@ export function SignupPage() {
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [parentRole, setParentRole] = useState<ParentRole | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!parentRole) return;
     setError(null);
     setSubmitting(true);
     try {
@@ -32,7 +34,6 @@ export function SignupPage() {
         password,
         firstName,
         lastName,
-        parentRole,
       } satisfies SignupRequest);
       await refresh();
       navigate("/onboarding/child");
@@ -95,23 +96,6 @@ export function SignupPage() {
             Must be at least 8 characters long.
           </p>
         </div>
-        <div className="flex flex-col gap-2">
-          <span className="font-label-md text-label-md text-text-main ml-1">I am the…</span>
-          <div className="flex p-1 bg-surface-container-high rounded-full w-full">
-            {(Object.keys(PARENT_ROLE_LABELS) as ParentRole[]).map((role) => (
-              <button
-                key={role}
-                type="button"
-                onClick={() => setParentRole(role)}
-                className={`flex-1 py-2 text-center rounded-full font-label-sm text-label-sm transition-colors ${
-                  parentRole === role ? "bg-primary text-on-primary shadow-sm" : "text-on-surface-variant"
-                }`}
-              >
-                {PARENT_ROLE_LABELS[role]}
-              </button>
-            ))}
-          </div>
-        </div>
         {error && (
           <p className="font-body-md text-body-md text-error bg-error-container rounded-lg px-4 py-3">
             {error}
@@ -120,7 +104,7 @@ export function SignupPage() {
         <div className="mt-auto pt-6">
           <button
             type="submit"
-            disabled={submitting || !parentRole}
+            disabled={submitting}
             className="w-full bg-primary text-on-primary font-label-md text-label-md py-4 rounded-full shadow-md active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-60"
           >
             <span>{submitting ? "Creating account…" : "Create Account"}</span>

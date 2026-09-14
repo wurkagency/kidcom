@@ -4,6 +4,7 @@ import type { CreateSwapRequestRequest, SwapRequestDto } from "@kidcom/shared";
 import { prisma } from "../../db";
 import { ApiError } from "../../middleware/errorHandler";
 import { pushQueue } from "../../lib/pushQueue";
+import { requireCapability } from "../../lib/permissions";
 
 // Mounted at /children/:childId/swap-requests. Requests target a computed
 // custody date (see packages/shared/src/custody.ts), not a stored
@@ -45,7 +46,7 @@ swapRequestsRouter.get("/", async (req: Request<ChildParams>, res, next) => {
   }
 });
 
-swapRequestsRouter.post("/", async (req: Request<ChildParams>, res, next) => {
+swapRequestsRouter.post("/", requireCapability("swap_request:create"), async (req: Request<ChildParams>, res, next) => {
   try {
     const body = req.body as Partial<CreateSwapRequestRequest>;
     if (!body.date) {
@@ -83,10 +84,11 @@ swapRequestsRouter.post("/", async (req: Request<ChildParams>, res, next) => {
   }
 });
 
-// Approve/decline — only by a ChildAccess member who isn't the requester
-// (requireChildAccess already confirmed the caller has access to this
-// child; this just excludes them approving their own request).
-swapRequestsRouter.patch("/:id", async (req: Request<ChildRequestParams>, res, next) => {
+// Approve/decline — spec §1.4: PARENT only (FAMILY may request a swap but
+// not approve one). The not-self check below still matters on top of that:
+// a PARENT can't approve their own request just because they also pass the
+// role gate.
+swapRequestsRouter.patch("/:id", requireCapability("swap_request:approve"), async (req: Request<ChildRequestParams>, res, next) => {
   try {
     const existing = await prisma.swapRequest.findFirst({
       where: { id: req.params.id, childId: req.params.childId },

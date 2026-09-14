@@ -11,6 +11,20 @@ import { mediaQueue } from "../../lib/mediaQueue";
 
 export const mediaRouter = Router();
 
+// Permission-matrix note (spec §1.4/9.5, Phase 3): a Caregiver is supposed
+// to get "media: view only", not upload/download-original. Deliberately NOT
+// enforced in this file: `?variant=original` below is overloaded for real
+// video *playback* (a VIDEO asset's derivative is a JPG poster frame, not a
+// playable file — see the comment on that branch), not just a "download
+// the original quality" action. Denying it to a Caregiver would silently
+// break their ability to watch any video at all, which isn't what "view
+// only" means. Upload itself also can't be gated here — a freshly uploaded
+// asset has no child association yet (that only happens once it's attached
+// to a journal post, an avatar, etc.), so there's no ChildAccess row to
+// check against at this point. The practical effect a Caregiver actually
+// needs blocked — they can't attach new media to a post — is already closed
+// by journal.ts's "journal:post" gate.
+
 const MAX_UPLOAD_BYTES = 50 * 1024 * 1024; // 50MB — generous for a phone photo/short clip
 
 const upload = multer({

@@ -3,6 +3,8 @@ import type { CustodyPattern, CustodyPlanDto, SetCustodyPlanRequest } from "@kid
 
 import { prisma } from "../../db";
 import { ApiError } from "../../middleware/errorHandler";
+import { requireCapability } from "../../lib/permissions";
+import { isChildSatisfied, isCustodyPlanLockedPendingParent } from "../../lib/entitlement";
 
 // Mounted at /children/:childId/custody-plan. One active plan per child —
 // PUT replaces it (see chunk 4 plan: no plan-history UI yet).
@@ -36,13 +38,30 @@ custodyPlanRouter.get("/", async (req: Request<ChildParams>, res, next) => {
   }
 });
 
-custodyPlanRouter.put("/", async (req: Request<ChildParams>, res, next) => {
+custodyPlanRouter.put("/", requireCapability("custody_plan:edit"), async (req: Request<ChildParams>, res, next) => {
   try {
-    // Only parents can change the custody schedule — a FAMILY member (e.g. a
-    // grandparent) can view it but shouldn't be able to rewrite it. req.childAccess
-    // is populated by requireChildAccess (see middleware/childAccess.ts).
-    if (req.childAccess?.role !== "PARENT") {
-      throw new ApiError(403, "Only parents can edit the custody schedule");
+    // spec 9.8 — locked once a child has gone 30 days with only one parent
+    // ever having joined, regardless of who's asking (including that sole
+    // parent themselves) — the lock exists specifically so one home can't
+    // unilaterally cement a schedule before the other one is even present.
+    if (await isCustodyPlanLockedPendingParent(req.params.childId)) {
+      throw new ApiError(
+        403,
+        "This child's custody plan is locked until a second parent joins — invite them, or ask support if that's not possible."
+      );
+    }
+
+    // spec §4.2 pt.2 — the safety floor: a PARENT-role member's custody-plan
+    // writes never lapse for billing reasons, on any tier, ever. requireCapability
+    // above already limited this route to PARENT/GUARDIAN; only GUARDIAN is
+    // still subject to the normal entitlement gate (spec §4.2/Phase 9 —
+    // deliberate, load-bearing for closing off a bootstrap guardian squatting
+    // on a child for free).
+    if (req.childAccess?.role !== "PARENT" && !(await isChildSatisfied(req.params.childId))) {
+      throw new ApiError(
+        403,
+        "This child's circle needs a paid plan to keep editing — upgrade to keep everyone's access active."
+      );
     }
 
     const body = req.body as Partial<SetCustodyPlanRequest>;

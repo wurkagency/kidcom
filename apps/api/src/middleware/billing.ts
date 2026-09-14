@@ -19,11 +19,13 @@ export function effectiveTier(subscription: { tier: string; status: string } | n
   return "FREE";
 }
 
-// Blocks mutating requests once a Free-tier account's trial clock has run
-// out. Reads stay open — this matches the PRD's "features automatically
-// limited," not a full lockout. Deliberately per-user, not per-child: see
-// chunk 7 plan notes for why (no Invite->User link exists to scope this
-// more tightly without real added complexity). Must run after requireAuth.
+// No longer mounted anywhere (D3 fix, roles/subscription spec §4.1 — see
+// routes/children/index.ts) — the finalized Free tier is fully usable, so
+// there is nothing left for a per-user trial-expiry gate to correctly
+// block. Left in place, unreferenced, only because Phase 7 of the
+// roles/subscription build order explicitly replaces this with
+// `requireChildEntitlement(childId)` (a real per-child paid-tier gate);
+// delete this function once that lands rather than resurrecting it.
 export async function requireActiveAccess(req: Request, _res: Response, next: NextFunction) {
   try {
     const userId = req.session.userId;

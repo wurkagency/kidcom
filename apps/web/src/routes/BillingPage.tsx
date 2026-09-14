@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import type { BillingPeriod, SubscribeRequest, SubscribeResponse, SubscriptionDto, SubscriptionTier } from "@kidcom/shared";
+import { vatBreakdown } from "@kidcom/shared";
 
 import { Icon } from "../components/Icon";
 import { apiGet, apiPost, ApiRequestError } from "../lib/api";
@@ -310,6 +311,7 @@ function PlanCard({
             {period === "ANNUAL" && savings != null && (
               <span className="font-label-sm text-primary">Saves {savings} kr/yr</span>
             )}
+            {price != null && <VatLine priceKr={price} period={period} />}
           </div>
         </div>
         <button
@@ -340,6 +342,7 @@ function PlanCard({
             {period === "ANNUAL" && savings != null && (
               <span className="font-label-sm text-primary">Saves {savings} kr/yr</span>
             )}
+            {price != null && <VatLine priceKr={price} period={period} />}
           </div>
         </div>
         <button
@@ -375,6 +378,20 @@ function PlanCard({
       </button>
       <FeatureList features={plan.features} iconClass="text-outline-variant" />
     </div>
+  );
+}
+
+// D9 (spec 9.14/§6.3): the price shown elsewhere on this card is already
+// the correct gross, VAT-inclusive figure — this just discloses the rate
+// and the derived net price, per Danish consumer pricing rules (§6.5 pt.1).
+// `priceKr` is converted to øre before calling the shared vatBreakdown()
+// helper so checkout copy and the receipt email round identically.
+function VatLine({ priceKr, period }: { priceKr: number; period: BillingPeriod }) {
+  const vat = vatBreakdown(Math.round(priceKr * 100));
+  return (
+    <span className="font-label-sm text-on-surface-variant">
+      incl. 25% VAT ({(vat.netMinorUnits / 100).toFixed(2)} kr excl. VAT{period === "MONTHLY" ? "/mo" : "/yr"})
+    </span>
   );
 }
 

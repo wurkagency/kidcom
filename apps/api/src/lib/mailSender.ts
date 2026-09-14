@@ -23,6 +23,19 @@ export class ConsoleMailSender implements MailSender {
   }
 }
 
+// In-memory capture used only under `NODE_ENV=test` (see testUtils/setupEnv.ts) —
+// lets integration tests assert on what a route tried to send (e.g. the D9
+// receipt email's VAT breakdown) without a real SMTP server. `sent` grows for
+// the life of the process; tests that care about isolation should slice from
+// the length they observed at the start of the test, not assume it's empty.
+export class MemoryMailSender implements MailSender {
+  sent: { to: string; subject: string; text: string; html?: string }[] = [];
+
+  async send(message: { to: string; subject: string; text: string; html?: string }): Promise<void> {
+    this.sent.push(message);
+  }
+}
+
 export class SmtpMailSender implements MailSender {
   private transport: ReturnType<typeof nodemailer.createTransport>;
 
@@ -50,9 +63,12 @@ export class SmtpMailSender implements MailSender {
   }
 }
 
-export const mailSender: MailSender = config.smtpHost
-  ? new SmtpMailSender(config.smtpHost, config.smtpPort, config.smtpUser, config.smtpPass)
-  : new ConsoleMailSender();
+export const mailSender: MailSender =
+  config.nodeEnv === "test"
+    ? new MemoryMailSender()
+    : config.smtpHost
+      ? new SmtpMailSender(config.smtpHost, config.smtpPort, config.smtpUser, config.smtpPass)
+      : new ConsoleMailSender();
 
 // Small shared helper for the two real HTML templates (emailTemplates/*) —
 // wraps the raw brand SVG mark used in both mockups so it's defined once.

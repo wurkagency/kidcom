@@ -7,6 +7,7 @@ import type {
 
 import { prisma } from "../../db";
 import { ApiError } from "../../middleware/errorHandler";
+import { canViewMedicalInfo, requireCapability } from "../../lib/permissions";
 
 // Mounted at /children/:childId/medical-info — mergeParams so req.params.childId
 // is visible here even though this router is defined in its own file.
@@ -36,6 +37,12 @@ function toDto(row: {
 
 medicalInfoRouter.get("/", async (req: Request<ChildParams>, res, next) => {
   try {
+    // spec §1.4: PARENT always; FAMILY/Caregiver only with the per-member
+    // opt-in a parent grants (special-category data about a minor, GDPR
+    // Art. 9 — default-off, not inherited from general child access).
+    if (!req.childAccess || !canViewMedicalInfo(req.childAccess)) {
+      throw new ApiError(403, "You don't have permission to view medical info for this child");
+    }
     const rows = await prisma.medicalInfo.findMany({
       where: { childId: req.params.childId },
       orderBy: { createdAt: "asc" },
@@ -46,7 +53,7 @@ medicalInfoRouter.get("/", async (req: Request<ChildParams>, res, next) => {
   }
 });
 
-medicalInfoRouter.post("/", async (req: Request<ChildParams>, res, next) => {
+medicalInfoRouter.post("/", requireCapability("medical_info:edit"), async (req: Request<ChildParams>, res, next) => {
   try {
     const body = req.body as Partial<CreateMedicalInfoRequest>;
     if (!body.category || !body.condition) {
@@ -67,7 +74,7 @@ medicalInfoRouter.post("/", async (req: Request<ChildParams>, res, next) => {
   }
 });
 
-medicalInfoRouter.patch("/:id", async (req: Request<ChildEntryParams>, res, next) => {
+medicalInfoRouter.patch("/:id", requireCapability("medical_info:edit"), async (req: Request<ChildEntryParams>, res, next) => {
   try {
     const body = req.body as UpdateMedicalInfoRequest;
     const existing = await prisma.medicalInfo.findFirst({
@@ -90,7 +97,7 @@ medicalInfoRouter.patch("/:id", async (req: Request<ChildEntryParams>, res, next
   }
 });
 
-medicalInfoRouter.delete("/:id", async (req: Request<ChildEntryParams>, res, next) => {
+medicalInfoRouter.delete("/:id", requireCapability("medical_info:edit"), async (req: Request<ChildEntryParams>, res, next) => {
   try {
     const existing = await prisma.medicalInfo.findFirst({
       where: { id: req.params.id, childId: req.params.childId },

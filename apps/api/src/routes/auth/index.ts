@@ -4,7 +4,6 @@ import bcrypt from "bcryptjs";
 import type {
   LoginRequest,
   MeResponse,
-  ParentRole,
   PublicUser,
   SignupRequest,
   TwoFactorRequiredResponse,
@@ -14,6 +13,7 @@ import type {
 import { isValidEmail } from "@kidcom/shared";
 
 import { prisma } from "../../db";
+import { config } from "../../config";
 import { ApiError } from "../../middleware/errorHandler";
 import { hashVerificationToken, sendVerificationEmail } from "../../lib/emailVerification";
 import { TWO_FACTOR_MAX_ATTEMPTS, hashTwoFactorCode, sendLoginTwoFactorCode } from "../../lib/twoFactor";
@@ -21,7 +21,10 @@ import { TWO_FACTOR_MAX_ATTEMPTS, hashTwoFactorCode, sendLoginTwoFactorCode } fr
 export const authRouter = Router();
 
 const SALT_ROUNDS = 10;
-const PARENT_ROLES: ParentRole[] = ["FATHER", "MOTHER", "PARENT"];
+// I-2 (spec §2.2/§4.3) — the one-time per-user trial window, granted at
+// account creation. Same 30-day figure invites/index.ts already used for
+// the (now legacy-for-entitlement) Subscription-level trial.
+const THIRTY_DAYS_MS = 1000 * 60 * 60 * 24 * 30;
 
 // Basic per-IP throttling on the endpoints most attractive to abuse
 // (credential stuffing on /login, signup spam, and verification-email
@@ -34,6 +37,13 @@ const authRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many attempts — please try again later." },
+  // The integration test suite creates many real accounts per run (every
+  // test that needs an authenticated caller signs one up — see
+  // testUtils/auth.ts) from what express-rate-limit sees as a single
+  // "IP" (supertest never leaves the process), which would otherwise trip
+  // this within one `vitest run`. Real per-IP abuse protection stays on
+  // everywhere else.
+  skip: () => config.nodeEnv === "test",
 });
 
 function toPublicUser(user: {
@@ -42,7 +52,6 @@ function toPublicUser(user: {
   firstName: string;
   lastName: string;
   avatarUrl: string | null;
-  parentRole: ParentRole;
   emailVerifiedAt: Date | null;
 }): PublicUser {
   return {
@@ -51,7 +60,6 @@ function toPublicUser(user: {
     firstName: user.firstName,
     lastName: user.lastName,
     avatarUrl: user.avatarUrl,
-    parentRole: user.parentRole,
     emailVerifiedAt: user.emailVerifiedAt ? user.emailVerifiedAt.toISOString() : null,
   };
 }
@@ -60,19 +68,16 @@ authRouter.post("/signup", authRateLimiter, async (req, res, next) => {
   try {
     const body = req.body as Partial<SignupRequest>;
     const email = body.email?.trim().toLowerCase();
-    const { password, firstName, lastName, parentRole } = body;
+    const { password, firstName, lastName } = body;
 
-    if (!email || !password || !firstName || !lastName || !parentRole) {
-      throw new ApiError(400, "email, password, firstName, lastName, and parentRole are required");
+    if (!email || !password || !firstName || !lastName) {
+      throw new ApiError(400, "email, password, firstName, and lastName are required");
     }
     if (!isValidEmail(email)) {
       throw new ApiError(400, "Please enter a valid email address");
     }
     if (password.length < 8) {
       throw new ApiError(400, "Password must be at least 8 characters long");
-    }
-    if (!PARENT_ROLES.includes(parentRole)) {
-      throw new ApiError(400, "parentRole must be one of FATHER, MOTHER, PARENT");
     }
 
     const existing = await prisma.user.findUnique({ where: { email } });
@@ -83,12 +88,26 @@ authRouter.post("/signup", authRateLimiter, async (req, res, next) => {
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
     // Every new account starts on the Free tier (PRD pricing section) —
-    // status ACTIVE and trialEndsAt: null since an organic Free signup
-    // never expires (contrast with invites/index.ts, where an invited
-    // user's Free account gets a 30-day trial clock).
+    // status ACTIVE and Subscription.trialEndsAt: null, since an organic
+    // Free signup's *subscription* never expires (spec §4.1's permanent
+    // Free tier — contrast with invites/index.ts, where an invited user's
+    // Subscription itself starts TRIALING). Separately, I-2 (spec §2.2/
+    // §4.3) grants every new account — organic or invited alike — its own
+    // one-time 30-day User-level trial (User.trialStartedAt/trialEndsAt),
+    // which is what lets this person's own coverage temporarily reach
+    // FAMILY-tier requirements (a 2nd child, extended family, etc.) before
+    // anyone needs to actually pay — see packages/shared/src/entitlement.ts.
+    const now = new Date();
     const user = await prisma.$transaction(async (tx) => {
       const created = await tx.user.create({
-        data: { email, passwordHash, firstName, lastName, parentRole },
+        data: {
+          email,
+          passwordHash,
+          firstName,
+          lastName,
+          trialStartedAt: now,
+          trialEndsAt: new Date(now.getTime() + THIRTY_DAYS_MS),
+        },
       });
       await tx.subscription.create({
         data: { ownerId: created.id, tier: "FREE", status: "ACTIVE", trialEndsAt: null },
@@ -299,15 +318,14 @@ authRouter.patch("/me", async (req, res, next) => {
       throw new ApiError(401, "Not signed in");
     }
     const body = req.body as Partial<UpdateProfileRequest>;
-    const { avatarMediaAssetId, firstName, lastName, parentRole } = body;
+    const { avatarMediaAssetId, firstName, lastName } = body;
     const email = body.email?.trim().toLowerCase();
 
     if (
       avatarMediaAssetId === undefined &&
       firstName === undefined &&
       lastName === undefined &&
-      email === undefined &&
-      parentRole === undefined
+      email === undefined
     ) {
       throw new ApiError(400, "Nothing to update");
     }
@@ -319,9 +337,6 @@ authRouter.patch("/me", async (req, res, next) => {
     }
     if (email !== undefined && !isValidEmail(email)) {
       throw new ApiError(400, "Please enter a valid email address");
-    }
-    if (parentRole !== undefined && !PARENT_ROLES.includes(parentRole)) {
-      throw new ApiError(400, "parentRole must be one of FATHER, MOTHER, PARENT");
     }
 
     let avatarAsset: { id: string; ownerId: string } | null = null;
@@ -361,7 +376,6 @@ authRouter.patch("/me", async (req, res, next) => {
           ...(avatarMediaAssetId !== undefined ? { avatarUrl: avatarMediaAssetId } : {}),
           ...(firstName !== undefined ? { firstName } : {}),
           ...(lastName !== undefined ? { lastName } : {}),
-          ...(parentRole !== undefined ? { parentRole } : {}),
           ...(emailChanged ? { email, emailVerifiedAt: null } : {}),
         },
       });

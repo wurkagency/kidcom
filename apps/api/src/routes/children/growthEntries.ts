@@ -3,6 +3,7 @@ import type { CreateGrowthEntryRequest, GrowthEntryDto, UpdateGrowthEntryRequest
 
 import { prisma } from "../../db";
 import { ApiError } from "../../middleware/errorHandler";
+import { requireCapability } from "../../lib/permissions";
 
 // Mounted at /children/:childId/growth-entries.
 export const growthEntriesRouter = Router({ mergeParams: true });
@@ -56,7 +57,7 @@ growthEntriesRouter.get("/", async (req: Request<ChildParams>, res, next) => {
   }
 });
 
-growthEntriesRouter.post("/", async (req: Request<ChildParams>, res, next) => {
+growthEntriesRouter.post("/", requireCapability("growth_entry:manage"), async (req: Request<ChildParams>, res, next) => {
   try {
     const body = req.body as Partial<CreateGrowthEntryRequest>;
     if (!body.measuredAt || (body.heightCm === undefined && body.weightKg === undefined)) {
@@ -80,7 +81,7 @@ growthEntriesRouter.post("/", async (req: Request<ChildParams>, res, next) => {
   }
 });
 
-growthEntriesRouter.patch("/:id", async (req: Request<ChildEntryParams>, res, next) => {
+growthEntriesRouter.patch("/:id", requireCapability("growth_entry:manage"), async (req: Request<ChildEntryParams>, res, next) => {
   try {
     const body = req.body as UpdateGrowthEntryRequest;
     const existing = await prisma.growthEntry.findFirst({
@@ -106,7 +107,7 @@ growthEntriesRouter.patch("/:id", async (req: Request<ChildEntryParams>, res, ne
   }
 });
 
-growthEntriesRouter.delete("/:id", async (req: Request<ChildEntryParams>, res, next) => {
+growthEntriesRouter.delete("/:id", requireCapability("growth_entry:manage"), async (req: Request<ChildEntryParams>, res, next) => {
   try {
     const existing = await prisma.growthEntry.findFirst({
       where: { id: req.params.id, childId: req.params.childId },

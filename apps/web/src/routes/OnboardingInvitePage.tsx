@@ -1,10 +1,11 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
-  FAMILY_MEMBER_TYPE_LABELS,
+  RELATIONSHIP_TYPE_LABELS,
+  relationshipTypeToRole,
   type CreateInviteRequest,
   type CreateInviteResponse,
-  type FamilyMemberType,
+  type RelationshipType,
 } from "@kidcom/shared";
 
 import { Icon } from "../components/Icon";
@@ -12,13 +13,31 @@ import { OnboardingSegments } from "../components/OnboardingSegments";
 import { apiPost, ApiRequestError } from "../lib/api";
 import { useAuth } from "../lib/AuthContext";
 
-const FAMILY_MEMBER_TYPE_OPTIONS: FamilyMemberType[] = [
-  "CO_PARENT",
-  "GRANDPARENT",
-  "AUNT_UNCLE",
-  "SIBLING",
+// Full spec §1.2 taxonomy (Phase 5) — grouped for the dropdown rather than
+// alphabetical, since "which section is this in" is more useful here than
+// strict ordering. FATHER/MOTHER/PARENT default to the top since a co-parent
+// invite is the single most common case (spec §6.1's whole growth model).
+const RELATIONSHIP_TYPE_OPTIONS: RelationshipType[] = [
+  "FATHER",
+  "MOTHER",
+  "PARENT",
+  "STEP_FATHER",
+  "STEP_MOTHER",
+  "FOSTER_FATHER",
+  "FOSTER_MOTHER",
+  "GUARDIAN",
+  "GRANDFATHER_PAT",
+  "GRANDFATHER_MAT",
+  "GRANDMOTHER_PAT",
+  "GRANDMOTHER_MAT",
+  "UNCLE",
+  "AUNT",
   "CAREGIVER",
   "OTHER",
+  // BROTHER/SISTER deliberately excluded — spec 9.16 treats a sibling as a
+  // parent-created minor account, not something invited by email like every
+  // other row here (that flag/flow is Phase 10, but offering it as a normal
+  // email invite now would be the wrong default in the meantime).
 ];
 
 // Matches docs/stitch_splitkid/invite_co_parent/code.html. Delivery is
@@ -31,16 +50,16 @@ const FAMILY_MEMBER_TYPE_OPTIONS: FamilyMemberType[] = [
 //
 // One invite UI for both flows: onboarding (no query params — defaults to
 // the first child) and the child profile's "Invite Family" button
-// (?childId=...). The relationship — Co-Parent, Grandparent, etc. — is
-// picked here rather than baked into which button was clicked; only
-// CO_PARENT grants PARENT-level access (see familyMemberTypeToRole in
-// packages/shared), computed server-side so the client can't spoof it.
+// (?childId=...). The relationship — Dad, Grandmother, etc. — is picked
+// here rather than baked into which button was clicked; only relationships
+// that resolve to PARENT (relationshipTypeToRole in packages/shared) grant
+// full co-parent access, computed server-side so the client can't spoof it.
 export function OnboardingInvitePage() {
   const navigate = useNavigate();
   const { children } = useAuth();
   const [searchParams] = useSearchParams();
   const [email, setEmail] = useState("");
-  const [familyMemberType, setFamilyMemberType] = useState<FamilyMemberType>("CO_PARENT");
+  const [relationship, setRelationship] = useState<RelationshipType>("PARENT");
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -73,7 +92,7 @@ export function OnboardingInvitePage() {
       const res = await apiPost<CreateInviteResponse>("/invites", {
         childId,
         email,
-        familyMemberType,
+        relationship,
       } satisfies CreateInviteRequest);
       setSent(true);
       setEmail("");
@@ -160,22 +179,28 @@ export function OnboardingInvitePage() {
                 <Icon name="family_restroom" className="text-outline pl-4 absolute left-0" />
                 <select
                   id="family-member-type"
-                  value={familyMemberType}
-                  onChange={(e) => setFamilyMemberType(e.target.value as FamilyMemberType)}
+                  value={relationship}
+                  onChange={(e) => setRelationship(e.target.value as RelationshipType)}
                   className="w-full appearance-none bg-surface-container-lowest text-on-surface font-body-md text-body-md py-4 pl-12 pr-10 rounded-xl outline-none focus:ring-2 focus:ring-primary/30 transition-all"
                 >
-                  {FAMILY_MEMBER_TYPE_OPTIONS.map((type) => (
+                  {RELATIONSHIP_TYPE_OPTIONS.map((type) => (
                     <option key={type} value={type}>
-                      {FAMILY_MEMBER_TYPE_LABELS[type]}
+                      {RELATIONSHIP_TYPE_LABELS[type]}
                     </option>
                   ))}
                 </select>
                 <Icon name="expand_more" className="text-outline pr-4 absolute right-0" />
               </div>
-              {familyMemberType === "CO_PARENT" && (
+              {relationshipTypeToRole(relationship) === "PARENT" && (
                 <p className="font-body-sm text-body-sm text-on-surface-variant mt-2 px-1">
-                  Co-Parent gets full access: custody schedule, swap requests, and everything else you
+                  A co-parent gets full access: custody schedule, swap requests, and everything else you
                   can do.
+                </p>
+              )}
+              {relationshipTypeToRole(relationship) === "GUARDIAN" && (
+                <p className="font-body-sm text-body-sm text-on-surface-variant mt-2 px-1">
+                  A guardian gets full access to {childName}'s record — custody schedule and medical
+                  info included — but can't invite or remove a parent.
                 </p>
               )}
             </div>

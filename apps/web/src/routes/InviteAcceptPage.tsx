@@ -1,12 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import {
-  PARENT_ROLE_LABELS,
-  type AcceptInviteRequest,
-  type InvitePreviewResponse,
-  type MeResponse,
-  type ParentRole,
-} from "@kidcom/shared";
+import { RELATIONSHIP_TYPE_LABELS, type AcceptInviteRequest, type InvitePreviewResponse, type MeResponse } from "@kidcom/shared";
 
 import { FormInput } from "../components/FormInput";
 import { apiFetch, apiGet, apiPost, ApiRequestError } from "../lib/api";
@@ -30,7 +24,6 @@ export function InviteAcceptPage() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [password, setPassword] = useState("");
-  const [parentRole, setParentRole] = useState<ParentRole | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -51,7 +44,7 @@ export function InviteAcceptPage() {
 
   async function handleCreateAccount(e: FormEvent) {
     e.preventDefault();
-    if (!token || !parentRole) return;
+    if (!token) return;
     setError(null);
     setSubmitting(true);
     try {
@@ -59,7 +52,6 @@ export function InviteAcceptPage() {
         firstName,
         lastName,
         password,
-        parentRole,
       } satisfies AcceptInviteRequest);
       await refresh();
       navigate("/");
@@ -220,7 +212,9 @@ export function InviteAcceptPage() {
       <div className="px-container-padding pt-10 pb-4">
         <h1 className="font-headline-lg text-headline-lg text-primary">You're invited to KidCom</h1>
         <p className="font-body-md text-body-md text-on-surface-variant mt-2">
-          Create your account to accept — you'll get a 30-day free trial.
+          Create your account to accept
+          {preview.relationship ? ` as ${RELATIONSHIP_TYPE_LABELS[preview.relationship]}` : ""} — you'll get a
+          30-day free trial.
         </p>
       </div>
       <form
@@ -262,23 +256,6 @@ export function InviteAcceptPage() {
             Must be at least 8 characters long.
           </p>
         </div>
-        <div className="flex flex-col gap-2">
-          <span className="font-label-md text-label-md text-text-main ml-1">I am the…</span>
-          <div className="flex p-1 bg-surface-container-high rounded-full w-full">
-            {(Object.keys(PARENT_ROLE_LABELS) as ParentRole[]).map((role) => (
-              <button
-                key={role}
-                type="button"
-                onClick={() => setParentRole(role)}
-                className={`flex-1 py-2 text-center rounded-full font-label-sm text-label-sm transition-colors ${
-                  parentRole === role ? "bg-primary text-on-primary shadow-sm" : "text-on-surface-variant"
-                }`}
-              >
-                {PARENT_ROLE_LABELS[role]}
-              </button>
-            ))}
-          </div>
-        </div>
         {error && (
           <p className="font-body-md text-body-md text-error bg-error-container rounded-lg px-4 py-3">
             {error}
@@ -287,7 +264,7 @@ export function InviteAcceptPage() {
         <div className="mt-auto pt-6">
           <button
             type="submit"
-            disabled={submitting || !parentRole}
+            disabled={submitting}
             className="w-full bg-primary text-on-primary font-label-md text-label-md py-4 rounded-full shadow-md active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-60"
           >
             {submitting ? "Joining…" : "Accept invite"}

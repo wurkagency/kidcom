@@ -18,6 +18,9 @@ export {
 } from "./custody";
 import type { CustodyPattern } from "./custody";
 
+export type { ChildMember, OwnerEntitlementData } from "./entitlement";
+export { tierAtLeast, requiredTier, effectiveCoverageTier, isSatisfied, satisfyingOwnerIds } from "./entitlement";
+
 export type ApiHealthResponse = {
   status: "ok";
   timestamp: string;
@@ -27,24 +30,19 @@ export type ApiHealthResponse = {
 // Auth
 // ---------------------------------------------------------------------------
 
-// A parent's own self-identified role — separate from FamilyMemberType
-// below, which describes a relationship to a specific child rather than an
-// intrinsic account attribute. PARENT is the neutral third option.
-export type ParentRole = "FATHER" | "MOTHER" | "PARENT";
-
-export const PARENT_ROLE_LABELS: Record<ParentRole, string> = {
-  FATHER: "Father",
-  MOTHER: "Mother",
-  PARENT: "Parent",
-};
-
+// Phase 6 (spec §1.3): the account-level "am I a father/mother/parent"
+// question is gone — ParentRole was migrated into ChildAccess.relationship
+// (Phase 5) and this column dropped. There is no longer an account-wide
+// answer to that question; it's asked (and answered) per child, at
+// child-creation time (CreateChildRequest.relationship below) or via an
+// invite's relationship — never on the profile screen for an account with
+// no children yet, matching spec §1.3's recommendation exactly.
 export type PublicUser = {
   id: string;
   email: string;
   firstName: string;
   lastName: string;
   avatarUrl: string | null;
-  parentRole: ParentRole;
   emailVerifiedAt: string | null;
 };
 
@@ -53,7 +51,6 @@ export type SignupRequest = {
   password: string;
   firstName: string;
   lastName: string;
-  parentRole: ParentRole;
 };
 
 export type LoginRequest = {
@@ -74,7 +71,6 @@ export type UpdateProfileRequest = {
   lastName?: string;
   email?: string;
   avatarMediaAssetId?: string;
-  parentRole?: ParentRole;
 };
 
 // Returned by POST /auth/login once the password check passes — a real
@@ -123,6 +119,34 @@ export type CreateChildRequest = {
   birthday: string;
   clothingSize?: string;
   shoeSize?: string;
+  // The creator's own relationship to this child (spec §1.3). Any
+  // RelationshipType is accepted (Phase 9, spec §1.4b) — a parent-shaped
+  // value (FATHER/MOTHER/PARENT) grants role PARENT as before; anything
+  // else grants a bootstrap GUARDIAN grant (never role FAMILY, so the
+  // creator's own trial/subscription can still cover the child — spec
+  // §1.4b/§2.2b). Omitted defaults to the neutral PARENT.
+  relationship?: RelationshipType;
+  // Required (name, plus email and/or phone) only when `relationship`
+  // resolves to a bootstrap GUARDIAN grant — spec §2.2b's "capture a parent
+  // contact at creation, as a required step." At least one of email/phone
+  // must be given, or `wantsClaimLink: true` as the explicit fallback for
+  // when neither is on hand (spec §2.2b point 3).
+  parentContact?: {
+    name: string;
+    email?: string;
+    phone?: string;
+    wantsClaimLink?: boolean;
+  };
+};
+
+// POST /children's response — ChildSummary, plus (only for a bootstrap
+// GUARDIAN grant) what happened with the required parent-contact capture:
+// an email invite was sent, or a shareable claim-link is ready to copy.
+export type CreateChildResponse = ChildSummary & {
+  parentInvite?: {
+    token: string;
+    emailSent: boolean;
+  };
 };
 
 export type UpdateChildRequest = Partial<{
@@ -153,15 +177,16 @@ export type ChildFamilyMember = {
   lastName: string;
   avatarUrl: string | null;
   role: AccessRole;
-  // Null for the account owner (never went through an invite) and for any
-  // access granted before this field existed.
-  familyMemberType: FamilyMemberType | null;
-  // The member's self-identified parent role (see ParentRole above) —
-  // powers real "Dad's Time"/"Mom's Time" custody labeling on the calendar
-  // instead of positional/generic labels. Null only for pre-ParentRole
-  // rows that predate a client migration having run (not expected in
-  // practice, since the column defaults to PARENT).
-  parentRole: ParentRole | null;
+  // Always set now (spec §1.3, Phase 5) — the account owner's own
+  // relationship is self-declared at child-creation time, not left null.
+  // Also what powers "Dad's Time"/"Mom's Time" custody labeling on the
+  // calendar (apps/web/src/lib/parentLabel.ts) — per-child correct, since a
+  // person can be Dad to one child and Uncle to another.
+  relationship: RelationshipType;
+  // Phase 10 (spec 9.16) — true only for a sibling account a parent created
+  // directly (POST /children/:childId/family/minor), never for anyone
+  // invited by email. Lets the UI show the reduced-access badge/explanation.
+  isMinorMember: boolean;
 };
 
 // ---------------------------------------------------------------------------
@@ -274,32 +299,94 @@ export type UpdateScheduleOccurrenceRequest = {
 // Invites
 // ---------------------------------------------------------------------------
 
-export type AccessRole = "PARENT" | "FAMILY";
+export type AccessRole = "PARENT" | "GUARDIAN" | "FAMILY";
 
-// The relationship shown in the UI — separate from AccessRole, which only
-// controls permissions. CO_PARENT is the only type that grants PARENT
-// access; every other type is FAMILY access. Server-side is the source of
-// truth for this mapping (see familyMemberTypeToRole below) — the client
-// never sends an AccessRole directly when creating an invite.
-export type FamilyMemberType = "CO_PARENT" | "GRANDPARENT" | "AUNT_UNCLE" | "SIBLING" | "CAREGIVER" | "OTHER";
+// The relationship shown in the UI ("Grandmother", "Dad", ...) — separate
+// from AccessRole, which only controls permissions. Replaces
+// FamilyMemberType (spec §1.3/§8, Phase 5). Server-side is the source of
+// truth for the relationship -> role mapping (see relationshipTypeToRole
+// below) — the client never sends an AccessRole directly when creating an
+// invite. CO_PARENT is gone (spec §1.2) — it was a position relative to the
+// other adult, not a relationship to the child; inviting a co-parent now
+// means inviting someone as FATHER/MOTHER/PARENT directly.
+export type RelationshipType =
+  | "FATHER"
+  | "MOTHER"
+  | "PARENT"
+  | "STEP_FATHER"
+  | "STEP_MOTHER"
+  | "FOSTER_FATHER"
+  | "FOSTER_MOTHER"
+  | "GUARDIAN"
+  | "GRANDFATHER_PAT"
+  | "GRANDFATHER_MAT"
+  | "GRANDMOTHER_PAT"
+  | "GRANDMOTHER_MAT"
+  | "UNCLE"
+  | "AUNT"
+  | "BROTHER"
+  | "SISTER"
+  | "CAREGIVER"
+  | "OTHER";
 
-export const FAMILY_MEMBER_TYPE_LABELS: Record<FamilyMemberType, string> = {
-  CO_PARENT: "Co-Parent",
-  GRANDPARENT: "Grandparent",
-  AUNT_UNCLE: "Aunt / Uncle",
-  SIBLING: "Sibling",
+// Warm register throughout (spec 9.2), except Grandfather/Grandmother which
+// stay formal per 9.15 (not side-specific in English — farmor/mormor and
+// farfar/morfar are distinguished by the *value* self-declared at invite
+// time, spec §1.2 note 5, not by a different printed word).
+export const RELATIONSHIP_TYPE_LABELS: Record<RelationshipType, string> = {
+  FATHER: "Dad",
+  MOTHER: "Mom",
+  PARENT: "Parent",
+  STEP_FATHER: "Step-Dad",
+  STEP_MOTHER: "Step-Mom",
+  FOSTER_FATHER: "Foster Dad",
+  FOSTER_MOTHER: "Foster Mom",
+  GUARDIAN: "Guardian",
+  GRANDFATHER_PAT: "Grandfather",
+  GRANDFATHER_MAT: "Grandfather",
+  GRANDMOTHER_PAT: "Grandmother",
+  GRANDMOTHER_MAT: "Grandmother",
+  UNCLE: "Uncle",
+  AUNT: "Aunt",
+  BROTHER: "Brother",
+  SISTER: "Sister",
   CAREGIVER: "Caregiver",
-  OTHER: "Other Family Member",
+  OTHER: "Family member",
 };
 
-export function familyMemberTypeToRole(type: FamilyMemberType): AccessRole {
-  return type === "CO_PARENT" ? "PARENT" : "FAMILY";
+// Every known value, derived from the labels map so the two can never drift
+// apart — used for request validation (invites/index.ts, children/index.ts)
+// and the invite-relationship picker (OnboardingInvitePage.tsx).
+export const ALL_RELATIONSHIP_TYPES = Object.keys(RELATIONSHIP_TYPE_LABELS) as RelationshipType[];
+
+// spec §1.4b — a parent-shaped self-declaration (FATHER/MOTHER/PARENT) is
+// the one case where a *creator's own* bootstrap grant gets role PARENT;
+// every other relationship gets role GUARDIAN instead (see
+// children/index.ts's POST / — deliberately not routed through
+// relationshipTypeToRole, which answers a different question: what role an
+// *invitee* onto an existing child gets).
+export function isParentShapedRelationship(relationship: RelationshipType): boolean {
+  return relationship === "FATHER" || relationship === "MOTHER" || relationship === "PARENT";
+}
+
+// spec §1.2/§1.4b: FATHER/MOTHER/PARENT -> PARENT; STEP_*/FOSTER_*/GUARDIAN
+// -> GUARDIAN (9.17/9.17a); everything else -> FAMILY. This is the mapping
+// used when an *existing* child gains a new member via invite — the
+// creator-bootstrap case (spec §1.4b/§2.2b, Phase 9) is a deliberately
+// different code path with a different output for the same input
+// relationship, and must never call this function.
+export function relationshipTypeToRole(type: RelationshipType): AccessRole {
+  if (type === "FATHER" || type === "MOTHER" || type === "PARENT") return "PARENT";
+  if (type === "STEP_FATHER" || type === "STEP_MOTHER" || type === "FOSTER_FATHER" || type === "FOSTER_MOTHER" || type === "GUARDIAN") {
+    return "GUARDIAN";
+  }
+  return "FAMILY";
 }
 
 export type CreateInviteRequest = {
   childId: string;
   email: string;
-  familyMemberType: FamilyMemberType;
+  relationship: RelationshipType;
 };
 
 export type CreateInviteResponse = {
@@ -311,9 +398,16 @@ export type AcceptInviteRequest = {
   firstName: string;
   lastName: string;
   password: string;
-  // Self-selected by the invitee (not pre-assigned by the inviter) —
-  // required, same as firstName/lastName/password above.
-  parentRole: ParentRole;
+  // No parentRole field (Phase 6) — the invitee's relationship to the
+  // child was already fixed by whoever sent the invite (Invite.relationship,
+  // set at CreateInviteRequest time), not something the invitee re-declares
+  // for themselves here.
+  // Required only for a shareable claim-link (spec §2.2b point 3) — an
+  // invite created with no email on file (Invite.email null), shared over
+  // whatever channel is convenient rather than sent by KidCom itself. A
+  // normal invite ignores this field (the account is created for
+  // Invite.email, not whatever the acceptor types here).
+  email?: string;
 };
 
 // GET /invites/:token — lets the accept page branch on the invite's state
@@ -327,7 +421,7 @@ export type InvitePreviewResponse = {
   childName: string | null;
   inviterName: string | null;
   userExists: boolean;
-  familyMemberType: FamilyMemberType | null;
+  relationship: RelationshipType | null;
 };
 
 // ---------------------------------------------------------------------------
@@ -672,6 +766,37 @@ export type SubscriptionTier = "FREE" | "PARENTS" | "FAMILY";
 export type SubscriptionStatus = "TRIALING" | "PENDING" | "ACTIVE" | "PAST_DUE" | "CANCELED";
 export type BillingPeriod = "MONTHLY" | "ANNUAL";
 
+// Danish consumer VAT rate. The prices KidCom charges (BILLING_PRICES_ORE in
+// apps/api/src/lib/billingPricing.ts, and PLANS in BillingPage.tsx) are
+// already gross/VAT-inclusive — confirmed as the correct, legally-required
+// consumer-facing figure (spec 9.14). This is only for *displaying* the
+// breakdown at checkout and on the receipt email (D9) — it never changes
+// what's charged.
+export const VAT_RATE = 0.25;
+
+export type VatBreakdown = {
+  grossMinorUnits: number;
+  netMinorUnits: number;
+  vatMinorUnits: number;
+  vatRatePercent: number;
+};
+
+// Single source of truth for gross -> net/VAT math, so checkout copy and the
+// receipt email can never drift apart on rounding. Operates in whatever
+// minor unit is passed in (øre for the API's BILLING_PRICES_ORE; the web
+// app converts its DKK display prices to øre before calling this, and back
+// to DKK for display) — rounds once, at the net figure, matching how a real
+// Danish faktura derives net from a VAT-inclusive gross price.
+export function vatBreakdown(grossMinorUnits: number): VatBreakdown {
+  const netMinorUnits = Math.round(grossMinorUnits / (1 + VAT_RATE));
+  return {
+    grossMinorUnits,
+    netMinorUnits,
+    vatMinorUnits: grossMinorUnits - netMinorUnits,
+    vatRatePercent: VAT_RATE * 100,
+  };
+}
+
 export type SubscriptionDto = {
   tier: SubscriptionTier;
   status: SubscriptionStatus;
@@ -733,4 +858,82 @@ export type UpdateNotificationPreferencesRequest = Partial<NotificationPreferenc
 
 export type VapidPublicKeyResponse = {
   publicKey: string;
+};
+
+// ---------------------------------------------------------------------------
+// Entitlement / upgrade requests (Phase 8, spec §2.3/§4.2)
+// ---------------------------------------------------------------------------
+
+// GET /children/:childId/coverage — the "take over this subscription" offer
+// surface (spec §4.2 pt.4). requiredTier/satisfied mirror
+// packages/shared/src/entitlement.ts's formula; inGraceWindow is true only
+// while the child is satisfied *solely* because a covering subscription is
+// inside its 7-day payment-failure grace window (spec 9.12) — the "about to
+// lapse" signal a take-over prompt should key off, before it actually does.
+export type ChildCoverageStatus = {
+  satisfied: boolean;
+  requiredTier: SubscriptionTier;
+  inGraceWindow: boolean;
+  // Every PARENT-role member whose own coverage currently satisfies the
+  // child — i.e. who a "someone else, please take over" prompt should NOT
+  // be shown to (they're already covering it).
+  satisfyingParentIds: string[];
+};
+
+export type UpgradeRequestStatus = "PENDING" | "RESOLVED" | "DISMISSED";
+
+export type UpgradeRequestDto = {
+  id: string;
+  requestedById: string;
+  requestedByName: string;
+  requiredTier: SubscriptionTier;
+  status: UpgradeRequestStatus;
+  createdAt: string;
+};
+
+export type CreateUpgradeRequestResponse = UpgradeRequestDto;
+
+// ---------------------------------------------------------------------------
+// Soft delete / minor member (Phase 10, spec 9.21/9.16)
+// ---------------------------------------------------------------------------
+
+// GET/POST .../delete-request — the all-PARENT-confirm (GUARDIAN-fallback-
+// if-none) workflow, spec 9.21/§1.4a.4. `requiredUserIds` is always the
+// *current* live set (recomputed server-side on every read/write, never a
+// snapshot from when the request was opened) so a member who joins or
+// leaves mid-request is picked up correctly. `null` means no request is
+// currently pending for this child.
+export type ChildDeletionRequestDto = {
+  requestedById: string;
+  requiredUserIds: string[];
+  confirmedUserIds: string[];
+  createdAt: string;
+} | null;
+
+// POST .../delete-request or .../delete-request/confirm — same shape as the
+// GET above, plus whether this call was the one that pushed confirmations
+// over the required set and actually executed the soft delete.
+export type ChildDeletionActionResponse = {
+  request: ChildDeletionRequestDto;
+  executed: boolean;
+};
+
+// spec 9.16 — a sibling's own account, created directly by a parent rather
+// than through the normal email-invite flow (a minor shouldn't need their
+// own inbox to be added, and BROTHER/SISTER are refused at POST /invites
+// for exactly this reason — see that route). No password: the parent is
+// managing this account on the child's behalf, not handing them login
+// credentials of their own, so there's nothing here for the minor to
+// authenticate with themselves yet.
+export type CreateMinorMemberRequest = {
+  firstName: string;
+  lastName?: string;
+  relationship: "BROTHER" | "SISTER";
+};
+
+export type MinorMemberDto = {
+  userId: string;
+  firstName: string;
+  lastName: string;
+  relationship: RelationshipType;
 };

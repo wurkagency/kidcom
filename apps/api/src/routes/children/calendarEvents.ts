@@ -4,6 +4,7 @@ import type { CreateCalendarEventRequest, ToggleChecklistItemRequest, ToggleConf
 import { prisma } from "../../db";
 import { ApiError } from "../../middleware/errorHandler";
 import { CALENDAR_EVENT_INCLUDE, toCalendarEventDto } from "../../lib/calendarEventDto";
+import { requireCapability } from "../../lib/permissions";
 
 // Mounted at /children/:childId/calendar-events. Every category except
 // HOLIDAY is writable here — HOLIDAY rows are system-seeded (see the
@@ -90,7 +91,11 @@ calendarEventsRouter.get("/:id", async (req: Request<ChildEventParams>, res, nex
   }
 });
 
-calendarEventsRouter.post("/", async (req: Request<ChildParams>, res, next) => {
+// spec §1.4: FAMILY/Caregiver get "request" here (a distinct request/
+// approve workflow), not full create/edit — that workflow doesn't exist yet
+// (see lib/permissions.ts's comment on "calendar_event:manage"), so denied
+// outright rather than granted in full.
+calendarEventsRouter.post("/", requireCapability("calendar_event:manage"), async (req: Request<ChildParams>, res, next) => {
   try {
     const body = req.body as Partial<CreateCalendarEventRequest>;
     if (!body.category || !body.title || !body.startsAt) {
@@ -130,7 +135,7 @@ calendarEventsRouter.post("/", async (req: Request<ChildParams>, res, next) => {
   }
 });
 
-calendarEventsRouter.patch("/:id", async (req: Request<ChildEventParams>, res, next) => {
+calendarEventsRouter.patch("/:id", requireCapability("calendar_event:manage"), async (req: Request<ChildEventParams>, res, next) => {
   try {
     const existing = await prisma.calendarEvent.findFirst({
       where: { id: req.params.id, childId: req.params.childId },
@@ -175,7 +180,7 @@ calendarEventsRouter.patch("/:id", async (req: Request<ChildEventParams>, res, n
   }
 });
 
-calendarEventsRouter.delete("/:id", async (req: Request<ChildEventParams>, res, next) => {
+calendarEventsRouter.delete("/:id", requireCapability("calendar_event:manage"), async (req: Request<ChildEventParams>, res, next) => {
   try {
     const existing = await prisma.calendarEvent.findFirst({
       where: { id: req.params.id, childId: req.params.childId },

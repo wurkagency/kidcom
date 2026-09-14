@@ -1,5 +1,6 @@
 import { Router, type Request } from "express";
 import type {
+  AccessRole,
   CreateEmergencyContactRequest,
   EmergencyContactDto,
   UpdateEmergencyContactRequest,
@@ -7,6 +8,8 @@ import type {
 
 import { prisma } from "../../db";
 import { ApiError } from "../../middleware/errorHandler";
+
+const ROLE_LABEL: Record<AccessRole, string> = { PARENT: "Parent", GUARDIAN: "Guardian", FAMILY: "Family" };
 
 // Mounted at /children/:childId/emergency-contacts.
 export const emergencyContactsRouter = Router({ mergeParams: true });
@@ -30,8 +33,8 @@ emergencyContactsRouter.get("/", async (req: Request<ChildParams>, res, next) =>
     const derived: EmergencyContactDto[] = access.map((a) => ({
       id: `family-${a.userId}`,
       category: "FAMILY",
-      name: `${a.role === "PARENT" ? "Parent" : "Family"} (${a.user.firstName})`,
-      role: a.role === "PARENT" ? "Parent" : "Family member",
+      name: `${ROLE_LABEL[a.role]} (${a.user.firstName})`,
+      role: a.role === "FAMILY" ? "Family member" : ROLE_LABEL[a.role],
       phone: a.user.phone,
       location: null,
       avatarUrl: a.user.avatarUrl,

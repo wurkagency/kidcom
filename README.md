@@ -45,6 +45,21 @@ Requires Node 20+, npm, and Docker Desktop.
 Run them separately with `npm run dev:api` / `npm run dev:web` if you want
 separate terminals/logs.
 
+## Tests
+
+`npm run test` (root) runs every workspace's suite (`apps/api`, `apps/web`,
+`packages/shared` — all vitest). `apps/api`'s integration tests hit a real
+Postgres database, never the dev one: they connect to a sibling database
+named `<your DATABASE_URL's db>_test` on the same Postgres server/credentials
+(derived automatically from `.env`'s `DATABASE_URL` — see
+`apps/api/src/testUtils/setupEnv.ts`), and truncate it between tests. Create
+and migrate that database once per machine before running `apps/api`'s tests
+for the first time:
+```
+docker exec <your-postgres-container> createdb -U <db-user> <db-name>_test
+DATABASE_URL="<your DATABASE_URL, with _test appended to the db name>" npx prisma migrate deploy --schema packages/db/prisma/schema.prisma
+```
+
 ## Project layout
 
 ```

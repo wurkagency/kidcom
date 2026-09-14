@@ -3,6 +3,7 @@ import type { CreateJournalPostRequest, JournalMediaDto, JournalPostDto, MediaAs
 
 import { prisma } from "../../db";
 import { ApiError } from "../../middleware/errorHandler";
+import { requireCapability } from "../../lib/permissions";
 import { journalCommentsRouter } from "./journalComments";
 import { journalReactionsRouter } from "./journalReactions";
 
@@ -147,7 +148,9 @@ journalRouter.get("/:postId", async (req: Request<PostParams>, res, next) => {
   }
 });
 
-journalRouter.post("/", async (req: Request<ChildParams>, res, next) => {
+// spec 9.5: a Caregiver may comment (see journalComments.ts, ungated) but
+// not post — everyone else with FAMILY/PARENT access may post.
+journalRouter.post("/", requireCapability("journal:post"), async (req: Request<ChildParams>, res, next) => {
   try {
     const body = req.body as Partial<CreateJournalPostRequest>;
     if (!body.title) {

@@ -24,34 +24,40 @@ enum SubscriptionTier {
 
 enum AccessRole {
   PARENT
+  GUARDIAN
   FAMILY
 }
 
-// The specific relationship shown in the UI ("Grandparent", "Co-Parent",
-// ...) — separate from AccessRole, which only controls permissions.
-// CO_PARENT is the only type that maps to AccessRole.PARENT; every other
-// type maps to AccessRole.FAMILY (see familyMemberTypeToRole in
-// packages/shared).
-enum FamilyMemberType {
-  CO_PARENT
-  GRANDPARENT
-  AUNT_UNCLE
-  SIBLING
-  CAREGIVER
-  OTHER
-}
-
-// A parent's own self-identified role, distinct from FamilyMemberType above
-// (which describes a relationship to a specific child). Chosen at signup/
-// invite-accept time and editable afterward from Edit Profile. Defaults to
-// the neutral PARENT so this column can be added non-nullable without a
-// data migration for existing users — the two account-creation endpoints
-// (POST /auth/signup, POST /invites/:token/accept) still require an
-// explicit choice at the application-validation level.
-enum ParentRole {
+// The specific relationship shown in the UI ("Grandmother", "Dad", ...) —
+// separate from AccessRole, which only controls permissions. Replaces
+// FamilyMemberType (spec §1.3/§8, Phase 5) — see familyMemberTypeToRole's
+// successor in packages/shared for the server-side relationship -> role
+// mapping (the client never sends an AccessRole directly).
+// CO_PARENT is gone (spec §1.2): it was a position relative to the other
+// adult, not a relationship to the child — inviting a co-parent now means
+// inviting someone as FATHER/MOTHER/PARENT directly.
+// GRANDPARENT/AUNT_UNCLE/SIBLING/FOSTER_PARENT are gone too, superseded by
+// the more specific values below (four grandparent values per 9.15;
+// gendered foster/step pairs per 9.17/9.17a).
+enum RelationshipType {
   FATHER
   MOTHER
   PARENT
+  STEP_FATHER
+  STEP_MOTHER
+  FOSTER_FATHER
+  FOSTER_MOTHER
+  GUARDIAN
+  GRANDFATHER_PAT
+  GRANDFATHER_MAT
+  GRANDMOTHER_PAT
+  GRANDMOTHER_MAT
+  UNCLE
+  AUNT
+  BROTHER
+  SISTER
+  CAREGIVER
+  OTHER
 }
 
 model User {
@@ -62,8 +68,17 @@ model User {
   firstName       String
   lastName        String
   avatarUrl       String?
-  parentRole      ParentRole @default(PARENT)
   emailVerifiedAt DateTime?
+  // I-2 (spec §2.2/§4.3): one 30-day trial per user, ever — granted at
+  // account creation regardless of how the account was created (organic
+  // signup or invite-accept), recorded here rather than on Subscription so
+  // it survives plan changes and cancellations. During the window, this
+  // user's own entitlement-coverage tier is treated as the max (FAMILY),
+  // independent of their actual Subscription.tier/status — see
+  // packages/shared/src/entitlement.ts's effectiveCoverageTier. Never reset
+  // once set; there is no "renew my trial" path anywhere in this model.
+  trialStartedAt  DateTime?
+  trialEndsAt     DateTime?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -88,6 +103,7 @@ model User {
   emailVerificationTokens EmailVerificationToken[]
   twoFactorCodes LoginTwoFactorCode[]
   calendarEventConfirmations CalendarEventConfirmation[]
+  upgradeRequestsMade UpgradeRequest[]
 
   @@map("users")
 }
@@ -132,7 +148,7 @@ model Invite {
   email       String?
   phone       String?
   role        AccessRole
-  familyMemberType FamilyMemberType?
+  relationship RelationshipType?
   invitedById String
   invitedBy   User       @relation("InviteSentBy", fields: [invitedById], references: [id])
   childId     String?
@@ -165,6 +181,13 @@ model Child {
   clothingSize  String?
   shoeSize      String?
   countryCode   String      @default("DK")
+  // Phase 10 (spec 9.21, §1.4a.4) — soft delete, 30-day restore window.
+  // Nothing else in the schema reacts to this being set (no cascade, no
+  // content removal — 9.11's "content stays with the child" already means
+  // there was never a deletion cascade to begin with); it's purely a flag
+  // the API reads to hide the child from normal use and to decide whether
+  // POST .../restore is still within its window.
+  deletedAt     DateTime?
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 
@@ -180,6 +203,8 @@ model Child {
   emergencyContacts  EmergencyContact[]
   scheduleOccurrences ChildScheduleOccurrence[]
   avatarAsset        MediaAsset?               @relation("ChildAvatar")
+  upgradeRequests    UpgradeRequest[]
+  deletionRequest    ChildDeletionRequest?
 
   @@map("children")
 }
@@ -192,14 +217,61 @@ model ChildAccess {
   userId    String
   user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   role      AccessRole
-  // Null for the account owner (created directly, not via invite). Copied
-  // from Invite.familyMemberType when an invite is accepted so the "Family &
-  // Connections" list can show "Grandparent" instead of just "Family".
-  familyMemberType FamilyMemberType?
+  // Who this person is to the child, in the word the app prints (spec §1.2)
+  // — e.g. GRANDMOTHER_MAT -> "Grandmother". Always set, including for the
+  // account owner (self-declared at child-creation time, spec §1.3) —
+  // unlike the old FamilyMemberType this replaces, there is no longer a
+  // null case.
+  relationship RelationshipType
+  // Per-member opt-in for a FAMILY-role holder to view medical info/
+  // allergies (spec §1.4) — special-category data about a minor (GDPR Art.
+  // 9), so default-off rather than inherited from general child access.
+  // Meaningless for PARENT (always full access) — a parent grants this
+  // explicitly per member, not implied by role.
+  medicalInfoAccess Boolean @default(false)
+  // Phase 10 (spec 9.16) — a sibling's own account, created directly by a
+  // parent (see POST /children/:childId/family/minor) rather than through
+  // the normal email-invite flow. "Minor member" is a flag here, not a new
+  // AccessRole — always paired with role FAMILY. Reduces the default FAMILY
+  // grant further: journal/media/lists only, medical info always denied
+  // regardless of medicalInfoAccess above (see lib/permissions.ts).
+  isMinorMember Boolean @default(false)
   createdAt DateTime   @default(now())
 
   @@unique([childId, userId])
   @@map("child_access")
+}
+
+// Phase 6a (spec §1.5/9.20) — instrumented at the moment of every access
+// grant (a child created directly, or an invite accepted). Deliberately
+// carries NO childId/userId/email — nothing here can ever be joined back to
+// a person, at the schema level, not just by convention in whatever query
+// reads it later. Query this in aggregate only, with a minimum cohort size
+// of 10 (spec 9.20) — e.g. `GROUP BY relationship HAVING count(*) >= 10`.
+// Never derive a gender dimension from `relationship` anywhere queries
+// against this table — spec §1.5's explicit hard no.
+//
+// NOTE: the privacy-notice copy update spec 9.20 requires "live before the
+// first event logs" is an external document (splitkid.com/privacy, per
+// lib/emailTemplates/layout.ts's footer link) — outside this codebase's
+// reach. Flagged, not silently assumed done: confirm that copy ships before
+// this goes to production, since this migration/instrumentation alone
+// cannot satisfy that requirement.
+model AccessGrantEvent {
+  id                  String            @id @default(cuid())
+  relationship        RelationshipType
+  // Null only for a bootstrap grant (direct child creation) — there is no
+  // inviter. Set for every invite-accept/accept-as-me grant, from that
+  // inviter's own relationship on the same child.
+  inviterRelationship RelationshipType?
+  // Null only for a bootstrap grant. For an invite-accept grant, the gap
+  // between the invite being created and this account accepting it — the
+  // "time-to-accept" metric spec §1.5 calls out as the growth-funnel number
+  // that actually matters.
+  timeToAcceptMs      Int?
+  createdAt           DateTime          @default(now())
+
+  @@map("access_grant_events")
 }
 
 // ---------------------------------------------------------------------------
@@ -681,12 +753,88 @@ model Subscription {
   billingPeriod          BillingPeriod?
   quickpaySubscriptionId String?
   quickpayCustomerId     String?
+  // Display/billing-history concept only as of Phase 7 — "this subscription
+  // itself was created via the 30-day-trial invite-accept path." The
+  // entitlement-relevant trial (I-2, spec §2.2) is User.trialStartedAt/
+  // trialEndsAt instead: a per-person clock that survives this
+  // subscription's own status changing (upgrade, cancel, etc.), which this
+  // field deliberately does not.
   trialEndsAt            DateTime?
   currentPeriodEnd       DateTime?
+  // Phase 8 (spec §4.2/9.12) — set the moment this subscription's status
+  // transitions to PAST_DUE, cleared the moment it recovers. Lets
+  // apps/api/src/lib/entitlement.ts grant a 7-day grace window during which
+  // a PAST_DUE subscription still counts at its pre-failure tier, rather
+  // than dropping coverage the instant a charge fails.
+  pastDueSince           DateTime?
   createdAt              DateTime           @default(now())
   updatedAt              DateTime           @updatedAt
 
   @@map("subscriptions")
+}
+
+// Phase 7 (spec §8) — which subscription(s) currently satisfy which
+// child, per packages/shared/src/entitlement.ts's isSatisfied(). Not the
+// source of truth for gating (apps/api/src/lib/entitlement.ts computes that
+// live, on every request, from ChildAccess + Subscription + User trial
+// fields directly — so a sync bug here can never produce an incorrect
+// gate) — this table is best-effort observability/history, written
+// alongside that computation. `since` is when this pairing first started
+// satisfying, for Phase 8's grace-period math. Population is deferred:
+// Phase 7 creates the table; Phase 8 is its first real writer/reader.
+model ChildCoverage {
+  childId        String
+  subscriptionId String
+  since          DateTime @default(now())
+
+  @@id([childId, subscriptionId])
+  @@map("child_coverage")
+}
+
+enum UpgradeRequestStatus {
+  PENDING
+  RESOLVED
+  DISMISSED
+}
+
+// Phase 8 (spec §2.3) — "ask [a co-parent] to upgrade" instead of paying
+// yourself: a lightweight ask, not a payment mechanism (the recipient still
+// subscribes themselves via the existing POST /billing/subscribe — nothing
+// here moves money). RESOLVED means the child became satisfied while this
+// request was pending (by anyone's action, not necessarily the person
+// asked); DISMISSED means a recipient explicitly declined.
+model UpgradeRequest {
+  id            String               @id @default(cuid())
+  childId       String
+  child         Child                @relation(fields: [childId], references: [id], onDelete: Cascade)
+  requestedById String
+  requestedBy   User                 @relation(fields: [requestedById], references: [id])
+  requiredTier  SubscriptionTier
+  status        UpgradeRequestStatus @default(PENDING)
+  createdAt     DateTime             @default(now())
+  resolvedAt    DateTime?
+
+  @@map("upgrade_requests")
+}
+
+// Phase 10 (spec 9.21, §1.4a.4) — "all PARENT members must confirm; if the
+// child has no PARENT member, all GUARDIAN members may confirm instead" is a
+// live, recomputed-on-every-confirm check (apps/api/src/lib/deletion.ts),
+// never a snapshot taken at request time — a member who joins or leaves
+// after the request was opened is picked up correctly rather than working
+// off a stale required set. `confirmedByIds` needs no join table (Postgres
+// native array, via Prisma's String[]) since it's never queried by element,
+// only ever read/written as a whole set. `childId` unique: at most one
+// pending request per child at a time.
+model ChildDeletionRequest {
+  id             String   @id @default(cuid())
+  childId        String   @unique
+  child          Child    @relation(fields: [childId], references: [id], onDelete: Cascade)
+  requestedById  String
+  confirmedByIds String[] @default([])
+  createdAt      DateTime @default(now())
+
+  @@map("child_deletion_requests")
 }
 
 // ---------------------------------------------------------------------------
