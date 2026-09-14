@@ -5,6 +5,7 @@ import type { MeResponse, VerifyTwoFactorRequest } from "@kidcom/shared";
 import { Icon } from "../components/Icon";
 import { apiPost, ApiRequestError } from "../lib/api";
 import { useAuth } from "../lib/AuthContext";
+import { safeRedirectPath } from "../lib/safeRedirect";
 
 const RESEND_COOLDOWN_S = 30;
 
@@ -26,7 +27,9 @@ export function LoginTwoFactorPage() {
   const [cooldown, setCooldown] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const redirect = searchParams.get("redirect");
+  // Validated via safeRedirectPath, not a raw startsWith("/") check — see
+  // that file for why.
+  const redirect = safeRedirectPath(searchParams.get("redirect"));
 
   useEffect(() => {
     return () => {
@@ -54,7 +57,7 @@ export function LoginTwoFactorPage() {
     try {
       await apiPost<MeResponse>("/auth/verify-2fa", { code } satisfies VerifyTwoFactorRequest);
       await refresh();
-      navigate(redirect && redirect.startsWith("/") ? redirect : "/");
+      navigate(redirect ?? "/");
     } catch (err) {
       setError(err instanceof ApiRequestError ? err.message : "Something went wrong");
     } finally {

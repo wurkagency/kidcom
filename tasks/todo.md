@@ -90,12 +90,11 @@ architecture plan in the KidCom Claude project (`claude/architecture_plan.md`).
 - [x] Verified in the cloud sandbox: `npm install` (added `web-push` + `@types/web-push`), generated a working VAPID keypair with `npx web-push generate-vapid-keys`, clean `tsc --noEmit` for `packages/shared`/`apps/web`/`apps/api` (api's only errors are the same missing-generated-Prisma-client symptom as every prior chunk) plus a clean standalone check of `sw.ts`, and `npm run build:web` — confirmed the `injectManifest` switch actually works end-to-end (build log shows `dist/sw.js` built from `src/sw.ts` with precaching, not the old auto-generated Workbox output)
 - [ ] **Needs verification on Charlie's machine**: `npm run prisma:migrate` (`CalendarEvent.remindedAt`), add the VAPID keys below to `.env`, `npm run dev`, then: turn on notifications from Profile (grants the browser permission prompt), send a message from a second account/browser and confirm a real OS notification appears and clicking it opens the right thread, request then approve/decline a swap and confirm both directions push, and add an appointment for tomorrow to confirm the reminder query picks it up (don't need to wait for 08:00 — checking the `CalendarEvent` row's eligibility, or firing the `remind-appointments` job manually, is enough)
 
-**Generated VAPID keypair (test/dev — put these directly in your `.env`, or generate your own with `npx web-push generate-vapid-keys` from `apps/api`):**
+**VAPID keypair — generate your own, don't reuse a checked-in one:**
 ```
-VAPID_PUBLIC_KEY=BEerAE5SMBcQqUnRwIqaXtTy6jybalV_uiv4VF14jQgua6GV6j02giN2jwv6TyChoRN0gascX2lEmBS7crNtla8
-VAPID_PRIVATE_KEY=exLmbFRf-YfNyOcuAOKwHmcixSUTmsE82DWQMOON66A
-VAPID_SUBJECT=mailto:charlie@wurk.dk
+npx web-push generate-vapid-keys
 ```
+Paste the output directly into `.env` (never into this file). *(A real keypair was generated and committed here in an earlier version of this file for dev convenience — redacted during the security review: committed secrets should be treated as compromised regardless of how low-stakes they seem. The local dev `.env` already uses a different, unrelated key, so nothing that depended on the redacted one breaks.)*
 
 ## Home Dashboard
 - [x] `HomePage.tsx` had been the unbuilt chunk-2 placeholder ever since — built out to match `docs/stitch_splitkid/home_dashboard/code.html`: greeting, a bento grid (Today's Custody / Next Appointment / Latest Journal Entry), and a horizontal Quick Actions row (Log Event / Request Swap)

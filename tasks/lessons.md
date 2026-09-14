@@ -271,3 +271,54 @@ serving both originals and derivatives) can't gain new per-call behavior without
 either a way to distinguish those calls or applying to all of them, and a caller
 that bypasses the interface entirely (`pathFor()` handed to an external library)
 can't be helped by wrapping the interface at all.
+
+## `/security-review` pass (2026-09-14)
+
+**Real finding — `?redirect=` open redirect, independent of any library CVE.**
+`LoginPage.tsx`/`LoginTwoFactorPage.tsx` validated the `?redirect=` query param
+with `redirect.startsWith("/")` before handing it to `navigate()`. That check
+passes for `//evil.com` (a protocol-relative URL — still "starts with /") and
+for `/\evil.com` (the browser's own URL parser treats a backslash the same as
+a forward slash in the path of a special-scheme URL, so this also normalizes
+to `//evil.com`) — exactly the bypass class covered by react-router's own
+"open redirect via backslash in `<Link>`/`useNavigate`" advisory. **Fix:**
+`apps/web/src/lib/safeRedirect.ts`'s `safeRedirectPath()` resolves the value
+through the real `URL` parser (`new URL(value, window.location.origin)`) and
+compares `.origin`, instead of re-guessing the browser's normalization rules
+with string prefixes — same idea as always preferring the platform's own
+parser over a hand-rolled one for anything security-relevant.
+
+**Decision — did not force-upgrade `react-router-dom` (6.30.6 → 7.x) for this.**
+The app-level fix above closes the actual exploitable surface regardless of
+the library version. The audit's second react-router advisory (arbitrary
+constructor injection via SSR hydration's `deserializeErrors()`) has no
+reachable code path here at all — confirmed via grep that nothing in
+`apps/web` imports `react-router-dom/server` or uses `createStaticRouter`;
+this is a pure client-rendered SPA. A major-version bump across the whole
+`apps/web` route tree for zero remaining exploitable surface wasn't worth the
+blast radius.
+
+**Decision — did not force-upgrade `geoip-lite`/`ip-address` either**, same
+reasoning shape: `apps/api/src/lib/twoFactor.ts`'s `describeLocation()` only
+calls `geoip.lookup()`, an offline local-database lookup with no outbound
+network call, so the CVEs in that dependency chain (SSRF via octal/decimal IP
+parsing, XSS in `Address6`'s HTML-emitting methods) have no path into this
+codebase's actual usage — and the one place the output reaches HTML
+(`emailTemplates/loginTwoFactor.ts`) already runs it through `escapeHtml()`.
+
+**Confirmed already-leaked secrets, redacted going forward (history NOT rewritten
+without explicit request):** `DEPLOYMENT.md` had a real Postgres password and
+SMTP password committed in plain text (predates this session, commit `7bb0d6a`,
+already an ancestor of `origin/master`); `tasks/todo.md` had a real (but already
+unused/abandoned) VAPID keypair. Both redacted in the working tree. **This does
+not undo the exposure** — those specific credentials are already in pushed git
+history and need rotating on the real systems; redacting the file only stops
+the *current* tree from re-affirming them.
+
+**How to apply this going forward:** when a `startsWith("/")`-style guard exists
+anywhere the value later reaches `navigate()`, `<Link to>`, `window.location`,
+or a redirect header, treat it as a redirect-validation function and hold it to
+that standard — resolve through the real URL parser and compare origins, not a
+string-prefix guess. And after redacting a leaked secret from the working tree,
+say explicitly (don't let silence imply it) that history still has it and the
+real credential must be rotated.

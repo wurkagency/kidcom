@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import helmet from "helmet";
 
 import { config } from "./config";
 import { healthRouter } from "./routes/health";
@@ -48,6 +49,16 @@ export function createApp() {
     app.set("trust proxy", 1);
   }
 
+  // Security-review pass — baseline response headers (X-Content-Type-Options,
+  // a restrictive default CSP, Referrer-Policy, etc.) this API never had.
+  // crossOriginResourcePolicy is relaxed from helmet's own default
+  // (same-origin) to cross-origin: the web app at kidcom.org loads media
+  // (GET /media/:id) directly from api.kidcom.org via plain <img>/<video>
+  // tags — a different origin by design (see DEPLOYMENT.md) — same-origin
+  // CORP would silently block every one of those. CSP itself is close to a
+  // no-op for a pure JSON+file API (no HTML is ever served here to protect),
+  // left at helmet's default rather than disabled since it's harmless.
+  app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
   app.use(
     cors({
       origin: config.corsOrigin,

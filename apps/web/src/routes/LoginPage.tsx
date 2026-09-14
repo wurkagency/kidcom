@@ -4,6 +4,7 @@ import type { LoginRequest, TwoFactorRequiredResponse } from "@kidcom/shared";
 
 import { FormInput } from "../components/FormInput";
 import { apiPost, ApiRequestError } from "../lib/api";
+import { safeRedirectPath } from "../lib/safeRedirect";
 
 // No Stitch mockup exists for a plain login screen (only the signup flow was
 // designed) — built in the same visual language as SignupPage/FormInput.
@@ -23,7 +24,9 @@ export function LoginPage() {
 
   // Supports being linked to with ?redirect=/some/path (used by the invite
   // accept flow: "log in to accept this invite" sends the user back here).
-  const redirect = searchParams.get("redirect");
+  // Validated via safeRedirectPath, not a raw startsWith("/") check — see
+  // that file for why.
+  const redirect = safeRedirectPath(searchParams.get("redirect"));
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -31,7 +34,7 @@ export function LoginPage() {
     setSubmitting(true);
     try {
       await apiPost<TwoFactorRequiredResponse>("/auth/login", { email, password } satisfies LoginRequest);
-      navigate(redirect && redirect.startsWith("/") ? `/login/verify?redirect=${encodeURIComponent(redirect)}` : "/login/verify");
+      navigate(redirect ? `/login/verify?redirect=${encodeURIComponent(redirect)}` : "/login/verify");
     } catch (err) {
       setError(err instanceof ApiRequestError ? err.message : "Something went wrong");
     } finally {

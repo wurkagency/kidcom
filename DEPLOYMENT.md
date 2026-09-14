@@ -101,10 +101,11 @@ cat > /var/www/vhosts/kidcom.org/httpdocs/apps/api/.env <<'EOF'
 NODE_ENV=production
 PORT=4000
 
-# Postgres — password percent-encoded (the raw password contains a literal
-# "+", which must be %2B in a connection URI or some parsers will mangle it).
-# Raw password: vhuxN-i3xKDiTb7+jDNSu8rM
-DATABASE_URL=postgresql://kidcom_appuser:vhuxN-i3xKDiTb7%2BjDNSu8rM@localhost:5432/kidcom_app
+# Postgres — password percent-encoded (a literal "+" in the raw password
+# must be %2B in a connection URI or some parsers will mangle it). Generate
+# a real password on the server (e.g. `openssl rand -base64 24`) and paste
+# it here directly — never commit the real value to this file.
+DATABASE_URL=postgresql://kidcom_appuser:<percent-encoded password here>@localhost:5432/kidcom_app
 
 REDIS_URL=redis://localhost:6379
 
@@ -128,10 +129,11 @@ MEDIA_STORAGE_PATH=/var/www/vhosts/kidcom.org/kidcom-media
 # SMTP — real transactional email (invite emails, signup verification).
 # Leaving these unset falls back to console-logging the email instead of
 # sending it (same code path as dev) — set all four to actually deliver mail.
+# Paste the real mailbox password directly on the server — never commit it.
 SMTP_HOST=mail.kidcom.org
 SMTP_PORT=587
 SMTP_USER=noreply@kidcom.org
-SMTP_PASS=fq1V#502aiS2w2!
+SMTP_PASS=<paste the real mailbox password here>
 SMTP_FROM="KidCom" <noreply@kidcom.org>
 
 # Optional — leave blank until you're ready to wire up billing/push; the API
