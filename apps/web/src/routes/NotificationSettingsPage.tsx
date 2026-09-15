@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { NotificationPreferencesDto, UpdateNotificationPreferencesRequest } from "@kidcom/shared";
 
 import { Icon } from "../components/Icon";
+import { Toggle } from "../components/Toggle";
 import { apiGet, apiPatch, ApiRequestError } from "../lib/api";
 import { useHeaderConfig } from "../lib/HeaderContext";
 import { disablePush, enablePush, getPushSubscriptionState } from "../lib/push";
@@ -203,11 +204,12 @@ export function NotificationSettingsPage() {
                   Silence non-emergency alerts during scheduled times to protect your downtime.
                 </span>
               </div>
-              <Switch
+              <Toggle
                 checked={prefs.doNotDisturb}
                 disabled={saving}
-                activeClass="bg-secondary"
-                knobClass="bg-on-secondary"
+                onColor="bg-secondary"
+                onKnobColor="bg-on-secondary"
+                offKnobColor="bg-on-surface-variant"
                 onToggle={() => update({ doNotDisturb: !prefs.doNotDisturb })}
               />
             </div>
@@ -249,39 +251,6 @@ function Divider() {
   return <div className="h-[1px] w-full bg-surface-variant/50" />;
 }
 
-function Switch({
-  checked,
-  disabled,
-  onToggle,
-  activeClass = "bg-primary",
-  knobClass = "bg-on-primary",
-}: {
-  checked: boolean;
-  disabled?: boolean;
-  onToggle: () => void;
-  activeClass?: string;
-  knobClass?: string;
-}) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      onClick={onToggle}
-      disabled={disabled}
-      className={`w-12 h-6 rounded-full relative transition-colors duration-200 shrink-0 disabled:opacity-60 ${
-        checked ? activeClass : "bg-surface-variant"
-      }`}
-    >
-      <span
-        className={`absolute top-1 left-0 w-4 h-4 rounded-full transition-transform duration-200 transform shadow-sm ${
-          checked ? `translate-x-6 ${knobClass}` : "translate-x-1 bg-on-surface-variant"
-        }`}
-      />
-    </button>
-  );
-}
-
 function ToggleRow({
   icon,
   iconClass,
@@ -312,7 +281,13 @@ function ToggleRow({
           <span className="font-label-sm text-label-sm text-on-surface-variant">{sublabel}</span>
         </div>
       </div>
-      <Switch checked={checked} disabled={disabled} onToggle={onToggle} />
+      <Toggle
+        checked={checked}
+        disabled={disabled}
+        onToggle={onToggle}
+        offColor="bg-surface-variant"
+        offKnobColor="bg-on-surface-variant"
+      />
     </div>
   );
 }

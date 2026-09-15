@@ -4,6 +4,7 @@ import type { CalendarEventDto, CreateCalendarEventRequest, UpdateCalendarEventR
 
 import { Avatar } from "../components/Avatar";
 import { Icon } from "../components/Icon";
+import { Toggle } from "../components/Toggle";
 import { apiDelete, apiGet, apiPatch, apiPost, ApiRequestError } from "../lib/api";
 import { useAuth } from "../lib/AuthContext";
 import { CALENDAR_CATEGORY_META, CALENDAR_WRITABLE_CATEGORIES } from "../lib/calendarCategories";
@@ -352,20 +353,7 @@ export function EventFormPage() {
               </div>
               <span className="font-body-md text-body-md text-on-surface">All-day</span>
             </div>
-            <button
-              type="button"
-              aria-pressed={allDay}
-              onClick={() => setAllDay((v) => !v)}
-              className={`w-12 h-6 rounded-full relative transition-colors duration-300 ${
-                allDay ? "bg-primary" : "bg-surface-container-high"
-              }`}
-            >
-              <div
-                className={`absolute top-1 w-4 h-4 rounded-full transition-transform duration-300 ${
-                  allDay ? "translate-x-6 bg-on-primary" : "translate-x-1 bg-outline"
-                }`}
-              />
-            </button>
+            <Toggle checked={allDay} onToggle={() => setAllDay((v) => !v)} offColor="bg-surface-container-high" />
           </div>
           <div className="h-px w-full bg-surface-variant" />
           <div className="flex items-center justify-between p-4">
@@ -573,20 +561,11 @@ export function EventFormPage() {
               Family members can mark themselves as confirmed for this event.
             </p>
           </div>
-          <button
-            type="button"
-            aria-pressed={confirmable}
-            onClick={() => setConfirmable((v) => !v)}
-            className={`w-12 h-6 rounded-full relative transition-colors duration-300 shrink-0 ${
-              confirmable ? "bg-primary" : "bg-surface-container-high"
-            }`}
-          >
-            <div
-              className={`absolute top-1 w-4 h-4 rounded-full transition-transform duration-300 ${
-                confirmable ? "translate-x-6 bg-on-primary" : "translate-x-1 bg-outline"
-              }`}
-            />
-          </button>
+          <Toggle
+            checked={confirmable}
+            onToggle={() => setConfirmable((v) => !v)}
+            offColor="bg-surface-container-high"
+          />
         </div>
 
         {canDelete && (

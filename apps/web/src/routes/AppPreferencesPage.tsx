@@ -1,7 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import { Card } from "../components/Card";
 import { Icon } from "../components/Icon";
+import { SegmentedControl } from "../components/SegmentedControl";
+import { Toggle } from "../components/Toggle";
 import { useHeaderConfig } from "../lib/HeaderContext";
 import {
   getCalendarDefaultView,
@@ -66,7 +69,7 @@ export function AppPreferencesPage() {
         <h2 className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider pl-4">
           Appearance
         </h2>
-        <div className="bg-surface-container-lowest rounded-2xl shadow-sm p-4 space-y-6">
+        <Card className="space-y-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="w-10 h-10 rounded-full bg-primary-container/20 flex items-center justify-center">
@@ -79,19 +82,14 @@ export function AppPreferencesPage() {
                 </p>
               </div>
             </div>
-            <button
-              onClick={handleThemeToggle}
+            <Toggle
+              checked={theme === "dark"}
+              onToggle={handleThemeToggle}
+              size="lg"
+              onKnobColor="bg-on-tertiary"
+              offKnobColor="bg-on-tertiary"
               aria-label="Toggle Theme"
-              className={`w-12 h-6 rounded-full relative transition-colors duration-300 ${
-                theme === "dark" ? "bg-primary" : "bg-surface-variant"
-              }`}
-            >
-              <div
-                className={`w-5 h-5 rounded-full bg-on-tertiary shadow-sm absolute top-0.5 transition-transform duration-300 ${
-                  theme === "dark" ? "translate-x-6" : "translate-x-0.5"
-                }`}
-              />
-            </button>
+            />
           </div>
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-4">
@@ -100,31 +98,28 @@ export function AppPreferencesPage() {
               </div>
               <p className="font-label-md text-label-md text-on-surface">Text Size</p>
             </div>
-            <div className="flex bg-surface-container-low rounded-xl p-1 gap-1">
-              {(["small", "standard", "large"] as const).map((size) => (
-                <button
-                  key={size}
-                  onClick={() => {
-                    setTextSizeState(size);
-                    setTextSize(size);
-                  }}
-                  className={`flex-1 py-2 px-4 rounded-lg font-label-md text-label-md transition-colors ${
-                    textSize === size ? "bg-surface-container-lowest text-on-surface shadow-sm" : "text-on-surface-variant"
-                  }`}
-                >
-                  {size === "small" ? "Small" : size === "standard" ? "Standard" : "Large"}
-                </button>
-              ))}
-            </div>
+            <SegmentedControl
+              size="md"
+              value={textSize}
+              onChange={(size) => {
+                setTextSizeState(size);
+                setTextSize(size);
+              }}
+              options={[
+                { value: "small", label: "Small" },
+                { value: "standard", label: "Standard" },
+                { value: "large", label: "Large" },
+              ]}
+            />
           </div>
-        </div>
+        </Card>
       </div>
 
       <div className="space-y-base">
         <h2 className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider pl-4">
           Language &amp; Region
         </h2>
-        <div className="bg-surface-container-lowest rounded-2xl shadow-sm p-4 space-y-4">
+        <Card className="space-y-4">
           <PickerRow
             icon="language"
             iconClass="text-tertiary"
@@ -146,14 +141,14 @@ export function AppPreferencesPage() {
             value={timeZone}
             onClick={() => navigate("/preferences/time-zone")}
           />
-        </div>
+        </Card>
       </div>
 
       <div className="space-y-base">
         <h2 className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider pl-4">
           Units
         </h2>
-        <div className="bg-surface-container-lowest rounded-2xl shadow-sm p-4 space-y-4">
+        <Card className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="w-10 h-10 rounded-full bg-growth-green/10 flex items-center justify-center">
@@ -161,24 +156,14 @@ export function AppPreferencesPage() {
               </div>
               <p className="font-label-md text-label-md text-on-surface">Height</p>
             </div>
-            <div className="flex bg-surface-container-low rounded-lg p-1">
-              <button
-                onClick={() => handleUnitsChange("metric")}
-                className={`py-1.5 px-3 rounded-md font-label-md text-label-md transition-colors ${
-                  units === "metric" ? "bg-surface-container-lowest text-on-surface shadow-sm" : "text-on-surface-variant"
-                }`}
-              >
-                cm
-              </button>
-              <button
-                onClick={() => handleUnitsChange("imperial")}
-                className={`py-1.5 px-3 rounded-md font-label-md text-label-md transition-colors ${
-                  units === "imperial" ? "bg-surface-container-lowest text-on-surface shadow-sm" : "text-on-surface-variant"
-                }`}
-              >
-                ft/in
-              </button>
-            </div>
+            <SegmentedControl
+              value={units}
+              onChange={handleUnitsChange}
+              options={[
+                { value: "metric", label: "cm" },
+                { value: "imperial", label: "ft/in" },
+              ]}
+            />
           </div>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -187,38 +172,28 @@ export function AppPreferencesPage() {
               </div>
               <p className="font-label-md text-label-md text-on-surface">Weight</p>
             </div>
-            <div className="flex bg-surface-container-low rounded-lg p-1">
-              <button
-                onClick={() => handleUnitsChange("metric")}
-                className={`py-1.5 px-3 rounded-md font-label-md text-label-md transition-colors ${
-                  units === "metric" ? "bg-surface-container-lowest text-on-surface shadow-sm" : "text-on-surface-variant"
-                }`}
-              >
-                kg
-              </button>
-              <button
-                onClick={() => handleUnitsChange("imperial")}
-                className={`py-1.5 px-3 rounded-md font-label-md text-label-md transition-colors ${
-                  units === "imperial" ? "bg-surface-container-lowest text-on-surface shadow-sm" : "text-on-surface-variant"
-                }`}
-              >
-                lbs
-              </button>
-            </div>
+            <SegmentedControl
+              value={units}
+              onChange={handleUnitsChange}
+              options={[
+                { value: "metric", label: "kg" },
+                { value: "imperial", label: "lbs" },
+              ]}
+            />
           </div>
           <p className="font-body-md text-[13px] text-on-surface-variant leading-tight">
             Applies to Growth's stat cards, chart, and logs. Measurements are always stored in cm/kg — this only
             changes how they're displayed. Height and weight share one unit system, so switching either switches
             both.
           </p>
-        </div>
+        </Card>
       </div>
 
       <div className="space-y-base">
         <h2 className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider pl-4">
           Calendar
         </h2>
-        <div className="bg-surface-container-lowest rounded-2xl shadow-sm p-4 space-y-4">
+        <Card className="space-y-4">
           <PickerRow
             icon="calendar_view_week"
             iconClass="text-primary"
@@ -233,26 +208,16 @@ export function AppPreferencesPage() {
               </div>
               <p className="font-label-md text-label-md text-on-surface">Start of Week</p>
             </div>
-            <div className="flex bg-surface-container-low rounded-lg p-1">
-              <button
-                onClick={() => handleWeekStartChange("sunday")}
-                className={`py-1.5 px-3 rounded-md font-label-md text-label-md transition-colors ${
-                  weekStart === "sunday" ? "bg-surface-container-lowest text-on-surface shadow-sm" : "text-on-surface-variant"
-                }`}
-              >
-                Sun
-              </button>
-              <button
-                onClick={() => handleWeekStartChange("monday")}
-                className={`py-1.5 px-3 rounded-md font-label-md text-label-md transition-colors ${
-                  weekStart === "monday" ? "bg-surface-container-lowest text-on-surface shadow-sm" : "text-on-surface-variant"
-                }`}
-              >
-                Mon
-              </button>
-            </div>
+            <SegmentedControl
+              value={weekStart}
+              onChange={handleWeekStartChange}
+              options={[
+                { value: "sunday", label: "Sun" },
+                { value: "monday", label: "Mon" },
+              ]}
+            />
           </div>
-        </div>
+        </Card>
       </div>
 
     </div>

@@ -14,6 +14,7 @@ import type {
 
 import { Icon } from "../components/Icon";
 import { ListItemImage } from "../components/ListItemImage";
+import { Toggle } from "../components/Toggle";
 import { apiGet, apiPatch, apiPost, apiUpload, ApiRequestError } from "../lib/api";
 import { useHeaderConfig } from "../lib/HeaderContext";
 
@@ -363,20 +364,11 @@ export function ListItemFormPage() {
                 />
                 <label className="flex items-center justify-between">
                   <span className="font-label-sm text-label-sm text-on-surface-variant">All-day</span>
-                  <button
-                    type="button"
-                    aria-pressed={eventAllDay}
-                    onClick={() => setEventAllDay((v) => !v)}
-                    className={`w-12 h-6 rounded-full relative transition-colors duration-300 ${
-                      eventAllDay ? "bg-primary" : "bg-surface-container-high"
-                    }`}
-                  >
-                    <div
-                      className={`absolute top-1 w-4 h-4 rounded-full transition-transform duration-300 ${
-                        eventAllDay ? "translate-x-6 bg-on-primary" : "translate-x-1 bg-outline"
-                      }`}
-                    />
-                  </button>
+                  <Toggle
+                    checked={eventAllDay}
+                    onToggle={() => setEventAllDay((v) => !v)}
+                    offColor="bg-surface-container-high"
+                  />
                 </label>
                 <div className="flex flex-col gap-1">
                   <span className="font-label-sm text-label-sm text-on-surface-variant">Starts</span>

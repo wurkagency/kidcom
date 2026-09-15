@@ -5,6 +5,73 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --color-surface: 248 250 244;
+    --color-surface-dim: 217 219 213;
+    --color-surface-bright: 248 250 244;
+    --color-surface-container-lowest: 255 255 255;
+    --color-surface-container-low: 242 244 238;
+    --color-surface-container: 237 239 233;
+    --color-surface-container-high: 231 233 227;
+    --color-surface-container-highest: 225 227 221;
+    --color-on-surface: 25 28 25;
+    --color-on-surface-variant: 65 73 65;
+    --color-inverse-surface: 46 49 46;
+    --color-inverse-on-surface: 239 241 236;
+    --color-outline: 113 121 112;
+    --color-outline-variant: 192 201 190;
+    --color-surface-tint: 50 105 67;
+    --color-primary: 50 105 67;
+    --color-on-primary: 255 255 255;
+    --color-primary-container: 109 166 122;
+    --color-on-primary-container: 0 58 26;
+    --color-inverse-primary: 153 212 165;
+    --color-secondary: 106 92 78;
+    --color-on-secondary: 255 255 255;
+    --color-secondary-container: 243 223 206;
+    --color-on-secondary-container: 112 98 84;
+    --color-tertiary: 70 97 123;
+    --color-on-tertiary: 255 255 255;
+    --color-tertiary-container: 128 156 184;
+    --color-on-tertiary-container: 22 51 75;
+    --color-error: 186 26 26;
+    --color-on-error: 255 255 255;
+    --color-error-container: 255 218 214;
+    --color-on-error-container: 147 0 10;
+    --color-primary-fixed: 180 241 191;
+    --color-primary-fixed-dim: 153 212 165;
+    --color-on-primary-fixed: 0 33 12;
+    --color-on-primary-fixed-variant: 24 81 45;
+    --color-secondary-fixed: 243 223 206;
+    --color-secondary-fixed-dim: 214 195 179;
+    --color-on-secondary-fixed: 35 26 15;
+    --color-on-secondary-fixed-variant: 81 69 56;
+    --color-tertiary-fixed: 205 229 255;
+    --color-tertiary-fixed-dim: 173 201 231;
+    --color-on-tertiary-fixed: 0 29 50;
+    --color-on-tertiary-fixed-variant: 46 73 98;
+    --color-background: 248 250 244;
+    --color-on-background: 25 28 25;
+    --color-surface-variant: 225 227 221;
+    --color-growth-green: 79 119 88;
+    --color-journal-peach: 249 228 212;
+    --color-alert-soft-red: 230 165 165;
+    --color-surface-beige: 253 251 247;
+    --color-text-main: 45 49 46;
+
+    --radius-sm: 0.25rem;
+    --radius-default: 0.5rem;
+    --radius-md: 0.75rem;
+    --radius-lg: 1rem;
+    --radius-xl: 1.5rem;
+
+    --space-base: 8px;
+    --space-container-padding: 24px;
+    --space-element-gap: 16px;
+    --space-section-margin: 32px;
+    --space-grid-gutter: 16px;
+  }
+
   html,
   body,
   #root {
