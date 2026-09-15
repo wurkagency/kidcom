@@ -8,9 +8,9 @@ import type { CalendarEventCategory } from "@kidcom/shared";
 // as the canonical source rather than the individual event-card colors,
 // which are inconsistent between the mockups (e.g. Week/List's Medical
 // badge uses a literal blue hex while Month's dropdown uses the `tertiary`
-// token). School (#f5a623) and Activities (#8e44ad) aren't in the app's
-// existing Material token palette, so they're carried as literal hex
-// Tailwind arbitrary values, same as the mockups do.
+// token). School and Activities aren't in the app's Material token palette,
+// so they get their own `category-school`/`category-activity` CSS-variable
+// tokens (src/index.css) instead of literal hex, so a skin can recolor them.
 export type CalendarCategoryMeta = {
   label: string;
   icon: string;
@@ -56,18 +56,18 @@ export const CALENDAR_CATEGORY_META: Record<CalendarEventCategory, CalendarCateg
   SCHOOL: {
     label: "School",
     icon: "school",
-    dotClass: "bg-[#f5a623]",
-    badgeClass: "bg-[#f5a623]/15 text-[#92540c]",
+    dotClass: "bg-category-school",
+    badgeClass: "bg-category-school/15 text-on-category-school",
     accentClass: "",
-    iconAccentClass: "text-[#92540c]",
+    iconAccentClass: "text-on-category-school",
   },
   ACTIVITY: {
     label: "Activities",
     icon: "sports_soccer",
-    dotClass: "bg-[#8e44ad]",
-    badgeClass: "bg-[#8e44ad]/15 text-[#6c268c]",
+    dotClass: "bg-category-activity",
+    badgeClass: "bg-category-activity/15 text-on-category-activity",
     accentClass: "",
-    iconAccentClass: "text-[#6c268c]",
+    iconAccentClass: "text-on-category-activity",
   },
   HOLIDAY: {
     label: "Holidays",

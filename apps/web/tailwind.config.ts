@@ -67,6 +67,10 @@ export default {
         "alert-soft-red": withOpacity("--color-alert-soft-red"),
         "surface-beige": withOpacity("--color-surface-beige"),
         "text-main": withOpacity("--color-text-main"),
+        "category-school": withOpacity("--color-category-school"),
+        "on-category-school": withOpacity("--color-on-category-school"),
+        "category-activity": withOpacity("--color-category-activity"),
+        "on-category-activity": withOpacity("--color-on-category-activity"),
       },
       fontFamily: {
         "display-lg": ["Plus Jakarta Sans"],

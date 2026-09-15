@@ -5,6 +5,8 @@
 @tailwind utilities;
 
 @layer base {
+  /* Greenkeeper (default skin). Additional skins override these variables
+     under `[data-skin="<id>"]` — see src/lib/themes.ts. */
   :root {
     --color-surface: 248 250 244;
     --color-surface-dim: 217 219 213;
@@ -58,6 +60,10 @@
     --color-alert-soft-red: 230 165 165;
     --color-surface-beige: 253 251 247;
     --color-text-main: 45 49 46;
+    --color-category-school: 245 166 35;
+    --color-on-category-school: 146 84 12;
+    --color-category-activity: 142 68 173;
+    --color-on-category-activity: 108 38 140;
 
     --radius-sm: 0.25rem;
     --radius-default: 0.5rem;

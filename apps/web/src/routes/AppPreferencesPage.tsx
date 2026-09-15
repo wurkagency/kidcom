@@ -10,6 +10,7 @@ import {
   getCalendarDefaultView,
   getDateFormat,
   getLanguage,
+  getSkin,
   getTextSize,
   getTheme,
   getTimeZone,
@@ -24,6 +25,7 @@ import {
   type UnitSystem,
   type WeekStart,
 } from "../lib/preferences";
+import { SKINS } from "../lib/themes";
 
 // Matches docs/stitch_splitkid/app_preferences/code.html row-for-row. Every
 // row is real, persisted, interactive state (see lib/preferences.ts) — Units
@@ -39,6 +41,7 @@ export function AppPreferencesPage() {
   const navigate = useNavigate();
 
   const [theme, setThemeState] = useState<Theme>(() => getTheme());
+  const [skin] = useState(() => getSkin());
   const [textSize, setTextSizeState] = useState<TextSize>(() => getTextSize());
   const [language] = useState(() => getLanguage());
   const [dateFormat] = useState(() => getDateFormat());
@@ -70,6 +73,13 @@ export function AppPreferencesPage() {
           Appearance
         </h2>
         <Card className="space-y-6">
+          <PickerRow
+            icon="style"
+            iconClass="text-primary"
+            label="Skin"
+            value={SKINS.find((s) => s.id === skin)?.name ?? skin}
+            onClick={() => navigate("/preferences/skin")}
+          />
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="w-10 h-10 rounded-full bg-primary-container/20 flex items-center justify-center">

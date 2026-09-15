@@ -10,6 +10,8 @@
 // interactive and persist across visits, even though nothing else in the
 // app reads them yet — "functions are embedded later" per Charlie's
 // instruction, not "these are decorative."
+import { applySkin, DEFAULT_SKIN, SKINS, type SkinId } from "./themes";
+
 export type UnitSystem = "metric" | "imperial";
 export type WeekStart = "sunday" | "monday";
 export type Theme = "light" | "dark";
@@ -55,6 +57,7 @@ function setBool(key: string, value: boolean) {
 const UNITS_KEY = "kidcom-units";
 const WEEK_START_KEY = "kidcom-week-start";
 const THEME_KEY = "kidcom-theme";
+const SKIN_KEY = "kidcom-skin";
 const TEXT_SIZE_KEY = "kidcom-text-size";
 const LANGUAGE_KEY = "kidcom-language";
 const DATE_FORMAT_KEY = "kidcom-date-format";
@@ -78,6 +81,18 @@ export function getWeekStart(): WeekStart {
 }
 export function setWeekStart(value: WeekStart) {
   setString(WEEK_START_KEY, value);
+}
+
+export function getSkin(): SkinId {
+  return getString(
+    SKIN_KEY,
+    SKINS.map((skin) => skin.id),
+    DEFAULT_SKIN
+  );
+}
+export function setSkin(value: SkinId) {
+  setString(SKIN_KEY, value);
+  applySkin(value);
 }
 
 export function getTheme(): Theme {

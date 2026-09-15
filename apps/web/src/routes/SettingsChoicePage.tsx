@@ -8,16 +8,19 @@ import {
   getDateFormat,
   getJournalVisibility,
   getLanguage,
+  getSkin,
   getTimeZone,
   setCalendarDefaultView,
   setDateFormat,
   setJournalVisibility,
   setLanguage,
+  setSkin,
   setTimeZone,
   type CalendarDefaultView,
   type DateFormat,
   type JournalVisibility,
 } from "../lib/preferences";
+import { SKINS, type SkinId } from "../lib/themes";
 
 const LANGUAGE_OPTIONS = ["English (US)", "English (UK)", "Español", "Français", "Dansk"];
 const DATE_FORMAT_OPTIONS: DateFormat[] = ["MM/DD/YYYY", "DD/MM/YYYY", "YYYY-MM-DD"];
@@ -37,6 +40,10 @@ const JOURNAL_VISIBILITY_OPTIONS: { value: JournalVisibility; label: string }[] 
   { value: "shared", label: "Shared" },
   { value: "private", label: "Private" },
 ];
+const SKIN_OPTIONS: { value: SkinId; label: string }[] = SKINS.map((skin) => ({
+  value: skin.id,
+  label: skin.name,
+}));
 
 type ChoiceConfig = {
   title: string;
@@ -80,6 +87,13 @@ const CONFIGS: Record<string, ChoiceConfig> = {
     options: CALENDAR_VIEW_OPTIONS,
     getValue: getCalendarDefaultView,
     setValue: (v) => setCalendarDefaultView(v as CalendarDefaultView),
+  },
+  skin: {
+    title: "Skin",
+    backTo: "/preferences",
+    options: SKIN_OPTIONS,
+    getValue: getSkin,
+    setValue: (v) => setSkin(v as SkinId),
   },
   "journal-visibility": {
     title: "Journal Entry Visibility",
