@@ -1,7 +1,10 @@
+import { useMemo } from "react";
+import { DayPicker, type DayButton } from "react-day-picker";
+import type { ComponentProps } from "react";
 import type { ChildFamilyMember } from "@kidcom/shared";
 
 import { Icon } from "../../components/Icon";
-import { addDays, eventSpansDate, startOfWeek, toDateOnly } from "../../lib/calendarDates";
+import { eventSpansDate, fromLocalDateOnly, toLocalDateOnly } from "../../lib/calendarDates";
 import { CALENDAR_CATEGORY_META } from "../../lib/calendarCategories";
 import { resolveParentTimeLabel } from "../../lib/parentLabel";
 import type { CalendarEventWithChild } from "../../lib/mergeCalendarRanges";
@@ -18,6 +21,23 @@ import { ViewTabs } from "./ViewTabs";
 // month grid with whole-week custody tinting (in-month days only — days
 // from adjacent months stay plain muted numbers, no tint/no dots), and a
 // "Day Quick Preview" panel below.
+//
+// The day grid itself is built on react-day-picker (the primitive
+// shadcn/ui's Calendar component wraps) rather than a hand-rolled 42-cell
+// array — used directly, not through the generated ui/calendar.tsx wrapper,
+// since that wrapper's own Button/"cell-size" styling scaffold doesn't fit
+// this grid's tint/dot/selection look. Its own nav/caption/weekday-label row
+// are hidden (`classNames` below) since this view keeps its existing custom
+// header for those.
+//
+// react-day-picker does its own grid math in local-Date terms, while this
+// app's custody/event data is deliberately keyed by UTC calendar day (see
+// calendarDates.ts). The bridge: every Date this view hands to or reads from
+// react-day-picker is only ever built/read via *local* getters
+// (fromLocalDateOnly/toLocalDateOnly) — used purely as a civil-calendar
+// container, never compared as a real instant — so the ISO strings it
+// produces line up with the ones custodyByDate/events are keyed by, exactly
+// as the old UTC-Date-based grid did, just via local Dates instead.
 export function MonthView({
   header,
   monthAnchorIso,
@@ -48,10 +68,14 @@ export function MonthView({
   onToggleConfirm: (event: CalendarEventWithChild, confirmed: boolean) => void;
 }) {
   const monthAnchor = new Date(monthAnchorIso);
-  const monthStart = new Date(Date.UTC(monthAnchor.getUTCFullYear(), monthAnchor.getUTCMonth(), 1));
-  const gridStart = startOfWeek(monthStart, weekStartPref);
-  const days = Array.from({ length: 42 }, (_, i) => addDays(gridStart, i));
+  const year = monthAnchor.getUTCFullYear();
   const month = monthAnchor.getUTCMonth();
+  // A local Date carrying the same year/month as monthAnchorIso's UTC one —
+  // only the calendar month matters to react-day-picker's `month` prop, and
+  // this keeps every date it generates landing on the same civil-calendar
+  // days the rest of the app already keys data by (see the file comment).
+  const localMonthAnchor = new Date(year, month, 1);
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
 
   // Background tint marks only actual custody days — days that carry a
   // CUSTODY-category event (handover/transition entries, created manually
@@ -61,19 +85,37 @@ export function MonthView({
   // ("Dad's Time" vs "Mom's Time") without hardcoding which parentRole maps
   // to which — first owner seen gets the primary tone, the next gets the
   // secondary tone. Only considered for in-month days.
-  const ownerTone: Record<string, "primary" | "secondary"> = {};
-  if (!isBothMode) {
-    for (const day of days) {
-      if (day.getUTCMonth() !== month) continue;
-      const iso = toDateOnly(day);
-      const hasCustodyEvent = events.some((e) => e.category === "CUSTODY" && eventSpansDate(e, iso));
+  //
+  // Memoized together with the DayButton component that reads them:
+  // react-day-picker's `components.DayButton` only ever receives the props
+  // *it* defines (day/modifiers/...), not arbitrary extra ones passed to
+  // <DayPicker>, so this data has to reach MonthDayButton via closure — and
+  // a closure-capturing component must keep a stable identity across
+  // renders that don't actually change this data, or every cell would
+  // unmount/remount (losing focus) on every unrelated re-render.
+  const { ownerTone, boundDayButton } = useMemo(() => {
+    const tone: Record<string, "primary" | "secondary"> = {};
+    const ownerMap = new Map<string, string | null>();
+    const eventsMap = new Map<string, CalendarEventWithChild[]>();
+    for (let d = 1; d <= daysInMonth; d++) {
+      const iso = toLocalDateOnly(new Date(year, month, d));
+      const dayEvents = events.filter((e) => eventSpansDate(e, iso));
+      eventsMap.set(iso, dayEvents);
+      if (isBothMode) continue;
+      const hasCustodyEvent = dayEvents.some((e) => e.category === "CUSTODY");
       if (!hasCustodyEvent) continue;
-      const owner = custodyByDate[iso];
-      if (owner && !(owner in ownerTone)) {
-        ownerTone[owner] = Object.keys(ownerTone).length === 0 ? "primary" : "secondary";
+      const owner = custodyByDate[iso] ?? null;
+      ownerMap.set(iso, owner);
+      if (owner && !(owner in tone)) {
+        tone[owner] = Object.keys(tone).length === 0 ? "primary" : "secondary";
       }
     }
-  }
+    function DayButtonWithData(props: ComponentProps<typeof DayButton>) {
+      return <MonthDayButton {...props} eventsByIso={eventsMap} ownerByIso={ownerMap} ownerTone={tone} />;
+    }
+    return { eventsByIso: eventsMap, ownerByIso: ownerMap, ownerTone: tone, boundDayButton: DayButtonWithData };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [events, custodyByDate, year, month, daysInMonth, isBothMode]);
 
   const selectedDayEvents = events.filter((e) => eventSpansDate(e, selectedDate));
   const selectedOwner = isBothMode ? null : custodyByDate[selectedDate] ?? null;
@@ -117,49 +159,36 @@ export function MonthView({
         <CategoryFilterChips selected={header.categoryFilter} onToggle={header.onToggleCategory} />
       </div>
 
-      <div className="grid grid-cols-7 gap-1 px-container-padding">
-        {days.map((day) => {
-          const iso = toDateOnly(day);
-          const inMonth = day.getUTCMonth() === month;
-          const isSelected = iso === selectedDate;
-          const dayEvents = inMonth ? events.filter((e) => eventSpansDate(e, iso)) : [];
-          const hasCustodyEvent = inMonth && !isBothMode && dayEvents.some((e) => e.category === "CUSTODY");
-          const owner = hasCustodyEvent ? custodyByDate[iso] ?? null : null;
-          const tone = owner ? ownerTone[owner] : null;
-          return (
-            <button
-              key={iso}
-              onClick={() => onSelectDate(iso)}
-              className={`aspect-square rounded-xl flex flex-col items-center justify-center gap-0.5 relative transition-all ${
-                inMonth
-                  ? tone === "primary"
-                    ? "bg-primary-fixed/25"
-                    : tone === "secondary"
-                      ? "bg-secondary-container/50"
-                      : ""
-                  : ""
-              } ${isSelected ? "bg-primary shadow-md scale-105 z-10" : ""}`}
-            >
-              <span
-                className={`font-label-md text-label-md ${
-                  isSelected ? "text-on-primary" : inMonth ? "text-on-surface" : "text-on-surface-variant opacity-30"
-                }`}
-              >
-                {day.getUTCDate()}
-              </span>
-              {inMonth && dayEvents.length > 0 && (
-                <div className="flex gap-0.5">
-                  {dayEvents.slice(0, 3).map((e, idx) => (
-                    <span
-                      key={idx}
-                      className={`w-1 h-1 rounded-full ${isSelected ? "bg-on-primary" : CALENDAR_CATEGORY_META[e.category].dotClass}`}
-                    />
-                  ))}
-                </div>
-              )}
-            </button>
-          );
-        })}
+      <div className="px-container-padding">
+        <DayPicker
+          mode="single"
+          month={localMonthAnchor}
+          onMonthChange={() => {}}
+          weekStartsOn={weekStartPref === "sunday" ? 0 : 1}
+          showOutsideDays
+          required
+          selected={fromLocalDateOnly(selectedDate)}
+          onSelect={(date) => {
+            if (date) onSelectDate(toLocalDateOnly(date));
+          }}
+          classNames={{
+            months: "w-full",
+            month: "w-full",
+            nav: "hidden",
+            month_caption: "hidden",
+            weekdays: "hidden",
+            // react-day-picker v10 renders a real <table>/<tr>/<td> grid
+            // (role="grid", for a11y) — CSS Grid/Flex on the <tr> itself
+            // ("week") doesn't reliably distribute column widths across
+            // browsers, so this leans on native table layout instead:
+            // table-fixed divides the table into 7 equal columns (always
+            // exactly 7 <td>s per row) and border-spacing replicates the
+            // original grid's `gap-1` without needing border-collapse.
+            month_grid: "w-full table-fixed border-spacing-1",
+            day: "p-0",
+          }}
+          components={{ DayButton: boundDayButton }}
+        />
       </div>
 
       {!isBothMode && Object.keys(ownerTone).length > 0 && (
@@ -210,5 +239,56 @@ export function MonthView({
         </div>
       </div>
     </div>
+  );
+}
+
+type MonthDayButtonProps = ComponentProps<typeof DayButton> & {
+  eventsByIso?: Map<string, CalendarEventWithChild[]>;
+  ownerByIso?: Map<string, string | null>;
+  ownerTone?: Record<string, "primary" | "secondary">;
+};
+
+// Renders one grid cell exactly as the original 42-cell array version did —
+// same tint/selection/dot classes — just fed by react-day-picker's own
+// per-cell `day`/`modifiers` instead of a hand-rolled array index.
+function MonthDayButton({ day, modifiers, eventsByIso, ownerByIso, ownerTone, className, ...props }: MonthDayButtonProps) {
+  const iso = toLocalDateOnly(day.date);
+  const inMonth = !modifiers.outside;
+  const isSelected = modifiers.selected;
+  const dayEvents = inMonth ? eventsByIso?.get(iso) ?? [] : [];
+  const owner = inMonth ? ownerByIso?.get(iso) ?? null : null;
+  const tone = owner && ownerTone ? ownerTone[owner] : null;
+
+  return (
+    <button
+      {...props}
+      className={`aspect-square w-full rounded-xl flex flex-col items-center justify-center gap-0.5 relative transition-all ${
+        inMonth
+          ? tone === "primary"
+            ? "bg-primary-fixed/25"
+            : tone === "secondary"
+              ? "bg-secondary-container/50"
+              : ""
+          : ""
+      } ${isSelected ? "bg-primary shadow-md scale-105 z-10" : ""}`}
+    >
+      <span
+        className={`font-label-md text-label-md ${
+          isSelected ? "text-on-primary" : inMonth ? "text-on-surface" : "text-on-surface-variant opacity-30"
+        }`}
+      >
+        {day.date.getDate()}
+      </span>
+      {inMonth && dayEvents.length > 0 && (
+        <div className="flex gap-0.5">
+          {dayEvents.slice(0, 3).map((e, idx) => (
+            <span
+              key={idx}
+              className={`w-1 h-1 rounded-full ${isSelected ? "bg-on-primary" : CALENDAR_CATEGORY_META[e.category].dotClass}`}
+            />
+          ))}
+        </div>
+      )}
+    </button>
   );
 }

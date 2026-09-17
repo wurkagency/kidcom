@@ -20,6 +20,19 @@ export function toLocalDateOnly(d: Date): string {
   return `${year}-${month}-${day}`;
 }
 
+// Inverse of toLocalDateOnly — parses a "YYYY-MM-DD" string via the local
+// Date constructor rather than `new Date(iso)` (which parses as UTC
+// midnight, off by a day in any timezone behind UTC). Used to bridge this
+// app's ISO-string date state to react-day-picker's Date-object API
+// (MonthView.tsx), which does its own grid math in local-Date terms — as
+// long as a Date is only ever built and read via matching local getters, it
+// stays a plain "civil calendar date" container with no real timezone
+// crossing, the same trick toDateOnly/toLocalDateOnly already rely on.
+export function fromLocalDateOnly(iso: string): Date {
+  const [year, month, day] = iso.split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
+
 // An event "occurs" on a given date if that date falls anywhere in its
 // [startsAt, endsAt] span (inclusive on both ends), not just on its exact
 // start date — otherwise a multi-day event only ever shows on the day it
