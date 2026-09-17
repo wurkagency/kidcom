@@ -35,6 +35,22 @@ export async function fetchMediaUrl(
   return promise;
 }
 
+// Direct (not blob-fetched) URL for actual video playback — GET /media/:id
+// is deliberately CORS-configured for exactly this (see apps/api/src/app.ts's
+// `credentials: true` + cross-origin resource policy comment: "the web app
+// ... loads media directly from api.kidcom.org via plain <img>/<video> tags —
+// a different origin by design"). fetchMediaUrl's blob-download approach
+// still fits that comment fine for small poster images, but for a VIDEO's
+// `original` variant it downloads the entire file into memory before any
+// playback can start — slow, and failure-prone on mobile for larger files
+// (the reported "videos can't be played" symptom). A <video src> pointed
+// here directly, with crossOrigin="use-credentials" to carry the session
+// cookie, streams progressively via the browser's own HTTP handling instead.
+export function mediaUrl(mediaAssetId: string, variant?: "original"): string {
+  const query = variant ? `?variant=${variant}` : "";
+  return `${API_URL}/media/${mediaAssetId}${query}`;
+}
+
 // Call when the last consumer of a given media asset's object URL unmounts.
 // Revokes the URL (freeing the blob) and drops it from the cache so a future
 // mount fetches fresh data instead of reusing a now-revoked URL. Safe to call

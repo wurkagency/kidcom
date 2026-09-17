@@ -4,16 +4,19 @@ import type { JournalPostDto, MediaAssetDto } from "@kidcom/shared";
 
 import { Icon } from "./Icon";
 import { Avatar } from "./Avatar";
-import { fetchMediaUrl, releaseMediaUrl } from "../lib/media";
+import { fetchMediaUrl, mediaUrl, releaseMediaUrl } from "../lib/media";
 import { apiPost, apiDelete, ApiRequestError } from "../lib/api";
 
 // Shown for one attached photo or video — a grid of these covers "show all
 // media, not just the first" (see the gallery below). Video plays for real
-// (an actual <video>, fetched via the ?variant=original endpoint) instead of
-// the old inert poster-image-with-a-play-badge; this is the MVP approach —
-// the whole file is fetched as a blob via the same authenticated flow images
-// already use, no HTTP Range/streaming support, which is an acceptable
-// tradeoff for a family-journal feature rather than a video product.
+// (an actual <video>, pointed directly at the ?variant=original endpoint via
+// mediaUrl() with crossOrigin="use-credentials" to carry the session cookie
+// cross-origin) rather than the old inert poster-image-with-a-play-badge.
+// Streams progressively through the browser's own HTTP handling instead of
+// fetchMediaUrl's blob-download (still used for the poster image here, and
+// fine for that — small file) — a full in-memory download before any
+// playback could start was slow and failure-prone on mobile for larger
+// video files, the "videos can't be played" symptom.
 // Landscape 4:3 box for every preview — image, video poster, and every
 // loading/error/processing placeholder state — so the feed and gallery grid
 // don't jump around as media loads in at different aspect ratios. The photo
@@ -26,8 +29,8 @@ const PREVIEW_FIT = "object-contain bg-surface-container-high";
 
 export function MediaThumb({ media, alt }: { media: MediaAssetDto; alt: string }) {
   const [posterUrl, setPosterUrl] = useState<string | null>(null);
-  const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
+  const [playbackError, setPlaybackError] = useState(false);
   const loadedIdRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -45,19 +48,8 @@ export function MediaThumb({ media, alt }: { media: MediaAssetDto; alt: string }
         releaseMediaUrl(loadedIdRef.current);
         loadedIdRef.current = null;
       }
-      if (media.type === "VIDEO") {
-        releaseMediaUrl(media.id, "original");
-      }
     };
-  }, [media.id, media.status, media.type]);
-
-  async function handlePlay() {
-    if (!videoUrl) {
-      const url = await fetchMediaUrl(media.id, "original");
-      setVideoUrl(url);
-    }
-    setPlaying(true);
-  }
+  }, [media.id, media.status]);
 
   if (media.status === "FAILED") {
     return (
@@ -83,12 +75,23 @@ export function MediaThumb({ media, alt }: { media: MediaAssetDto; alt: string }
 
   if (media.type === "VIDEO") {
     if (playing) {
+      if (playbackError) {
+        return (
+          <div className={`w-full ${PREVIEW_ASPECT} rounded-lg bg-surface-container-high flex flex-col items-center justify-center gap-1`}>
+            <Icon name="broken_image" className="text-2xl text-on-surface-variant" />
+            <span className="font-label-sm text-label-sm text-on-surface-variant">Couldn't play this video</span>
+          </div>
+        );
+      }
       return (
         <video
-          src={videoUrl ?? undefined}
+          src={mediaUrl(media.id, "original")}
+          crossOrigin="use-credentials"
           poster={posterUrl}
           controls
           autoPlay
+          playsInline
+          onError={() => setPlaybackError(true)}
           className={`w-full ${PREVIEW_ASPECT} object-contain rounded-lg bg-black`}
         />
       );
@@ -101,7 +104,8 @@ export function MediaThumb({ media, alt }: { media: MediaAssetDto; alt: string }
           // to the full post — without this, pressing Play would both start
           // the video AND navigate away from under it.
           e.stopPropagation();
-          handlePlay();
+          setPlaybackError(false);
+          setPlaying(true);
         }}
         aria-label="Play video"
         className="relative block w-full"

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { MediaAssetDto } from "@kidcom/shared";
 
 import { Icon } from "./Icon";
-import { fetchMediaUrl, releaseMediaUrl } from "../lib/media";
+import { fetchMediaUrl, mediaUrl, releaseMediaUrl } from "../lib/media";
 
 // Same fetch/play logic as MediaThumb (JournalPostCard.tsx), but for the
 // post *detail* view: the overview/feed/gallery keep a cropped 4:3 preview
@@ -12,8 +12,8 @@ import { fetchMediaUrl, releaseMediaUrl } from "../lib/media";
 // dominate the screen); video keeps native controls with no forced box.
 function MediaDetailThumb({ media, alt }: { media: MediaAssetDto; alt: string }) {
   const [posterUrl, setPosterUrl] = useState<string | null>(null);
-  const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
+  const [playbackError, setPlaybackError] = useState(false);
   const loadedIdRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -31,19 +31,8 @@ function MediaDetailThumb({ media, alt }: { media: MediaAssetDto; alt: string })
         releaseMediaUrl(loadedIdRef.current);
         loadedIdRef.current = null;
       }
-      if (media.type === "VIDEO") {
-        releaseMediaUrl(media.id, "original");
-      }
     };
-  }, [media.id, media.status, media.type]);
-
-  async function handlePlay() {
-    if (!videoUrl) {
-      const url = await fetchMediaUrl(media.id, "original");
-      setVideoUrl(url);
-    }
-    setPlaying(true);
-  }
+  }, [media.id, media.status]);
 
   if (media.status === "FAILED") {
     return (
@@ -69,12 +58,23 @@ function MediaDetailThumb({ media, alt }: { media: MediaAssetDto; alt: string })
 
   if (media.type === "VIDEO") {
     if (playing) {
+      if (playbackError) {
+        return (
+          <div className="w-full aspect-[4/3] rounded-lg bg-surface-container-high flex flex-col items-center justify-center gap-1">
+            <Icon name="broken_image" className="text-2xl text-on-surface-variant" />
+            <span className="font-label-sm text-label-sm text-on-surface-variant">Couldn't play this video</span>
+          </div>
+        );
+      }
       return (
         <video
-          src={videoUrl ?? undefined}
+          src={mediaUrl(media.id, "original")}
+          crossOrigin="use-credentials"
           poster={posterUrl}
           controls
           autoPlay
+          playsInline
+          onError={() => setPlaybackError(true)}
           className="w-full max-h-[70vh] rounded-lg bg-black"
         />
       );
@@ -84,7 +84,8 @@ function MediaDetailThumb({ media, alt }: { media: MediaAssetDto; alt: string })
         type="button"
         onClick={(e) => {
           e.stopPropagation();
-          handlePlay();
+          setPlaybackError(false);
+          setPlaying(true);
         }}
         aria-label="Play video"
         className="relative block w-full"
