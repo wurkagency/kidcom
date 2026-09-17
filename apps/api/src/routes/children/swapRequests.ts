@@ -5,6 +5,7 @@ import { prisma } from "../../db";
 import { ApiError } from "../../middleware/errorHandler";
 import { pushQueue } from "../../lib/pushQueue";
 import { requireCapability } from "../../lib/permissions";
+import { withRls } from "../../lib/rls";
 
 // Mounted at /children/:childId/swap-requests. Requests target a computed
 // custody date (see packages/shared/src/custody.ts), not a stored
@@ -36,10 +37,12 @@ function toDto(row: {
 
 swapRequestsRouter.get("/", async (req: Request<ChildParams>, res, next) => {
   try {
-    const rows = await prisma.swapRequest.findMany({
-      where: { childId: req.params.childId },
-      orderBy: { createdAt: "desc" },
-    });
+    const rows = await withRls(req.session.userId!, (tx) =>
+      tx.swapRequest.findMany({
+        where: { childId: req.params.childId },
+        orderBy: { createdAt: "desc" },
+      })
+    );
     res.json({ items: rows.map(toDto) });
   } catch (err) {
     next(err);
@@ -52,14 +55,17 @@ swapRequestsRouter.post("/", requireCapability("swap_request:create"), async (re
     if (!body.date) {
       throw new ApiError(400, "date is required");
     }
-    const row = await prisma.swapRequest.create({
-      data: {
-        childId: req.params.childId,
-        date: new Date(body.date),
-        requestedById: req.session.userId!,
-        message: body.message,
-      },
-    });
+    const date = body.date;
+    const row = await withRls(req.session.userId!, (tx) =>
+      tx.swapRequest.create({
+        data: {
+          childId: req.params.childId,
+          date: new Date(date),
+          requestedById: req.session.userId!,
+          message: body.message,
+        },
+      })
+    );
 
     // Push to the child's other PARENT-role members (not the requester) —
     // best-effort, doesn't block the response (chunk 8).
@@ -90,28 +96,32 @@ swapRequestsRouter.post("/", requireCapability("swap_request:create"), async (re
 // role gate.
 swapRequestsRouter.patch("/:id", requireCapability("swap_request:approve"), async (req: Request<ChildRequestParams>, res, next) => {
   try {
-    const existing = await prisma.swapRequest.findFirst({
-      where: { id: req.params.id, childId: req.params.childId },
-    });
-    if (!existing) throw new ApiError(404, "Swap request not found");
-    if (existing.requestedById === req.session.userId) {
-      throw new ApiError(400, "You can't approve or decline your own request");
-    }
-
     const body = req.body as { status?: "APPROVED" | "DECLINED" };
-    if (body.status !== "APPROVED" && body.status !== "DECLINED") {
-      throw new ApiError(400, "status must be APPROVED or DECLINED");
-    }
 
-    const row = await prisma.swapRequest.update({
-      where: { id: req.params.id },
-      data: { status: body.status, resolvedAt: new Date() },
+    const { existing, row, status } = await withRls(req.session.userId!, async (tx) => {
+      const existing = await tx.swapRequest.findFirst({
+        where: { id: req.params.id, childId: req.params.childId },
+      });
+      if (!existing) throw new ApiError(404, "Swap request not found");
+      if (existing.requestedById === req.session.userId) {
+        throw new ApiError(400, "You can't approve or decline your own request");
+      }
+      if (body.status !== "APPROVED" && body.status !== "DECLINED") {
+        throw new ApiError(400, "status must be APPROVED or DECLINED");
+      }
+      const status = body.status;
+
+      const row = await tx.swapRequest.update({
+        where: { id: req.params.id },
+        data: { status, resolvedAt: new Date() },
+      });
+      return { existing, row, status };
     });
 
     await pushQueue.add("send-push", {
       userId: existing.requestedById,
-      title: "Swap request " + (body.status === "APPROVED" ? "approved" : "declined"),
-      body: `Your swap request for ${row.date.toLocaleDateString()} was ${body.status.toLowerCase()}`,
+      title: "Swap request " + (status === "APPROVED" ? "approved" : "declined"),
+      body: `Your swap request for ${row.date.toLocaleDateString()} was ${status.toLowerCase()}`,
       url: `/calendar`,
     });
 

@@ -1,9 +1,10 @@
 import { Router, type Request } from "express";
 import type { CreateGrowthEntryRequest, GrowthEntryDto, UpdateGrowthEntryRequest } from "@kidcom/shared";
+import type { Prisma } from "@kidcom/db";
 
-import { prisma } from "../../db";
 import { ApiError } from "../../middleware/errorHandler";
 import { requireCapability } from "../../lib/permissions";
+import { withRls } from "../../lib/rls";
 
 // Mounted at /children/:childId/growth-entries.
 export const growthEntriesRouter = Router({ mergeParams: true });
@@ -32,13 +33,14 @@ function toDto(row: {
 // whatever was last created/edited — an out-of-order backfill (e.g. adding a
 // measurement from last month after already logging this month's) must not
 // clobber a newer value. Re-derive it from scratch after every mutation
-// instead of special-casing each one.
-async function recomputeHeadlineHeight(childId: string) {
-  const mostRecent = await prisma.growthEntry.findFirst({
+// instead of special-casing each one. Takes `tx` so it runs inside the same
+// withRls()-opened transaction as its caller, atomically.
+async function recomputeHeadlineHeight(tx: Prisma.TransactionClient, childId: string) {
+  const mostRecent = await tx.growthEntry.findFirst({
     where: { childId, heightCm: { not: null } },
     orderBy: { measuredAt: "desc" },
   });
-  await prisma.child.update({
+  await tx.child.update({
     where: { id: childId },
     data: { heightCm: mostRecent?.heightCm ?? null },
   });
@@ -47,10 +49,12 @@ async function recomputeHeadlineHeight(childId: string) {
 // Oldest-first — this is what the growth chart plots directly.
 growthEntriesRouter.get("/", async (req: Request<ChildParams>, res, next) => {
   try {
-    const rows = await prisma.growthEntry.findMany({
-      where: { childId: req.params.childId },
-      orderBy: { measuredAt: "asc" },
-    });
+    const rows = await withRls(req.session.userId!, (tx) =>
+      tx.growthEntry.findMany({
+        where: { childId: req.params.childId },
+        orderBy: { measuredAt: "asc" },
+      })
+    );
     res.json({ items: rows.map(toDto) });
   } catch (err) {
     next(err);
@@ -63,17 +67,19 @@ growthEntriesRouter.post("/", requireCapability("growth_entry:manage"), async (r
     if (!body.measuredAt || (body.heightCm === undefined && body.weightKg === undefined)) {
       throw new ApiError(400, "measuredAt and at least one of heightCm/weightKg are required");
     }
-    const row = await prisma.growthEntry.create({
-      data: {
-        childId: req.params.childId,
-        measuredAt: new Date(body.measuredAt),
-        heightCm: body.heightCm,
-        weightKg: body.weightKg,
-        note: body.note,
-      },
+    const row = await withRls(req.session.userId!, async (tx) => {
+      const created = await tx.growthEntry.create({
+        data: {
+          childId: req.params.childId,
+          measuredAt: new Date(body.measuredAt!),
+          heightCm: body.heightCm,
+          weightKg: body.weightKg,
+          note: body.note,
+        },
+      });
+      await recomputeHeadlineHeight(tx, req.params.childId);
+      return created;
     });
-
-    await recomputeHeadlineHeight(req.params.childId);
 
     res.status(201).json(toDto(row));
   } catch (err) {
@@ -84,22 +90,24 @@ growthEntriesRouter.post("/", requireCapability("growth_entry:manage"), async (r
 growthEntriesRouter.patch("/:id", requireCapability("growth_entry:manage"), async (req: Request<ChildEntryParams>, res, next) => {
   try {
     const body = req.body as UpdateGrowthEntryRequest;
-    const existing = await prisma.growthEntry.findFirst({
-      where: { id: req.params.id, childId: req.params.childId },
-    });
-    if (!existing) throw new ApiError(404, "Growth entry not found");
+    const row = await withRls(req.session.userId!, async (tx) => {
+      const existing = await tx.growthEntry.findFirst({
+        where: { id: req.params.id, childId: req.params.childId },
+      });
+      if (!existing) throw new ApiError(404, "Growth entry not found");
 
-    const row = await prisma.growthEntry.update({
-      where: { id: req.params.id },
-      data: {
-        measuredAt: body.measuredAt ? new Date(body.measuredAt) : undefined,
-        heightCm: body.heightCm,
-        weightKg: body.weightKg,
-        note: body.note,
-      },
+      const updated = await tx.growthEntry.update({
+        where: { id: req.params.id },
+        data: {
+          measuredAt: body.measuredAt ? new Date(body.measuredAt) : undefined,
+          heightCm: body.heightCm,
+          weightKg: body.weightKg,
+          note: body.note,
+        },
+      });
+      await recomputeHeadlineHeight(tx, req.params.childId);
+      return updated;
     });
-
-    await recomputeHeadlineHeight(req.params.childId);
 
     res.json(toDto(row));
   } catch (err) {
@@ -109,14 +117,15 @@ growthEntriesRouter.patch("/:id", requireCapability("growth_entry:manage"), asyn
 
 growthEntriesRouter.delete("/:id", requireCapability("growth_entry:manage"), async (req: Request<ChildEntryParams>, res, next) => {
   try {
-    const existing = await prisma.growthEntry.findFirst({
-      where: { id: req.params.id, childId: req.params.childId },
+    await withRls(req.session.userId!, async (tx) => {
+      const existing = await tx.growthEntry.findFirst({
+        where: { id: req.params.id, childId: req.params.childId },
+      });
+      if (!existing) throw new ApiError(404, "Growth entry not found");
+
+      await tx.growthEntry.delete({ where: { id: req.params.id } });
+      await recomputeHeadlineHeight(tx, req.params.childId);
     });
-    if (!existing) throw new ApiError(404, "Growth entry not found");
-
-    await prisma.growthEntry.delete({ where: { id: req.params.id } });
-
-    await recomputeHeadlineHeight(req.params.childId);
 
     res.status(204).end();
   } catch (err) {

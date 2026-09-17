@@ -12,7 +12,7 @@ import type {
   UpdateProfileRequest,
   VerifyTwoFactorRequest,
 } from "@kidcom/shared";
-import { isValidEmail } from "@kidcom/shared";
+import { isValidEmail, isSkinId } from "@kidcom/shared";
 
 import { prisma } from "../../db";
 import { config } from "../../config";
@@ -20,6 +20,7 @@ import { ApiError } from "../../middleware/errorHandler";
 import { hashVerificationToken, sendVerificationEmail } from "../../lib/emailVerification";
 import { hashResetToken, sendPasswordResetEmail } from "../../lib/passwordReset";
 import { TWO_FACTOR_MAX_ATTEMPTS, hashTwoFactorCode, sendLoginTwoFactorCode } from "../../lib/twoFactor";
+import { withRls } from "../../lib/rls";
 
 export const authRouter = Router();
 
@@ -56,6 +57,7 @@ function toPublicUser(user: {
   lastName: string;
   avatarUrl: string | null;
   emailVerifiedAt: Date | null;
+  skinId: string | null;
 }): PublicUser {
   return {
     id: user.id,
@@ -64,6 +66,7 @@ function toPublicUser(user: {
     lastName: user.lastName,
     avatarUrl: user.avatarUrl,
     emailVerifiedAt: user.emailVerifiedAt ? user.emailVerifiedAt.toISOString() : null,
+    skinId: isSkinId(user.skinId ?? "") ? (user.skinId as PublicUser["skinId"]) : null,
   };
 }
 
@@ -372,14 +375,15 @@ authRouter.patch("/me", async (req, res, next) => {
       throw new ApiError(401, "Not signed in");
     }
     const body = req.body as Partial<UpdateProfileRequest>;
-    const { avatarMediaAssetId, firstName, lastName } = body;
+    const { avatarMediaAssetId, firstName, lastName, skinId } = body;
     const email = body.email?.trim().toLowerCase();
 
     if (
       avatarMediaAssetId === undefined &&
       firstName === undefined &&
       lastName === undefined &&
-      email === undefined
+      email === undefined &&
+      skinId === undefined
     ) {
       throw new ApiError(400, "Nothing to update");
     }
@@ -392,10 +396,13 @@ authRouter.patch("/me", async (req, res, next) => {
     if (email !== undefined && !isValidEmail(email)) {
       throw new ApiError(400, "Please enter a valid email address");
     }
+    if (skinId !== undefined && !isSkinId(skinId)) {
+      throw new ApiError(400, "Unknown skin");
+    }
 
     let avatarAsset: { id: string; ownerId: string } | null = null;
     if (avatarMediaAssetId !== undefined) {
-      avatarAsset = await prisma.mediaAsset.findUnique({ where: { id: avatarMediaAssetId } });
+      avatarAsset = await withRls(req.session.userId, (tx) => tx.mediaAsset.findUnique({ where: { id: avatarMediaAssetId } }));
       if (!avatarAsset) {
         throw new ApiError(404, "Media not found");
       }
@@ -413,7 +420,7 @@ authRouter.patch("/me", async (req, res, next) => {
       }
     }
 
-    const user = await prisma.$transaction(async (tx) => {
+    const user = await withRls(req.session.userId, async (tx) => {
       if (avatarMediaAssetId !== undefined) {
         await tx.mediaAsset.updateMany({
           where: { avatarForUserId: req.session.userId! },
@@ -431,6 +438,7 @@ authRouter.patch("/me", async (req, res, next) => {
           ...(firstName !== undefined ? { firstName } : {}),
           ...(lastName !== undefined ? { lastName } : {}),
           ...(emailChanged ? { email, emailVerifiedAt: null } : {}),
+          ...(skinId !== undefined ? { skinId } : {}),
         },
       });
     });
@@ -515,12 +523,12 @@ authRouter.get("/export", async (req, res, next) => {
     const [user, access, journalPosts, notes] = await Promise.all([
       prisma.user.findUniqueOrThrow({ where: { id: userId } }),
       prisma.childAccess.findMany({ where: { userId }, include: { child: true } }),
-      prisma.journalPost.findMany({ where: { authorId: userId }, include: { media: true } }),
+      withRls(userId, (tx) => tx.journalPost.findMany({ where: { authorId: userId }, include: { media: true } })),
       prisma.personalNote.findMany({ where: { userId } }),
     ]);
     const childIds = access.map((a) => a.childId);
     const growthEntries = childIds.length
-      ? await prisma.growthEntry.findMany({ where: { childId: { in: childIds } } })
+      ? await withRls(userId, (tx) => tx.growthEntry.findMany({ where: { childId: { in: childIds } } }))
       : [];
 
     const exportData = {

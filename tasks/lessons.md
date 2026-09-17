@@ -322,3 +322,158 @@ that standard — resolve through the real URL parser and compare origins, not a
 string-prefix guess. And after redacting a leaked secret from the working tree,
 say explicitly (don't let silence imply it) that history still has it and the
 real credential must be rotated.
+
+---
+
+# v2.0 branch — theming + RLS tenant isolation
+
+## Update to the `migrate dev` lesson above: it worked fine this session
+
+Contradicts the note at the top of this file. In this session, `prisma migrate
+dev` (both `--create-only` and full apply, against the real dev DB) ran
+successfully non-interactively, no TTY error. Unclear whether the harness
+changed or the earlier finding was specific to that session's shell — noting
+this rather than deleting the old lesson, since either could still be true in
+a different invocation. If `migrate dev` fails non-interactively again, fall
+back to the diff+manual-migration approach above; don't assume it's dead on
+arrival without trying it first.
+
+## Local dev Postgres: two containers were answering to two different names — verify which one `localhost:5432` actually reaches
+
+**What happened:** `docker compose ps` (run from `app/`, matching this repo's
+own `docker-compose.yml`) showed `kidcom-dev-postgres-1`, healthy — but it
+had **no published host port**. A second, unrelated container from an older
+project name, `splitkid-dev-postgres-1`, was the one actually bound to
+`0.0.0.0:5432`, and had been the real target of every `DATABASE_URL=...@
+localhost:5432/...` connection all along (`splitkid-dev-postgres-1` was a
+leftover from before the "kidcom" rename — see `tasks/todo.md`'s Phase 0
+note on `splitkid`/`kidcom` naming drift already flagging this history).
+Wasted real time creating roles/databases inside the *wrong*, unreachable
+container before noticing.
+
+**How to apply going forward:** when a DB command's behavior doesn't match
+what `docker compose ps` implies (or a role/database you just created isn't
+visible), check `docker ps -a --filter "ancestor=postgres..."` across *all*
+containers, not just the ones the current directory's compose file manages,
+and confirm with `docker port <container>` or a raw TCP probe which one
+actually answers the connection string in use.
+
+## Postgres superuser roles bypass RLS unconditionally — `FORCE ROW LEVEL SECURITY` cannot override it
+
+**What happened:** The local dev DB's app role (`splitkid`) turned out to be
+the Postgres cluster's *bootstrap* superuser (created it, can't even
+`ALTER ROLE ... NOSUPERUSER` itself — Postgres refuses). RLS policies with
+`FORCE ROW LEVEL SECURITY` had zero effect when connected as `splitkid`: a
+true superuser bypasses RLS entirely, full stop, and FORCE only ever affects
+a table's *non-superuser* owner. Every RLS test looked like it was silently
+no-op'ing.
+
+**Fix:** created a real non-superuser role (`kidcom_appuser`), transferred
+table/schema ownership to it (`ALTER TABLE ... OWNER TO`, since bulk
+`REASSIGN OWNED BY` fails on a bootstrap superuser's system-required
+objects), and pointed local `.env`'s `DATABASE_URL` at that role instead.
+This also mirrors production more accurately — a Plesk-provisioned DB user
+is a normal, non-superuser role, so testing against one locally is the
+*correct* setup, not just a workaround.
+
+**How to apply going forward:** before trusting any RLS test result, confirm
+`SELECT rolsuper FROM pg_roles WHERE rolname = current_user` is `false` on
+whatever connection is being tested. A pilot/rollout that "looks like it
+works" under a superuser connection proves nothing.
+
+## `INSERT ... RETURNING` is subject to the table's `USING` policy too, not just `WITH CHECK`
+
+**What happened:** `journal_posts`' policy had `WITH CHECK` correctly scoped
+(author-OR-tagged-child) but `USING` was tagged-child-only. The real
+`POST /journal` flow creates the `journal_posts` row *before* the
+`journal_post_children` linkage rows (schema requires the post to already
+exist), and Prisma's `.create()` always compiles to `INSERT ... RETURNING`.
+Postgres subjects a `RETURNING` projection to the SELECT-side (`USING`)
+policy, not just `WITH CHECK` — so the insert itself succeeded, but Postgres
+then refused to return the row, surfacing as the exact same
+"new row violates row-level security policy" error a WITH-CHECK failure
+gives. Confirmed by reproducing directly: a plain `INSERT` with no
+`RETURNING` succeeded; only the `.create()`'s implicit RETURNING failed.
+
+**Fix:** `USING` needed the same transient "author AND not-yet-linked"
+escape clause `WITH CHECK` already had, scoped narrowly (`NOT EXISTS` any
+linkage row) so it only ever applies during that one just-inserted,
+not-yet-tagged instant — never becomes a standing "authors can always read
+their own posts" exception once real linkage exists.
+
+**How to apply going forward:** for any RLS-protected table an ORM might
+`INSERT ... RETURNING` into *before* the row's own defining relationship is
+fully established (a create-then-link pattern), write and test USING with
+that exact sequence in mind, not just WITH CHECK — a policy that "should
+obviously" only matter for writes can silently break reads-of-what-you-
+just-wrote.
+
+## Prisma Client Extensions do not propagate into an interactive `$transaction`'s `tx`
+
+**What happened:** Before writing `withRls()`, considered the ORM's own
+documented `Prisma.defineExtension` + `query.$allOperations` auto-wrapping
+pattern (mirrors the official
+[row-level-security example](https://github.com/prisma/prisma-client-extensions/tree/main/row-level-security)).
+That recipe works for simple single-call sites, but this codebase has
+several existing `prisma.$transaction(async (tx) => { ...multiple ops... })`
+call sites built for their own atomicity — and Prisma has a documented,
+surprising gap ([prisma/prisma#17948](https://github.com/prisma/prisma/issues/17948)):
+extensions do **not** propagate into the `tx` an interactive transaction's
+callback receives, so an auto-wrapping extension would silently never run
+for exactly those handlers.
+
+**Fix:** built `withRls(userId, run)` as an explicit, visible wrapper every
+RLS-relevant call site must go through, instead of an auto-wrapping
+extension — no reliance on extension-propagation behavior Prisma itself
+flags as unintuitive.
+
+**How to apply going forward:** don't reach for a client-extension-based
+auto-wrap for any cross-cutting per-query concern (RLS, audit logging,
+soft-delete filtering) in a codebase that also uses interactive
+`$transaction` — verify propagation into `tx` explicitly before trusting it,
+or default to an explicit wrapper like `withRls`.
+
+## An orphaned `schema-engine-windows.exe` silently holds Prisma's migration advisory lock
+
+**What happened:** After killing a stuck `prisma migrate dev` bash command
+(paired with `TaskStop`), the underlying `schema-engine-windows.exe` process
+kept running detached. Every subsequent `migrate` command failed with
+`P1002 ... Timed out trying to acquire a postgres advisory lock`, even
+though `pg_locks`/`pg_stat_activity` showed nothing held — because the lock
+context lived in that orphaned process, not something visible from a fresh
+psql session's own view alone.
+
+**Fix:** `Get-Process | Where-Object { $_.ProcessName -match
+'prisma|query-engine|schema-engine' }` found it; killing it unblocked
+`migrate` immediately.
+
+**How to apply going forward:** if a `migrate` command times out on the
+advisory lock with no visible DB-side cause, check for a lingering
+`schema-engine-windows.exe`/`query-engine-windows.exe` process on the host
+before assuming it's a real contention issue or retrying blindly.
+
+## A "move other users' content between records" operation needs an explicit RLS bypass, not just the acting user's own context
+
+**What happened:** `claimMerge.ts`'s duplicate-child reconciliation
+reassigns *other* members' journal/medical/list content onto a different
+child record — the accepting user legitimately never holds `ChildAccess` to
+the duplicate child themselves (that's the point of the merge: they're
+folding someone else's record into their own). Wrapping the operation in
+`withRls(acceptingUserId, ...)` still returned zero rows moved, because the
+acting user's own `child_access` genuinely doesn't cover the source child's
+rows — no bug in the GUC mechanism, a real mismatch between "who's
+performing this" and "whose access grants would authorize each row."
+
+**Fix:** added a narrow, explicit `bypassRls(tx)` escape hatch (mirrors
+Prisma's own documented `bypassRLS()` recipe) — set only immediately before
+this one already-application-verified operation, on the same transaction,
+never left ambient. Every affected policy OR's in
+`current_setting('app.bypass_rls', true) = 'on'`.
+
+**How to apply going forward:** when a legitimate, already-authorized
+operation acts across records on someone else's behalf (a merge, an admin
+reconciliation, a background job with no single owning user), don't force
+it through the per-user `withRls` and assume a missing row is a policy bug
+— check whether the operation's authorization model is actually "this user's
+own access" at all, or something the app layer already verified through a
+different path that needs its own explicit bypass.

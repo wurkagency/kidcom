@@ -1,8 +1,11 @@
 import { Router, type Request } from "express";
 import type { ChildScheduleResponse, ScheduleItem, UpdateScheduleOccurrenceRequest } from "@kidcom/shared";
 
+import type { Prisma } from "@kidcom/db";
+
 import { prisma } from "../../db";
 import { ApiError } from "../../middleware/errorHandler";
+import { withRls } from "../../lib/rls";
 
 // Mounted at /children/:childId/schedule — combines the child's country's
 // MedicalScheduleTemplate rows with this child's ChildScheduleOccurrence
@@ -27,8 +30,8 @@ function addMonths(date: Date, months: number): Date {
 // completion (so a few years of reminders appear right away) and again on
 // every plain GET (so the 4-year window keeps advancing on its own as real
 // time passes, with no cron job needed).
-async function topUpRecurringOccurrences(childId: string): Promise<void> {
-  const recurringTemplates = await prisma.medicalScheduleTemplate.findMany({
+async function topUpRecurringOccurrences(tx: Prisma.TransactionClient, childId: string): Promise<void> {
+  const recurringTemplates = await tx.medicalScheduleTemplate.findMany({
     where: { isRecurring: true },
   });
   if (recurringTemplates.length === 0) return;
@@ -37,7 +40,7 @@ async function topUpRecurringOccurrences(childId: string): Promise<void> {
   cap.setFullYear(cap.getFullYear() + RECURRENCE_HORIZON_YEARS);
 
   for (const template of recurringTemplates) {
-    const occurrences = await prisma.childScheduleOccurrence.findMany({
+    const occurrences = await tx.childScheduleOccurrence.findMany({
       where: { childId, templateId: template.id },
       orderBy: { sequence: "asc" },
     });
@@ -52,7 +55,7 @@ async function topUpRecurringOccurrences(childId: string): Promise<void> {
       if (nextDue > cap) break;
 
       const nextSequence = latest.sequence + 1;
-      const created = await prisma.childScheduleOccurrence.upsert({
+      const created = await tx.childScheduleOccurrence.upsert({
         where: {
           childId_templateId_sequence: { childId, templateId: template.id, sequence: nextSequence },
         },
@@ -68,15 +71,19 @@ async function topUpRecurringOccurrences(childId: string): Promise<void> {
 scheduleRouter.get("/", async (req: Request<ChildParams>, res, next) => {
   try {
     const child = await prisma.child.findUniqueOrThrow({ where: { id: req.params.childId } });
-    await topUpRecurringOccurrences(child.id);
 
-    const templates = await prisma.medicalScheduleTemplate.findMany({
-      where: { countryCode: child.countryCode },
-      orderBy: { ageInMonths: "asc" },
-    });
-    const occurrences = await prisma.childScheduleOccurrence.findMany({
-      where: { childId: child.id, templateId: { in: templates.map((t) => t.id) } },
-      orderBy: { sequence: "asc" },
+    const { templates, occurrences } = await withRls(req.session.userId!, async (tx) => {
+      await topUpRecurringOccurrences(tx, child.id);
+
+      const templates = await tx.medicalScheduleTemplate.findMany({
+        where: { countryCode: child.countryCode },
+        orderBy: { ageInMonths: "asc" },
+      });
+      const occurrences = await tx.childScheduleOccurrence.findMany({
+        where: { childId: child.id, templateId: { in: templates.map((t) => t.id) } },
+        orderBy: { sequence: "asc" },
+      });
+      return { templates, occurrences };
     });
 
     const occurrencesByTemplate = new Map<string, typeof occurrences>();
@@ -138,43 +145,46 @@ scheduleRouter.patch("/:templateId/occurrences/:sequence", async (req: Request<O
     if (!Number.isInteger(sequence) || sequence < 0) {
       throw new ApiError(400, "Invalid occurrence sequence");
     }
-    const template = await prisma.medicalScheduleTemplate.findUnique({
-      where: { id: req.params.templateId },
-    });
-    if (!template) throw new ApiError(404, "Schedule template not found");
-
     const body = req.body as UpdateScheduleOccurrenceRequest;
-    const existing = await prisma.childScheduleOccurrence.findUnique({
-      where: {
-        childId_templateId_sequence: { childId: req.params.childId, templateId: req.params.templateId, sequence },
-      },
+
+    await withRls(req.session.userId!, async (tx) => {
+      const template = await tx.medicalScheduleTemplate.findUnique({
+        where: { id: req.params.templateId },
+      });
+      if (!template) throw new ApiError(404, "Schedule template not found");
+
+      const existing = await tx.childScheduleOccurrence.findUnique({
+        where: {
+          childId_templateId_sequence: { childId: req.params.childId, templateId: req.params.templateId, sequence },
+        },
+      });
+
+      let completedAt = existing?.completedAt ?? null;
+      if (body.completed === true && !completedAt) {
+        // Only stamp a fresh completedAt the first time — re-editing the
+        // planned date afterward (a separate call) shouldn't reset it.
+        completedAt = new Date();
+      } else if (body.completed === false) {
+        completedAt = null;
+      }
+
+      let plannedAt = existing?.plannedAt ?? null;
+      if (body.plannedAt !== undefined) {
+        plannedAt = body.plannedAt ? new Date(body.plannedAt) : null;
+      }
+
+      await tx.childScheduleOccurrence.upsert({
+        where: {
+          childId_templateId_sequence: { childId: req.params.childId, templateId: req.params.templateId, sequence },
+        },
+        create: { childId: req.params.childId, templateId: req.params.templateId, sequence, plannedAt, completedAt },
+        update: { plannedAt, completedAt },
+      });
+
+      if (template.isRecurring) {
+        await topUpRecurringOccurrences(tx, req.params.childId);
+      }
     });
-
-    let completedAt = existing?.completedAt ?? null;
-    if (body.completed === true && !completedAt) {
-      // Only stamp a fresh completedAt the first time — re-editing the
-      // planned date afterward (a separate call) shouldn't reset it.
-      completedAt = new Date();
-    } else if (body.completed === false) {
-      completedAt = null;
-    }
-
-    let plannedAt = existing?.plannedAt ?? null;
-    if (body.plannedAt !== undefined) {
-      plannedAt = body.plannedAt ? new Date(body.plannedAt) : null;
-    }
-
-    await prisma.childScheduleOccurrence.upsert({
-      where: {
-        childId_templateId_sequence: { childId: req.params.childId, templateId: req.params.templateId, sequence },
-      },
-      create: { childId: req.params.childId, templateId: req.params.templateId, sequence, plannedAt, completedAt },
-      update: { plannedAt, completedAt },
-    });
-
-    if (template.isRecurring) {
-      await topUpRecurringOccurrences(req.params.childId);
-    }
 
     res.status(204).end();
   } catch (err) {

@@ -7,6 +7,7 @@ import { resetDb } from "../../testUtils/db";
 import { signupTestUser, verifyTestUserEmail } from "../../testUtils/auth";
 import { mailSender, MemoryMailSender } from "../../lib/mailSender";
 import { decryptField } from "../../lib/medicalEncryption";
+import { withRls } from "../../lib/rls";
 
 // Phase 9 proof — spec §1.4b/9.9/9.23, brief §5's two flagged open items
 // (which relationships may bootstrap-create: decided here as "every
@@ -262,9 +263,11 @@ describe("Claim/merge (spec 9.9)", () => {
       patternDays: { cycleLengthDays: 14, blocks: [{ userId: grandmaId, days: 7 }] },
     });
     expect(custodyRes.status).toBe(201);
-    const avatarAsset = await prisma.mediaAsset.create({
-      data: { ownerId: grandmaId, type: "IMAGE", status: "READY", originalPath: "x", avatarForChildId: dupId },
-    });
+    const avatarAsset = await withRls(grandmaId, (tx) =>
+      tx.mediaAsset.create({
+        data: { ownerId: grandmaId, type: "IMAGE", status: "READY", originalPath: "x", avatarForChildId: dupId },
+      })
+    );
 
     const acceptRes = await parentAgent.post(`/invites/${claimToken}/accept-as-me`).send({});
     expect(acceptRes.status).toBe(200);
@@ -272,19 +275,22 @@ describe("Claim/merge (spec 9.9)", () => {
     // The merge succeeded at all (didn't throw on the avatar FK).
     expect(await prisma.child.findUnique({ where: { id: dupId } })).toBeNull();
 
-    const journalOnReal = await prisma.journalPostChild.findMany({ where: { childId: realId } });
+    // v2.0: journal_post_children/medical_info are now RLS-protected — read
+    // through withRls (parentId legitimately holds PARENT access to realId,
+    // unchanged by the merge) rather than the bare prisma client.
+    const journalOnReal = await withRls(parentId, (tx) => tx.journalPostChild.findMany({ where: { childId: realId } }));
     expect(journalOnReal).toHaveLength(1);
     // Post-launch backlog Phase G landed after this test was first written —
     // condition is now stored encrypted, so decrypt before asserting on it.
-    const medicalOnReal = await prisma.medicalInfo.findMany({ where: { childId: realId } });
+    const medicalOnReal = await withRls(parentId, (tx) => tx.medicalInfo.findMany({ where: { childId: realId } }));
     expect(medicalOnReal).toHaveLength(1);
     expect(decryptField(medicalOnReal[0].condition)).toBe("Peanuts");
-    const custodyOnReal = await prisma.custodyPlan.findMany({ where: { childId: realId } });
+    const custodyOnReal = await withRls(parentId, (tx) => tx.custodyPlan.findMany({ where: { childId: realId } }));
     expect(custodyOnReal).toHaveLength(1);
 
     // The duplicate's avatar reference was cleared, not carried over onto
     // the real child (the real child keeps whatever avatar it already has).
-    const avatarAfter = await prisma.mediaAsset.findUniqueOrThrow({ where: { id: avatarAsset.id } });
+    const avatarAfter = await withRls(grandmaId, (tx) => tx.mediaAsset.findUniqueOrThrow({ where: { id: avatarAsset.id } }));
     expect(avatarAfter.avatarForChildId).toBeNull();
 
     void parentId;

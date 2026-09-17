@@ -2,10 +2,12 @@ import { Router, type Request } from "express";
 import { resolveCustodyForDate } from "@kidcom/shared";
 import type { CalendarRangeResponse, CustodyPattern } from "@kidcom/shared";
 
-import { prisma } from "../../db";
+import type { Prisma } from "@kidcom/db";
+
 import { ApiError } from "../../middleware/errorHandler";
 import { getDkHolidays } from "../../lib/dkHolidays";
 import { CALENDAR_EVENT_INCLUDE, toCalendarEventDto } from "../../lib/calendarEventDto";
+import { withRls } from "../../lib/rls";
 
 // Mounted at /children/:childId/calendar?start=&end=. Combines the computed
 // custody schedule (see packages/shared/src/custody.ts) with real
@@ -19,9 +21,9 @@ function dateOnly(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
-async function ensureHolidaysSeeded(childId: string, years: number[]) {
+async function ensureHolidaysSeeded(tx: Prisma.TransactionClient, childId: string, years: number[]) {
   for (const year of years) {
-    const existing = await prisma.calendarEvent.findFirst({
+    const existing = await tx.calendarEvent.findFirst({
       where: {
         childId,
         category: "HOLIDAY",
@@ -31,7 +33,7 @@ async function ensureHolidaysSeeded(childId: string, years: number[]) {
     if (existing) continue;
 
     const holidays = getDkHolidays(year);
-    await prisma.calendarEvent.createMany({
+    await tx.calendarEvent.createMany({
       data: holidays.map((h) => ({
         childId,
         category: "HOLIDAY" as const,
@@ -110,47 +112,50 @@ calendarRouter.get("/", async (req: Request<ChildParams>, res, next) => {
     const years = Array.from(
       new Set([start.getUTCFullYear(), end.getUTCFullYear()])
     );
-    await ensureHolidaysSeeded(req.params.childId, years);
 
-    const [plan, oneOffEvents, recurringTemplates] = await Promise.all([
-      prisma.custodyPlan.findFirst({
-        where: { childId: req.params.childId },
-        orderBy: { createdAt: "desc" },
-      }),
-      // One-off events: excluding recurring templates (those are expanded
-      // separately below, since their own startsAt is just the series
-      // anchor and may sit long before this range). Range-overlap, not
-      // range-containment: a multi-day event that started before `start`
-      // but whose endsAt still falls on/after `start` must still be
-      // fetched, or it silently disappears from every day but its first —
-      // mirrors the same OR-on-end-field shape the recurring-template
-      // query below already uses for recurrenceEndsAt.
-      prisma.calendarEvent.findMany({
-        where: {
-          childId: req.params.childId,
-          recurrenceIntervalWeeks: null,
-          startsAt: { lt: endExclusive },
-          OR: [
-            { endsAt: null, startsAt: { gte: start } },
-            { endsAt: { gte: start } },
-          ],
-        },
-        include: CALENDAR_EVENT_INCLUDE,
-        orderBy: { startsAt: "asc" },
-      }),
-      // Recurring templates that could still have an occurrence landing in
-      // this range: anchored on/before the range's end, and not already
-      // ended (recurrenceEndsAt) before the range starts.
-      prisma.calendarEvent.findMany({
-        where: {
-          childId: req.params.childId,
-          recurrenceIntervalWeeks: { not: null },
-          startsAt: { lt: endExclusive },
-          OR: [{ recurrenceEndsAt: null }, { recurrenceEndsAt: { gte: start } }],
-        },
-        include: CALENDAR_EVENT_INCLUDE,
-      }),
-    ]);
+    const [plan, oneOffEvents, recurringTemplates] = await withRls(req.session.userId!, async (tx) => {
+      await ensureHolidaysSeeded(tx, req.params.childId, years);
+
+      return Promise.all([
+        tx.custodyPlan.findFirst({
+          where: { childId: req.params.childId },
+          orderBy: { createdAt: "desc" },
+        }),
+        // One-off events: excluding recurring templates (those are expanded
+        // separately below, since their own startsAt is just the series
+        // anchor and may sit long before this range). Range-overlap, not
+        // range-containment: a multi-day event that started before `start`
+        // but whose endsAt still falls on/after `start` must still be
+        // fetched, or it silently disappears from every day but its first —
+        // mirrors the same OR-on-end-field shape the recurring-template
+        // query below already uses for recurrenceEndsAt.
+        tx.calendarEvent.findMany({
+          where: {
+            childId: req.params.childId,
+            recurrenceIntervalWeeks: null,
+            startsAt: { lt: endExclusive },
+            OR: [
+              { endsAt: null, startsAt: { gte: start } },
+              { endsAt: { gte: start } },
+            ],
+          },
+          include: CALENDAR_EVENT_INCLUDE,
+          orderBy: { startsAt: "asc" },
+        }),
+        // Recurring templates that could still have an occurrence landing in
+        // this range: anchored on/before the range's end, and not already
+        // ended (recurrenceEndsAt) before the range starts.
+        tx.calendarEvent.findMany({
+          where: {
+            childId: req.params.childId,
+            recurrenceIntervalWeeks: { not: null },
+            startsAt: { lt: endExclusive },
+            OR: [{ recurrenceEndsAt: null }, { recurrenceEndsAt: { gte: start } }],
+          },
+          include: CALENDAR_EVENT_INCLUDE,
+        }),
+      ]);
+    });
 
     const events = [...oneOffEvents, ...expandRecurringEvents(recurringTemplates, start, endExclusive)];
     events.sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());

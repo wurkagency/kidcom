@@ -498,3 +498,405 @@ encryption (not disk-level).
   both. **Still to do on the server**: update the live `apps/api/.env`'s
   `CORS_ORIGIN` to `https://www.kidcom.org` and `pm2 restart kidcom-api` (the file
   was created before this was discovered, per step 2, using the old value).
+
+---
+
+## v2.0 — Per-user theming + mandatory RLS tenant isolation (2026-09-17)
+
+Source: `claude/theme_and_tenant_isolation_plan.md` (Appendix A of the branch's
+implementation brief — review-finalized, not draft) + the brief itself. Branch:
+`v2.0`, cut from `master` at `1d98478`. **The app is live in production
+(`www.kidcom.org`)** — this branch's migrations and RLS rollout touch real user
+data eventually; every schema/RLS change needs the same care as any other
+production migration (see `DEPLOYMENT.md`'s migrate step), not just local-dev
+correctness.
+
+Non-negotiable invariants for every phase below (brief §1 — not up for
+renegotiation mid-build): every auth check server-side, never client-side; RLS
+is mandatory and additive under the existing `requireChildAccess`/entitlement
+middleware, never a replacement for it; `SET LOCAL` inside an explicit
+transaction only, never a bare `SET` (pooled single-process connection reuse
+makes this the single riskiest detail in the branch); media access checked
+live server-side on every fetch tied to the requester's session; themes are a
+small pre-built catalogue only, no end-user authoring, no Tier 3
+(`ThemedSlot`) unless a real case forces it; nothing in
+`docs/roles_and_subscription_spec.md`'s model (`AccessRole`, `ChildAccess`,
+entitlement/billing) gets modified by this branch.
+
+### Phase 0 — Baseline + assessment ✅
+
+- [x] Found `master` was not clean: uncommitted skin/nav work (second skin
+  "Sky", `--nav-*` token extraction in `BottomNav.tsx`) sitting in the working
+  tree. **Charlie's call**: commit it to `master` first, then branch — done as
+  `1d98478` ("Add second skin 'Sky' and tokenize BottomNav shape/color").
+  `v2.0` branched from `1d98478`.
+- [x] **Roles & subscription spec assessment**: `docs/roles_and_subscription_spec.md`
+  v1.3's Phases 0–10 are **fully implemented and merged** (commit `855954e`),
+  plus a post-launch hardening pass, Phases A–K (commit `7939f77`), plus a
+  security review (`2acf200`) — all already on `master`/production. This is
+  **not** in-flight work to coordinate around; it's a settled foundation this
+  branch's RLS policies read against. Current shape confirmed directly from
+  `packages/db/prisma/schema.prisma`: `AccessRole` enum = `PARENT | GUARDIAN |
+  FAMILY`; `ChildAccess` = `{id, childId, userId, role, relationship,
+  medicalInfoAccess, isMinorMember, createdAt}`, unique on `[childId,
+  userId]`. RLS policies in Phase 4/5 are written against exactly this shape.
+- [x] **Existing theme groundwork found — changes Phase 1–3's design.**
+  `master` already has a working, non-shadcn "skin" system, not the greenfield
+  shadcn/ui pipeline the brief assumed: `apps/web/src/lib/themes.ts`
+  (`SkinId`, `SKINS`, `DEFAULT_SKIN`, `applySkin()` → sets `<html
+  data-skin="...">`), CSS-variable token blocks in `index.css` (`:root` +
+  `[data-skin="sky"]`), Tailwind wired to the vars via a `withOpacity()`
+  helper, and a live user-facing picker at `/preferences/skin`
+  (`SettingsChoicePage.tsx`, reached from `AppPreferencesPage.tsx`). It's
+  **client-only** today — `localStorage["kidcom-skin"]`, no `User` column, no
+  server round-trip. No shadcn/ui anywhere in the repo (`components.json`,
+  `@radix-ui/*`, `apps/web/src/components/ui/` all absent).
+  **Charlie's call**: extend this system rather than adopt shadcn/ui and
+  rebuild the pipeline from scratch. Phases 1–3 below are rewritten around
+  that decision — see the note under Phase 1.
+- [x] **Media auth assumption doesn't hold — changes Phase 5's design.** The
+  brief assumes a signed-URL scheme whose only check happens at signing time
+  (the "gap" Phase 5's Nginx `auth_request` wiring is meant to close). This
+  repo has no signed-URL mechanism at all: `GET /media/:id`
+  (`apps/api/src/routes/media/index.ts`) is already a live, per-request,
+  session-cookie + `ChildAccess`-checked gate, and there is no static-file
+  exposure anywhere (`express.static`/`res.sendFile` greps are empty;
+  production deliberately stores media outside the web docroot per
+  `DEPLOYMENT.md`, specifically because "the API streams them itself with its
+  own per-request access check"). **Charlie's call**: skip the Nginx
+  `auth_request` + internal endpoint entirely — the invariant it's meant to
+  enforce is already true. Phase 5 below covers this with RLS on
+  `MediaAsset`/`JournalPost` plus a new revocation-takes-effect-immediately
+  test instead.
+- [x] **Test inventory** (regression baseline — `npm run test` from repo
+  root): `apps/api` has 20 test files (vitest + supertest against a real
+  Postgres test DB, see `apps/api/src/testUtils/`) covering auth, billing,
+  entitlement, permissions, invites, medical-info encryption, safety-floor,
+  fair-use caps — **no test file exists for the media route
+  (`routes/media/`) today**, so Phase 5's revocation test is net-new coverage,
+  not a regression check on existing tests. `apps/web` has 7 test files
+  (vitest) — none touch the skin/theme system (it's never been tested).
+  `packages/shared` has 2 test files (pure-function units). No RLS test
+  infrastructure exists yet (grepped repo-wide for RLS/`SET LOCAL`/
+  `app.current_user_id`/`pgbouncer`: zero matches) — this is genuinely new
+  ground, no prior art to build on or conflict with.
+- [x] Confirmed `v2.0` boots clean, zero code changes: `docker compose ps`
+  showed dev Postgres/Redis already healthy; `preview_start` for `api` and
+  `web` (`.claude/launch.json`); `GET http://localhost:4000/health` →
+  `{"status":"ok",...}`; `http://localhost:5173` renders the Welcome screen
+  with the current Greenkeeper skin. This is the regression baseline every
+  later phase diffs against.
+
+### Phase 1 — Extend the existing skin system with per-user persistence
+
+Replaces the brief's "adopt shadcn/ui, port the current look through it"
+literally — that pipeline doesn't apply here; the CSS-variable/`data-skin`
+system already *is* the Tier-1 implementation, hand-rolled instead of
+shadcn/ui-based. **Deviation from the brief's literal target additions,
+flagged not silent**: no new `packages/theme-kit` workspace package — nothing
+outside `apps/web` needs this, so it stays in `apps/web/src/lib/` next to
+where it already lives, avoiding a package boundary with exactly one
+consumer. No shadcn/ui adoption — `apps/web`'s hand-rolled Tailwind
+components (`Card`, `Toggle`, `SegmentedControl`, etc.) already consume the
+token system correctly; migrating them to shadcn/ui primitives would be a
+large, separately-risky UI rewrite this branch doesn't need.
+
+- [x] `packages/db`: additive migration, `User.skinId String?` (nullable, no
+  DB-level default — mirrors the existing `avatarUrl String?` pattern at
+  `schema.prisma`). Keep the existing `skinId`/`SkinId` naming rather than
+  renaming to "theme" throughout — least churn, and the brief's `themeId`/
+  `DEFAULT_THEME_ID` concepts map onto the existing `skinId`/`DEFAULT_SKIN`
+  one-to-one already. Migration `20260917105219_add_user_skin_id`.
+- [x] `apps/api`: extend `PATCH /auth/me` (`routes/auth/index.ts`) to accept
+  an optional `skinId`, validated against `isSkinId()` from
+  `@kidcom/shared` (promote `isSkinId`/`SkinId`/`SKINS`/`DEFAULT_SKIN` from
+  `apps/web/src/lib/themes.ts` into `packages/shared` so both API validation
+  and the web client import the same source of truth — the one piece of this
+  system that *does* need to be shared, unlike the rest of the theme-kit).
+  Match the existing conditional-spread `data: {...}` idiom and the
+  "Nothing to update" 400 check already in that handler. Add `skinId` to
+  `PublicUser`/`toPublicUser()` (`packages/shared`, `routes/auth/index.ts`)
+  so it round-trips on `GET /auth/me` / login.
+- [x] `apps/web`: `AppPreferencesPage.tsx`'s "Skin" row and
+  `SettingsChoicePage.tsx`'s picker move from the pure-`localStorage`
+  `getSkin()`/`setSkin()` pattern to the same optimistic-update-with-rollback
+  pattern `NotificationSettingsPage.tsx` already uses for real
+  server-persisted preferences (`apiPatch` + rollback on failure) — `setSkin`
+  becomes: apply locally + write `localStorage` immediately (unchanged, for
+  instant paint), then `apiPatch("/auth/me", { skinId })` in the background,
+  rolling back the local/localStorage value on failure.
+  `localStorage["kidcom-skin"]` stays as the boot-time fast-paint cache
+  (brief's "client caches last-applied theme so it paints before the profile
+  fetch resolves"), but the server's `skinId` becomes the source of truth
+  once `GET /auth/me` resolves — reconcile in `main.tsx`/wherever the profile
+  fetch lands: if server `skinId` differs from the cached one, `applySkin()`
+  + update `localStorage` to match.
+  `user.skinId ?? DEFAULT_SKIN` is the resolution rule (code-level default,
+  no DB default — brief's `DEFAULT_THEME_ID` requirement, satisfied by the
+  already-existing `DEFAULT_SKIN` constant).
+- [x] Proof: a user with no `skinId` (including every existing row after the
+  migration) resolves to Greenkeeper, always. Setting a skin in
+  `/preferences/skin` persists across reload *and* re-login (new: login from
+  a second browser/session should now show the previously-picked skin, not
+  reset to Greenkeeper — this is the actual behavior change from "client-only"
+  to "per-user"). Existing `PATCH /auth/me` name/email/avatar behavior
+  unaffected — run `apps/api`'s existing auth tests, add one asserting
+  `skinId` round-trips and an invalid value 400s. `npm run typecheck` +
+  `npm run test` clean from repo root.
+  **Verified**: new `apps/api/src/routes/auth/skin.test.ts` (4 tests, all
+  passing); manually verified in-browser — signed up a real account, changed
+  skin at `/preferences/skin`, confirmed `PATCH /auth/me` fired (200), the
+  page repainted instantly (Sky's mint/teal palette + floating dark pill
+  nav), and the choice survived a full page reload.
+
+### Phase 2 — Tier-2 asset-pack loader (lightweight, no new art required)
+
+The brief's Phase 2/3 ask for a `ThemeProvider`/`useTheme` registry and a
+Tier-2 (icon/illustration) asset-pack loader. Scoped down to match what
+actually needs building: `Icon.tsx` doesn't branch per skin today, and
+Greenkeeper/Sky don't need different icon art to satisfy the brief's own
+resolved decision that theming is colors/typography/shape, not new
+illustration sets, for v1.
+
+- [x] Add a thin `useSkin()` hook (`apps/web/src/lib/SkinContext.tsx`)
+  wrapping the current skin value + `setSkin`, so components can react to
+  skin changes without re-reading `document.documentElement.dataset.skin` by
+  hand — this is the `ThemeProvider`/`useTheme` equivalent, sized to what
+  this codebase actually needs (a React context around the existing
+  imperative `applySkin`/`localStorage` functions, not a rewrite of them).
+  Wired into `AppPreferencesPage.tsx` (fixed a real pre-existing staleness
+  bug: the "Skin" row used to read `localStorage` once on mount and never
+  update) and `SettingsChoicePage.tsx`'s skin picker.
+- [x] **Scope correction, decided during implementation, not silently**:
+  did *not* build a `resolveIcon(name, skinId)` lookup. `Icon.tsx` resolves
+  every icon through one global Material Symbols webfont ligature — there is
+  no per-skin asset to look up, and both shipped skins were always going to
+  resolve identically. Building an indirection layer with a single,
+  permanently-identical resolution path for every input is exactly the
+  "half-finished implementation"/"design for a hypothetical future
+  requirement" this repo's own conventions call out to avoid. `useSkin()` is
+  the real, load-bearing piece of Phase 2 (two real consumers); flagging
+  this rather than padding the checklist with dead code.
+- [x] Proof: verified in-browser — `AppPreferencesPage`'s "Skin" row now
+  shows the live value via `useSkin()` instead of a stale mount-time read.
+
+### Phase 3 — n/a, folded into Phase 1/2
+
+Sky already shipped as the second skin (tokens + nav-shape only, no asset-pack
+differences — consistent with the brief's own resolved decision that the one
+candidate Tier-3 case, the calendar Child view, stays structurally identical
+across skins). Nothing separate to build here; the proof is covered by Phase
+1/2's "every route behaves identically in both skins" check during Phase 6's
+full regression pass.
+
+### Phase 4 — RLS pilot (mandatory)
+
+Genuinely greenfield — confirmed zero prior art anywhere in the repo. Riskiest
+phase in the branch; do not rush the first subtask.
+
+- [x] **Prototype the `SET LOCAL` pattern in isolation first.** Did **not**
+  use an auto-wrapping Prisma Client Extension in the end — while
+  prototyping against Prisma's own documented
+  [row-level-security recipe](https://github.com/prisma/prisma-client-extensions/tree/main/row-level-security),
+  found a real, documented gap
+  ([prisma/prisma#17948](https://github.com/prisma/prisma/issues/17948)):
+  extensions don't propagate into the `tx` an interactive
+  `prisma.$transaction(async (tx) => {...})` callback receives, and this
+  codebase has several existing multi-op transactions built for their own
+  atomicity (auth profile update, avatar swap, invite accept) that an
+  auto-wrapping extension would silently never run for. Built an explicit
+  `withRls(userId, run)` helper instead (`apps/api/src/lib/rls.ts`) — every
+  RLS-relevant call site visibly, deliberately routes through it; the bare
+  `prisma` singleton is never exposed to RLS-protected queries. See
+  `tasks/lessons.md` for the full writeup.
+- [x] **Pooled-connection interleaved-request test, written before any real
+  policy**: `apps/api/src/lib/rls.test.ts` — 20+ concurrent `withRls` calls
+  under different fake user ids, each reading back its own
+  `current_setting()` from inside its own transaction, asserting no
+  cross-call bleed, plus a leak-outside-the-transaction check. All passed
+  before Phase 4 touched a real table.
+- [x] **Resolved table ownership vs. app role** — and found the real
+  local-dev risk was worse than "is FORCE needed": the dev role (`splitkid`)
+  turned out to be the Postgres cluster's *bootstrap superuser*, which
+  bypasses RLS unconditionally regardless of FORCE (confirmed empirically).
+  Created a real non-superuser role (`kidcom_appuser`), transferred table
+  ownership to it, and repointed local `.env`'s `DATABASE_URL` at it —
+  this also correctly mirrors a Plesk-provisioned production DB user (a
+  normal, non-superuser role), so it's the *right* local setup, not a
+  workaround. Every RLS-enabled table gets `FORCE ROW LEVEL SECURITY`.
+  Full writeup in `tasks/lessons.md`.
+- [x] Raw-SQL Prisma migration `20260917111049_rls_medical_info_journal_post`:
+  RLS on `medical_info` (direct `childId`) and `journal_posts` (via the
+  `journal_post_children` join table) — plus `journal_post_children` itself,
+  added in this same migration since `journal_posts`' policy reads through
+  it. Found and fixed a real bug along the way: Prisma's `.create()` always
+  compiles to `INSERT ... RETURNING`, and Postgres subjects `RETURNING` to
+  the `USING` policy, not just `WITH CHECK` — the original tagged-child-only
+  `USING` rejected the very first insert, since no `journal_post_children`
+  linkage exists yet at that exact statement. Fixed with a narrow, transient
+  "author AND not-yet-linked" clause (full detail in the migration file's
+  own comment and `tasks/lessons.md`). Also added a narrow `bypassRls()`
+  escape hatch for `claimMerge.ts`'s duplicate-child reconciliation, which
+  moves *other* members' content and doesn't map onto "the acting user's own
+  ChildAccess" at all.
+- [x] Proof — all satisfied: `apps/api/src/lib/rls.medicalInfoJournalPost.test.ts`
+  (5 tests) — authorized reads/writes behave correctly; a user with zero
+  `ChildAccess` gets empty results *and* a rejected insert, calling
+  `withRls` directly with no `requireChildAccess`/HTTP layer involved at
+  all; access revocation blocks the very next read; the interleaved-request
+  test repeated against the real table. Every pre-existing test that touches
+  these two tables (`medicalInfoEncryption.test.ts`,
+  `bootstrapGuardian.test.ts`'s claim/merge test, `permissions.test.ts`)
+  passes unchanged after wiring `withRls` into every real call site that
+  touches `medical_info`/`journal_posts` (`medicalInfo.ts`, `journal.ts`,
+  `journalComments.ts`, `journalReactions.ts`, the GDPR export route). Full
+  `npm run test` clean.
+
+### Phase 5 — RLS full rollout + media-fetch revocation test
+
+- [x] Extended RLS (same `FORCE`/non-superuser treatment as Phase 4) to
+  every other child-scoped table found in Phase 0's schema map — migration
+  `20260917113553_rls_full_rollout`: `GrowthEntry`, `ChildScheduleOccurrence`,
+  `EmergencyContact`, `CustodyPlan`, `CalendarEvent` (+
+  `CalendarEventChecklistItem`/`CalendarEventConfirmation`, transitive via
+  `calendarEventId`), `SwapRequest`, `CalendarEventRequest`, `ListItem`,
+  `MediaAsset` (all four scoping paths — owner-not-yet-attached,
+  journal-tagged, avatar-for-user [including the "shares a child with the
+  avatar's owner" case], avatar-for-child, list-item-image — each mirroring
+  the exact branch `routes/media/index.ts`'s own app-layer check already
+  used for that case, not a new rule), `Comment` and `JournalReaction`
+  (transitive via `journalPostId` → `JournalPostChild`). **Confirmed not
+  child-scoped, correctly excluded**: `Thread`/`ThreadMember`/`Message`
+  (no `Child` relation at all), `PersonalNote` (private per-user).
+  `UpgradeRequest`/`ChildDeletionRequest` also left unprotected — operational
+  workflow rows, not user-authored content, outside this branch's table
+  list. Wired `withRls`/`bypassRls` into every real call site across
+  `custodyPlan.ts`, `growthEntries.ts`, `emergencyContacts.ts`,
+  `calendarEvents.ts`, `calendar.ts`, `schedule.ts`, `swapRequests.ts`,
+  `calendarEventRequests.ts`, `listItems.ts`, `journalComments.ts`,
+  `journalReactions.ts`, `media/index.ts`, `auth/index.ts` (avatar swap +
+  GDPR export), `children/index.ts` (child avatar swap), `messages/index.ts`
+  (attaching owned media to a message), `claimMerge.ts`'s caller, and
+  `worker.ts`'s two background jobs (media processing, appointment
+  reminders — genuinely no per-request user, given `withRlsBypass()` instead
+  of `withRls`, same reasoning as `childPurge.ts`'s hard-delete job, which
+  needed the same fix for the *Phase 4* tables it cascades into).
+- [x] **Media-auth proof, replacing the Nginx work per Charlie's call**:
+  `apps/api/src/routes/media/index.test.ts` (first test file this route has
+  ever had, 3 tests) — revoking a member's `ChildAccess` blocks their very
+  next `GET /media/:id`, no delay/expiry window; a user who never had access
+  is denied even holding a real, valid media id; the owner of a
+  freshly-uploaded not-yet-attached asset can read it back, a stranger
+  cannot.
+- [x] Full walkthrough (manual, in-browser on `v2.0` locally, real HTTP
+  requests against the real dev DB): signed up, created a child, set up the
+  calendar (holiday-seeding + custody/events combined query — exercises the
+  `withRls`-wrapped multi-query read), added a calendar appointment (write),
+  posted a journal entry tagged to the child (exercises the
+  create-then-link RETURNING fix live, not just in tests), added a comment,
+  viewed the Media Gallery tab, added a shared-list item, opened Messages
+  (unaffected area, confirmed still loads). All three `AccessRole` values
+  (`PARENT`/`GUARDIAN`/`FAMILY`) against every one of these same routes are
+  additionally covered by `permissions.test.ts`'s full matrix (30 assertions
+  across real HTTP calls, all passing) — not re-driven by hand through the
+  UI for all three roles given that real, HTTP-level coverage already
+  exists; the manual pass focused on what only a browser can show (live
+  repaint, real click-through flow, no mocking).
+- [x] Proof: `apps/api/src/lib/rls.fullRollout.test.ts` (3 tests, spot-checks
+  a direct-childId table and a transitive one with the app layer bypassed
+  entirely) + everything above, plus full `npm run test` (144 API + 27 web +
+  27 shared, all passing) and `npm run typecheck` (clean across all three
+  workspaces) from repo root.
+
+### Phase 6 — Full regression + sign-off ✅
+
+- [x] Full regression pass: both skins (verified in-browser), every PRD
+  feature area exercised (custody calendar, journal + comments + media
+  gallery, shared lists — messaging confirmed unaffected), all three access
+  roles (`permissions.test.ts`'s full matrix, real HTTP calls), RLS-protected
+  paths with the app-layer check both present (every route test) and
+  deliberately stubbed (`rls.medicalInfoJournalPost.test.ts`,
+  `rls.fullRollout.test.ts` — call `withRls` directly, no
+  `requireChildAccess`/HTTP layer involved).
+- [x] Review section — see below.
+- [x] `tasks/lessons.md` updated — 6 new entries covering every real
+  correction made mid-build (the RETURNING/USING interaction, the superuser
+  RLS-bypass discovery, the Prisma-extension propagation gap, the
+  claim/merge bypass need, the orphaned schema-engine lock, the
+  two-Postgres-containers mixup), plus a note qualifying the pre-existing
+  `migrate dev`-doesn't-work lesson (it worked fine this session).
+
+---
+
+## Review — v2.0 branch ready for Charlie's review (2026-09-17)
+
+**What shipped:**
+- Per-user theming, extending the existing skin system (not a shadcn/ui
+  rebuild) — `User.skinId`, `PATCH /auth/me`, `useSkin()` React context,
+  optimistic-update-with-rollback picker, second skin (Sky) already live.
+- Mandatory PostgreSQL Row-Level Security as a second, independent
+  authorization layer under every existing app-level check, across all 15
+  child-scoped tables in the schema (2 pilot + 13 full-rollout), keyed by a
+  `SET LOCAL`-per-transaction GUC (`withRls()`) with a narrowly-scoped
+  system bypass (`withRlsBypass()`/`bypassRls()`) for the handful of
+  operations that are legitimately not "the acting user's own access"
+  (claim/merge, the media-processing worker, the appointment-reminder job,
+  the expired-child purge job).
+- Live, per-request media authorization — already true before this branch;
+  now actually tested (first test coverage `routes/media/` has ever had) and
+  reinforced by RLS on `media_assets` itself.
+
+**Verified:** `npm run typecheck` clean across `apps/api`/`apps/web`/
+`packages/shared`. `npm run test`: 144 API tests (26 files, 8 new — 2 skin,
+1 SET LOCAL prototype, 2 RLS-proof, 1 media-auth, plus fixes to 4 existing
+test files that needed to route their own fixture/verification queries
+through `withRls` once RLS went live) + 27 web + 27 shared, all passing.
+Manual in-browser walkthrough of the golden paths (see Phase 5/6 entries
+above) with real HTTP requests against the real local dev database.
+
+**Flagged back rather than decided unilaterally** (all resolved with
+Charlie's explicit sign-off during the session, recorded here for the
+record):
+1. Master wasn't a clean baseline — uncommitted skin/nav work was sitting
+   in the tree. Committed to `master` first (`1d98478`), then branched.
+2. Theming: extend the existing skin system rather than adopt shadcn/ui.
+3. Media auth: skip the Nginx `auth_request` build entirely — the invariant
+   it would have enforced was already true (`GET /media/:id` was already a
+   live, per-request, session+ChildAccess-checked gate, no signed-URL or
+   static-file bypass ever existed to close).
+
+**Deviations decided during implementation, flagged not silent** (each
+noted in place above, repeated here for visibility):
+- No `packages/theme-kit` workspace package — nothing outside `apps/web`
+  needs it; kept in `apps/web/src/lib/` instead.
+- No `resolveIcon()`/asset-pack lookup — `Icon.tsx` has exactly one global
+  icon source (a webfont), nothing to look up between skins; building the
+  indirection would have been dead code.
+- Local dev database role/ownership setup (`kidcom_appuser`, non-superuser,
+  now the actual table owner) — required to make RLS testable at all
+  locally (the prior dev role was an accidental Postgres bootstrap
+  superuser, which bypasses RLS unconditionally); this also happens to
+  correctly mirror what a Plesk-provisioned production DB user looks like,
+  so it's a correction, not a workaround. `.env`'s `DATABASE_URL` now points
+  at this role — flagging explicitly since it changes what "the app's DB
+  identity" means locally going forward.
+
+**Explicitly out of scope, not built** (per the brief's own instruction not
+to build speculatively):
+- Tier 3 (`ThemedSlot` registry) — no case surfaced that needed it; the one
+  candidate (calendar Child view) stays structurally identical across skins,
+  confirmed during the manual walkthrough.
+- `UpgradeRequest`/`ChildDeletionRequest` RLS — operational workflow rows,
+  not user-authored content, not in the brief's table list; flagging in case
+  Charlie wants them included in a follow-up.
+
+**Nothing in `roles_and_subscription_spec.md`'s model** (`AccessRole`,
+`ChildAccess`, entitlement, billing) **was modified.** RLS policies read
+`ChildAccess`/`AccessRole` as they exist today; `claimMerge.ts`'s own
+existing `CHILD_SCOPED_MODELS_TO_MIGRATE` list and access-transfer logic
+were not touched, only wrapped with the new `bypassRls()` call it needed to
+keep working under RLS.
+
+**Not pushed, not merged, not force-pushed** — `v2.0` is local-only, ready
+for review.
+

@@ -9,6 +9,7 @@ import type {
 import { prisma } from "../../db";
 import { ApiError } from "../../middleware/errorHandler";
 import { can, requireCapability } from "../../lib/permissions";
+import { withRls } from "../../lib/rls";
 
 // Mounted at /children/:childId/lists. Necessities + wishlist share one
 // model (ListItem.type) — the frontend splits them into two tabs.
@@ -98,11 +99,13 @@ async function setListItemImage(
 
 listItemsRouter.get("/", async (req: Request<ChildParams>, res, next) => {
   try {
-    const rows = await prisma.listItem.findMany({
-      where: { childId: req.params.childId },
-      include: INCLUDE,
-      orderBy: { createdAt: "asc" },
-    });
+    const rows = await withRls(req.session.userId!, (tx) =>
+      tx.listItem.findMany({
+        where: { childId: req.params.childId },
+        include: INCLUDE,
+        orderBy: { createdAt: "asc" },
+      })
+    );
     res.json({ items: rows.map(toDto) });
   } catch (err) {
     next(err);
@@ -127,20 +130,21 @@ listItemsRouter.post("/", requireCapability("list_item:manage"), async (req: Req
       }
       await assertChildMember(req.params.childId, body.assignedToId);
     }
-    if (body.calendarEventId) {
-      if (body.type !== "WISHLIST") {
-        throw new ApiError(400, "calendarEventId only applies to WISHLIST items");
-      }
-      // Verify the linked event actually belongs to this child before
-      // wiring it up — prevents linking to another child's (or a
-      // nonexistent) event by guessing/forging an id.
-      const event = await prisma.calendarEvent.findFirst({
-        where: { id: body.calendarEventId, childId: req.params.childId },
-      });
-      if (!event) throw new ApiError(404, "Linked calendar event not found");
-    }
     const userId = req.session.userId!;
-    const row = await prisma.$transaction(async (tx) => {
+    const row = await withRls(userId, async (tx) => {
+      if (body.calendarEventId) {
+        if (body.type !== "WISHLIST") {
+          throw new ApiError(400, "calendarEventId only applies to WISHLIST items");
+        }
+        // Verify the linked event actually belongs to this child before
+        // wiring it up — prevents linking to another child's (or a
+        // nonexistent) event by guessing/forging an id.
+        const event = await tx.calendarEvent.findFirst({
+          where: { id: body.calendarEventId, childId: req.params.childId },
+        });
+        if (!event) throw new ApiError(404, "Linked calendar event not found");
+      }
+
       const created = await tx.listItem.create({
         data: {
           childId: req.params.childId,
@@ -163,10 +167,12 @@ listItemsRouter.post("/", requireCapability("list_item:manage"), async (req: Req
 
 listItemsRouter.get("/:itemId", async (req: Request<ItemParams>, res, next) => {
   try {
-    const row = await prisma.listItem.findFirst({
-      where: { id: req.params.itemId, childId: req.params.childId },
-      include: INCLUDE,
-    });
+    const row = await withRls(req.session.userId!, (tx) =>
+      tx.listItem.findFirst({
+        where: { id: req.params.itemId, childId: req.params.childId },
+        include: INCLUDE,
+      })
+    );
     if (!row) throw new ApiError(404, "List item not found");
     res.json(toDto(row));
   } catch (err) {
@@ -181,31 +187,31 @@ listItemsRouter.get("/:itemId", async (req: Request<ItemParams>, res, next) => {
 listItemsRouter.patch("/:itemId", requireCapability("list_item:manage"), async (req: Request<ItemParams>, res, next) => {
   try {
     const userId = req.session.userId!;
-    const existing = await prisma.listItem.findFirst({
-      where: { id: req.params.itemId, childId: req.params.childId },
-      include: INCLUDE,
-    });
-    if (!existing) throw new ApiError(404, "List item not found");
-
     const body = req.body as UpdateListItemRequest;
 
-    if (body.assignedToId) {
-      if (existing.type !== "NECESSITY") {
-        throw new ApiError(400, "assignedToId only applies to NECESSITY items");
-      }
-      await assertChildMember(req.params.childId, body.assignedToId);
-    }
-    if (body.calendarEventId) {
-      if (existing.type !== "WISHLIST") {
-        throw new ApiError(400, "calendarEventId only applies to WISHLIST items");
-      }
-      const event = await prisma.calendarEvent.findFirst({
-        where: { id: body.calendarEventId, childId: req.params.childId },
+    const row = await withRls(userId, async (tx) => {
+      const existing = await tx.listItem.findFirst({
+        where: { id: req.params.itemId, childId: req.params.childId },
+        include: INCLUDE,
       });
-      if (!event) throw new ApiError(404, "Linked calendar event not found");
-    }
+      if (!existing) throw new ApiError(404, "List item not found");
 
-    const row = await prisma.$transaction(async (tx) => {
+      if (body.assignedToId) {
+        if (existing.type !== "NECESSITY") {
+          throw new ApiError(400, "assignedToId only applies to NECESSITY items");
+        }
+        await assertChildMember(req.params.childId, body.assignedToId);
+      }
+      if (body.calendarEventId) {
+        if (existing.type !== "WISHLIST") {
+          throw new ApiError(400, "calendarEventId only applies to WISHLIST items");
+        }
+        const event = await tx.calendarEvent.findFirst({
+          where: { id: body.calendarEventId, childId: req.params.childId },
+        });
+        if (!event) throw new ApiError(404, "Linked calendar event not found");
+      }
+
       await tx.listItem.update({
         where: { id: existing.id },
         data: {
@@ -230,21 +236,23 @@ listItemsRouter.patch("/:itemId", requireCapability("list_item:manage"), async (
 // other family member, not just claim it for themselves.
 listItemsRouter.patch("/:itemId/assign", requireCapability("list_item:manage"), async (req: Request<ItemParams>, res, next) => {
   try {
-    const existing = await prisma.listItem.findFirst({
-      where: { id: req.params.itemId, childId: req.params.childId },
-    });
-    if (!existing) throw new ApiError(404, "List item not found");
-
     const body = req.body as Partial<UpdateListItemAssignmentRequest>;
     const assignedToId = body.assignedToId ?? null;
     if (assignedToId) {
       await assertChildMember(req.params.childId, assignedToId);
     }
 
-    const row = await prisma.listItem.update({
-      where: { id: existing.id },
-      data: { assignedToId },
-      include: INCLUDE,
+    const row = await withRls(req.session.userId!, async (tx) => {
+      const existing = await tx.listItem.findFirst({
+        where: { id: req.params.itemId, childId: req.params.childId },
+      });
+      if (!existing) throw new ApiError(404, "List item not found");
+
+      return tx.listItem.update({
+        where: { id: existing.id },
+        data: { assignedToId },
+        include: INCLUDE,
+      });
     });
     res.json(toDto(row));
   } catch (err) {
@@ -258,30 +266,32 @@ listItemsRouter.patch("/:itemId/assign", requireCapability("list_item:manage"), 
 listItemsRouter.patch("/:itemId/claim", async (req: Request<ItemParams>, res, next) => {
   try {
     const userId = req.session.userId!;
-    const existing = await prisma.listItem.findFirst({
-      where: { id: req.params.itemId, childId: req.params.childId },
-    });
-    if (!existing) throw new ApiError(404, "List item not found");
+    const row = await withRls(userId, async (tx) => {
+      const existing = await tx.listItem.findFirst({
+        where: { id: req.params.itemId, childId: req.params.childId },
+      });
+      if (!existing) throw new ApiError(404, "List item not found");
 
-    if (existing.claimedById && existing.claimedById !== userId) {
-      throw new ApiError(409, "This item is already claimed by someone else");
-    }
+      if (existing.claimedById && existing.claimedById !== userId) {
+        throw new ApiError(409, "This item is already claimed by someone else");
+      }
 
-    // Conditional update guarded on the claim state we just read, so two
-    // concurrent claim/unclaim attempts can't both succeed silently — the
-    // loser's updateMany matches zero rows and gets a 409 instead.
-    const targetClaimedById = existing.claimedById === userId ? null : userId;
-    const { count } = await prisma.listItem.updateMany({
-      where: { id: existing.id, claimedById: existing.claimedById },
-      data: { claimedById: targetClaimedById },
-    });
-    if (count === 0) {
-      throw new ApiError(409, "Someone else already changed this item's claim — refresh and try again");
-    }
+      // Conditional update guarded on the claim state we just read, so two
+      // concurrent claim/unclaim attempts can't both succeed silently — the
+      // loser's updateMany matches zero rows and gets a 409 instead.
+      const targetClaimedById = existing.claimedById === userId ? null : userId;
+      const { count } = await tx.listItem.updateMany({
+        where: { id: existing.id, claimedById: existing.claimedById },
+        data: { claimedById: targetClaimedById },
+      });
+      if (count === 0) {
+        throw new ApiError(409, "Someone else already changed this item's claim — refresh and try again");
+      }
 
-    const row = await prisma.listItem.findUniqueOrThrow({
-      where: { id: existing.id },
-      include: INCLUDE,
+      return tx.listItem.findUniqueOrThrow({
+        where: { id: existing.id },
+        include: INCLUDE,
+      });
     });
     res.json(toDto(row));
   } catch (err) {
@@ -292,27 +302,29 @@ listItemsRouter.patch("/:itemId/claim", async (req: Request<ItemParams>, res, ne
 listItemsRouter.delete("/:itemId", async (req: Request<ItemParams>, res, next) => {
   try {
     const userId = req.session.userId!;
-    const existing = await prisma.listItem.findFirst({
-      where: { id: req.params.itemId, childId: req.params.childId },
+    await withRls(userId, async (tx) => {
+      const existing = await tx.listItem.findFirst({
+        where: { id: req.params.itemId, childId: req.params.childId },
+      });
+      if (!existing) throw new ApiError(404, "List item not found");
+
+      // ListItem has no creator/authorId field on the schema, so ownership is
+      // approximated by "current claimer" — only whoever claimed the item (or
+      // no one, for an unclaimed item) may delete it. Necessities' assignment
+      // is collaborative (any member can reassign), so it isn't used to gate
+      // deletion the way claim is.
+      if (existing.claimedById && existing.claimedById !== userId) {
+        throw new ApiError(403, "Only the person who claimed this item can delete it");
+      }
+      // An unclaimed item's deletion is a "manage" action, not a "claim" one
+      // (spec 9.5: a Caregiver may only claim) — a Caregiver deleting their
+      // own claim (branch above) is still fine.
+      if (!existing.claimedById && (!req.childAccess || !can(req.childAccess, "list_item:manage"))) {
+        throw new ApiError(403, "You don't have permission to delete this item");
+      }
+
+      await tx.listItem.delete({ where: { id: existing.id } });
     });
-    if (!existing) throw new ApiError(404, "List item not found");
-
-    // ListItem has no creator/authorId field on the schema, so ownership is
-    // approximated by "current claimer" — only whoever claimed the item (or
-    // no one, for an unclaimed item) may delete it. Necessities' assignment
-    // is collaborative (any member can reassign), so it isn't used to gate
-    // deletion the way claim is.
-    if (existing.claimedById && existing.claimedById !== userId) {
-      throw new ApiError(403, "Only the person who claimed this item can delete it");
-    }
-    // An unclaimed item's deletion is a "manage" action, not a "claim" one
-    // (spec 9.5: a Caregiver may only claim) — a Caregiver deleting their
-    // own claim (branch above) is still fine.
-    if (!existing.claimedById && (!req.childAccess || !can(req.childAccess, "list_item:manage"))) {
-      throw new ApiError(403, "You don't have permission to delete this item");
-    }
-
-    await prisma.listItem.delete({ where: { id: existing.id } });
     res.status(204).end();
   } catch (err) {
     next(err);

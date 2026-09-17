@@ -8,6 +8,7 @@ import { requireAuth } from "../../middleware/session";
 import { ApiError } from "../../middleware/errorHandler";
 import { mediaStorage } from "../../lib/mediaStorage";
 import { mediaQueue } from "../../lib/mediaQueue";
+import { withRls } from "../../lib/rls";
 
 export const mediaRouter = Router();
 
@@ -93,14 +94,16 @@ mediaRouter.post("/upload", requireAuth, upload.single("file"), async (req, res,
     const key = `original/${crypto.randomUUID()}.${ext}`;
     await mediaStorage.save(key, req.file.buffer);
 
-    const asset = await prisma.mediaAsset.create({
-      data: {
-        ownerId: req.session.userId!,
-        type: isVideo ? "VIDEO" : "IMAGE",
-        status: "PROCESSING",
-        originalPath: key,
-      },
-    });
+    const asset = await withRls(req.session.userId!, (tx) =>
+      tx.mediaAsset.create({
+        data: {
+          ownerId: req.session.userId!,
+          type: isVideo ? "VIDEO" : "IMAGE",
+          status: "PROCESSING",
+          originalPath: key,
+        },
+      })
+    );
 
     await mediaQueue.add("process-media", { mediaAssetId: asset.id });
 
@@ -127,15 +130,22 @@ mediaRouter.post("/upload", requireAuth, upload.single("file"), async (req, res,
 // ChildAccess-to-that-item's-child rule as a child avatar.
 mediaRouter.get("/:id", requireAuth, async (req, res, next) => {
   try {
-    const asset = await prisma.mediaAsset.findUnique({
-      where: { id: req.params.id },
-      include: {
-        journalPost: {
-          include: { children: { include: { child: { include: { access: true } } } } },
+    // v2.0: media_assets is now RLS-protected — wrapped in withRls so this
+    // read isn't blocked outright by RLS before the app-layer branch checks
+    // below even run. Both layers stay: RLS mirrors this same branch logic
+    // independently at the DB level (see the migration's media_assets_rls
+    // policy), this code is unchanged and still the one enforcing it here.
+    const asset = await withRls(req.session.userId!, (tx) =>
+      tx.mediaAsset.findUnique({
+        where: { id: req.params.id },
+        include: {
+          journalPost: {
+            include: { children: { include: { child: { include: { access: true } } } } },
+          },
+          listItemImageFor: { select: { childId: true } },
         },
-        listItemImageFor: { select: { childId: true } },
-      },
-    });
+      })
+    );
     if (!asset) throw new ApiError(404, "Media not found");
 
     if (asset.journalPost) {

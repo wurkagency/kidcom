@@ -1,10 +1,10 @@
 import { Router, type Request } from "express";
 import type { CustodyPattern, CustodyPlanDto, CustodyPlanStatusResponse, SetCustodyPlanRequest } from "@kidcom/shared";
 
-import { prisma } from "../../db";
 import { ApiError } from "../../middleware/errorHandler";
 import { requireCapability } from "../../lib/permissions";
 import { getCustodyPlanLockStatus, isChildSatisfied, isCustodyPlanLockedPendingParent } from "../../lib/entitlement";
+import { withRls } from "../../lib/rls";
 
 // Mounted at /children/:childId/custody-plan. One active plan per child —
 // PUT replaces it (see chunk 4 plan: no plan-history UI yet).
@@ -29,10 +29,12 @@ function toDto(row: {
 custodyPlanRouter.get("/", async (req: Request<ChildParams>, res, next) => {
   try {
     const [plan, lockStatus] = await Promise.all([
-      prisma.custodyPlan.findFirst({
-        where: { childId: req.params.childId },
-        orderBy: { createdAt: "desc" },
-      }),
+      withRls(req.session.userId!, (tx) =>
+        tx.custodyPlan.findFirst({
+          where: { childId: req.params.childId },
+          orderBy: { createdAt: "desc" },
+        })
+      ),
       getCustodyPlanLockStatus(req.params.childId),
     ]);
     res.json({
@@ -81,7 +83,7 @@ custodyPlanRouter.put("/", requireCapability("custody_plan:edit"), async (req: R
 
     // Replace any existing plan(s) for this child — one active plan at a
     // time keeps "whose day is it" unambiguous.
-    const plan = await prisma.$transaction(async (tx) => {
+    const plan = await withRls(req.session.userId!, async (tx) => {
       await tx.custodyPlan.deleteMany({ where: { childId: req.params.childId } });
       return tx.custodyPlan.create({
         data: {

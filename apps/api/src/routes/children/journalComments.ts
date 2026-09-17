@@ -1,8 +1,8 @@
 import { Router, type Request } from "express";
 import type { CommentDto, CreateCommentRequest, UpdateCommentRequest } from "@kidcom/shared";
 
-import { prisma } from "../../db";
 import { ApiError } from "../../middleware/errorHandler";
+import { withRls } from "../../lib/rls";
 
 // Mounted at /children/:childId/journal/:postId/comments.
 export const journalCommentsRouter = Router({ mergeParams: true });
@@ -29,11 +29,13 @@ function toDto(row: {
 
 journalCommentsRouter.get("/", async (req: Request<PostParams>, res, next) => {
   try {
-    const rows = await prisma.comment.findMany({
-      where: { journalPostId: req.params.postId },
-      include: { author: true },
-      orderBy: { createdAt: "asc" },
-    });
+    const rows = await withRls(req.session.userId!, (tx) =>
+      tx.comment.findMany({
+        where: { journalPostId: req.params.postId },
+        include: { author: true },
+        orderBy: { createdAt: "asc" },
+      })
+    );
     res.json({ items: rows.map(toDto) });
   } catch (err) {
     next(err);
@@ -46,14 +48,17 @@ journalCommentsRouter.post("/", async (req: Request<PostParams>, res, next) => {
     if (!body.text?.trim()) {
       throw new ApiError(400, "text is required");
     }
-    const post = await prisma.journalPost.findFirst({
-      where: { id: req.params.postId, children: { some: { childId: req.params.childId } } },
-    });
-    if (!post) throw new ApiError(404, "Post not found");
+    const text = body.text;
+    const row = await withRls(req.session.userId!, async (tx) => {
+      const post = await tx.journalPost.findFirst({
+        where: { id: req.params.postId, children: { some: { childId: req.params.childId } } },
+      });
+      if (!post) throw new ApiError(404, "Post not found");
 
-    const row = await prisma.comment.create({
-      data: { journalPostId: post.id, authorId: req.session.userId!, text: body.text },
-      include: { author: true },
+      return tx.comment.create({
+        data: { journalPostId: post.id, authorId: req.session.userId!, text },
+        include: { author: true },
+      });
     });
     res.status(201).json(toDto(row));
   } catch (err) {
@@ -67,18 +72,20 @@ journalCommentsRouter.patch("/:commentId", async (req: Request<CommentParams>, r
     if (!body.text?.trim()) {
       throw new ApiError(400, "text is required");
     }
-    const existing = await prisma.comment.findFirst({
-      where: { id: req.params.commentId, journalPostId: req.params.postId },
-    });
-    if (!existing) throw new ApiError(404, "Comment not found");
-    if (existing.authorId !== req.session.userId) {
-      throw new ApiError(403, "Only the author can edit this comment");
-    }
+    const row = await withRls(req.session.userId!, async (tx) => {
+      const existing = await tx.comment.findFirst({
+        where: { id: req.params.commentId, journalPostId: req.params.postId },
+      });
+      if (!existing) throw new ApiError(404, "Comment not found");
+      if (existing.authorId !== req.session.userId) {
+        throw new ApiError(403, "Only the author can edit this comment");
+      }
 
-    const row = await prisma.comment.update({
-      where: { id: existing.id },
-      data: { text: body.text },
-      include: { author: true },
+      return tx.comment.update({
+        where: { id: existing.id },
+        data: { text: body.text },
+        include: { author: true },
+      });
     });
     res.json(toDto(row));
   } catch (err) {
@@ -88,14 +95,16 @@ journalCommentsRouter.patch("/:commentId", async (req: Request<CommentParams>, r
 
 journalCommentsRouter.delete("/:commentId", async (req: Request<CommentParams>, res, next) => {
   try {
-    const existing = await prisma.comment.findFirst({
-      where: { id: req.params.commentId, journalPostId: req.params.postId },
+    await withRls(req.session.userId!, async (tx) => {
+      const existing = await tx.comment.findFirst({
+        where: { id: req.params.commentId, journalPostId: req.params.postId },
+      });
+      if (!existing) throw new ApiError(404, "Comment not found");
+      if (existing.authorId !== req.session.userId) {
+        throw new ApiError(403, "Only the author can delete this comment");
+      }
+      await tx.comment.delete({ where: { id: existing.id } });
     });
-    if (!existing) throw new ApiError(404, "Comment not found");
-    if (existing.authorId !== req.session.userId) {
-      throw new ApiError(403, "Only the author can delete this comment");
-    }
-    await prisma.comment.delete({ where: { id: existing.id } });
     res.status(204).end();
   } catch (err) {
     next(err);

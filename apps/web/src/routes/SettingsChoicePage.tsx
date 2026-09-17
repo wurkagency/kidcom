@@ -2,19 +2,19 @@ import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { Icon } from "../components/Icon";
+import { ApiRequestError } from "../lib/api";
 import { useHeaderConfig } from "../lib/HeaderContext";
+import { useSkin } from "../lib/SkinContext";
 import {
   getCalendarDefaultView,
   getDateFormat,
   getJournalVisibility,
   getLanguage,
-  getSkin,
   getTimeZone,
   setCalendarDefaultView,
   setDateFormat,
   setJournalVisibility,
   setLanguage,
-  setSkin,
   setTimeZone,
   type CalendarDefaultView,
   type DateFormat,
@@ -50,7 +50,7 @@ type ChoiceConfig = {
   backTo: string;
   options: { label: string; value: string }[];
   getValue: () => string;
-  setValue: (value: string) => void;
+  setValue: (value: string) => void | Promise<void>;
 };
 
 // One full-screen "pick one of several values" page, reused for every
@@ -88,12 +88,16 @@ const CONFIGS: Record<string, ChoiceConfig> = {
     getValue: getCalendarDefaultView,
     setValue: (v) => setCalendarDefaultView(v as CalendarDefaultView),
   },
+  // getValue/setValue are placeholders — the "skin" field is overridden in
+  // the component below with the reactive useSkin() hook instead of a bare
+  // localStorage read/write, since a server-persisted, cross-device value
+  // needs to reflect AuthContext's reconciliation, not just be read once.
   skin: {
     title: "Skin",
     backTo: "/preferences",
     options: SKIN_OPTIONS,
-    getValue: getSkin,
-    setValue: (v) => setSkin(v as SkinId),
+    getValue: () => "",
+    setValue: () => {},
   },
   "journal-visibility": {
     title: "Journal Entry Visibility",
@@ -107,11 +111,18 @@ const CONFIGS: Record<string, ChoiceConfig> = {
 export function SettingsChoicePage() {
   const { field } = useParams<{ field: string }>();
   const navigate = useNavigate();
-  const config = field ? CONFIGS[field] : undefined;
+  const { skin, setSkin } = useSkin();
+  const baseConfig = field ? CONFIGS[field] : undefined;
+  const config: ChoiceConfig | undefined =
+    baseConfig && field === "skin"
+      ? { ...baseConfig, getValue: () => skin, setValue: (v) => setSkin(v as SkinId) }
+      : baseConfig;
 
   useHeaderConfig({ title: config?.title ?? "Settings", backTo: config?.backTo ?? "/profile" }, [config?.title]);
 
   const [selected, setSelected] = useState(() => config?.getValue() ?? "");
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   if (!config) {
     return (
@@ -121,19 +132,31 @@ export function SettingsChoicePage() {
     );
   }
 
-  function choose(value: string) {
-    config!.setValue(value);
+  async function choose(value: string) {
+    const previous = selected;
     setSelected(value);
-    navigate(config!.backTo);
+    setError(null);
+    setSaving(true);
+    try {
+      await config!.setValue(value);
+      navigate(config!.backTo);
+    } catch (err) {
+      setSelected(previous);
+      setError(err instanceof ApiRequestError ? err.message : "Couldn't save that change");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
     <div className="px-container-padding pt-4 flex flex-col gap-1 pb-8">
+      {error && <p className="font-body-sm text-body-sm text-error px-4 pb-2">{error}</p>}
       {config.options.map((option) => (
         <button
           key={option.value}
           onClick={() => choose(option.value)}
-          className={`w-full flex items-center justify-between py-4 px-4 rounded-xl font-label-md text-label-md transition-colors ${
+          disabled={saving}
+          className={`w-full flex items-center justify-between py-4 px-4 rounded-xl font-label-md text-label-md transition-colors disabled:opacity-60 ${
             option.value === selected ? "bg-primary/10 text-primary" : "text-on-surface hover:bg-surface-container"
           }`}
         >

@@ -1,23 +1,7 @@
-export type SkinId = "greenkeeper" | "sky";
+export type { SkinId, SkinDefinition } from "@kidcom/shared";
+export { SKINS, DEFAULT_SKIN, isSkinId } from "@kidcom/shared";
 
-export type SkinDefinition = {
-  id: SkinId;
-  name: string;
-};
-
-// Each skin's CSS variables live in index.css under `[data-skin="<id>"]`
-// (Greenkeeper's values are the :root defaults). Add a new skin by adding
-// its id/name here and its variable overrides there.
-export const SKINS: SkinDefinition[] = [
-  { id: "greenkeeper", name: "Greenkeeper" },
-  { id: "sky", name: "Sky" },
-];
-
-export const DEFAULT_SKIN: SkinId = "greenkeeper";
-
-export function isSkinId(value: string): value is SkinId {
-  return SKINS.some((skin) => skin.id === value);
-}
+import type { SkinId } from "@kidcom/shared";
 
 export function applySkin(id: SkinId) {
   document.documentElement.dataset.skin = id;

@@ -6,11 +6,11 @@ import { Icon } from "../components/Icon";
 import { SegmentedControl } from "../components/SegmentedControl";
 import { Toggle } from "../components/Toggle";
 import { useHeaderConfig } from "../lib/HeaderContext";
+import { useSkin } from "../lib/SkinContext";
 import {
   getCalendarDefaultView,
   getDateFormat,
   getLanguage,
-  getSkin,
   getTextSize,
   getTheme,
   getTimeZone,
@@ -41,7 +41,7 @@ export function AppPreferencesPage() {
   const navigate = useNavigate();
 
   const [theme, setThemeState] = useState<Theme>(() => getTheme());
-  const [skin] = useState(() => getSkin());
+  const { skin } = useSkin();
   const [textSize, setTextSizeState] = useState<TextSize>(() => getTextSize());
   const [language] = useState(() => getLanguage());
   const [dateFormat] = useState(() => getDateFormat());

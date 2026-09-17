@@ -2,9 +2,9 @@ import { describe, it, expect, beforeEach } from "vitest";
 import request from "supertest";
 
 import { createApp } from "../../app";
-import { prisma } from "../../db";
 import { resetDb } from "../../testUtils/db";
 import { signupTestUser, verifyTestUserEmail } from "../../testUtils/auth";
+import { withRls } from "../../lib/rls";
 
 // Post-launch backlog Phase C proof — the request/approve workflow closing
 // the Phase 3 scope cut (calendar_event:manage denies FAMILY/Caregiver
@@ -17,7 +17,7 @@ describe("Calendar event requests (post-launch backlog Phase C)", () => {
 
   it("a FAMILY member can request a calendar event; a PARENT approving it creates the real event", async () => {
     const app = createApp();
-    const { agent: parentAgent } = await signupTestUser(app, { email: "cer-parent@example.com" });
+    const { agent: parentAgent, userId: parentId } = await signupTestUser(app, { email: "cer-parent@example.com" });
     const childRes = await parentAgent.post("/children").send({ firstName: "Kid", gender: "BOY", birthday: "2020-01-01" });
     const childId = childRes.body.id;
 
@@ -34,7 +34,7 @@ describe("Calendar event requests (post-launch backlog Phase C)", () => {
     expect(reqRes.status).toBe(201);
     expect(reqRes.body.status).toBe("PENDING");
 
-    const beforeCount = await prisma.calendarEvent.count({ where: { childId } });
+    const beforeCount = await withRls(parentId, (tx) => tx.calendarEvent.count({ where: { childId } }));
     expect(beforeCount).toBe(0);
 
     const approveRes = await parentAgent
@@ -43,13 +43,13 @@ describe("Calendar event requests (post-launch backlog Phase C)", () => {
     expect(approveRes.status).toBe(200);
     expect(approveRes.body.status).toBe("APPROVED");
 
-    const afterCount = await prisma.calendarEvent.count({ where: { childId, title: "Soccer practice" } });
+    const afterCount = await withRls(parentId, (tx) => tx.calendarEvent.count({ where: { childId, title: "Soccer practice" } }));
     expect(afterCount).toBe(1);
   });
 
   it("declining a request does not create a calendar event", async () => {
     const app = createApp();
-    const { agent: parentAgent } = await signupTestUser(app, { email: "cer-decline-parent@example.com" });
+    const { agent: parentAgent, userId: parentId } = await signupTestUser(app, { email: "cer-decline-parent@example.com" });
     const childRes = await parentAgent.post("/children").send({ firstName: "Kid", gender: "GIRL", birthday: "2020-01-01" });
     const childId = childRes.body.id;
 
@@ -71,7 +71,7 @@ describe("Calendar event requests (post-launch backlog Phase C)", () => {
       .send({ status: "DECLINED" });
     expect(declineRes.status).toBe(200);
 
-    const events = await prisma.calendarEvent.count({ where: { childId } });
+    const events = await withRls(parentId, (tx) => tx.calendarEvent.count({ where: { childId } }));
     expect(events).toBe(0);
   });
 

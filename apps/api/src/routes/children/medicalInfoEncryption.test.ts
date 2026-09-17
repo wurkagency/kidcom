@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach } from "vitest";
 
 import { createApp } from "../../app";
-import { prisma } from "../../db";
 import { resetDb } from "../../testUtils/db";
 import { signupTestUser } from "../../testUtils/auth";
+import { withRls } from "../../lib/rls";
 
 // Post-launch backlog Phase G proof — asserts the stored DB row is NOT
 // plaintext (queried directly, bypassing the API's own decrypt-on-read),
@@ -17,7 +17,7 @@ describe("MedicalInfo encryption at rest (spec-adjacent, Phase G)", () => {
 
   it("the raw DB value is not plaintext, but the API returns the correct plaintext", async () => {
     const app = createApp();
-    const { agent } = await signupTestUser(app, { email: "medenc-parent@example.com" });
+    const { agent, userId } = await signupTestUser(app, { email: "medenc-parent@example.com" });
     const childRes = await agent.post("/children").send({ firstName: "Kid", gender: "BOY", birthday: "2020-01-01" });
     const childId = childRes.body.id;
 
@@ -36,8 +36,9 @@ describe("MedicalInfo encryption at rest (spec-adjacent, Phase G)", () => {
     expect(createRes.body.description).toBe(description);
     expect(createRes.body.emergencyNote).toBe(emergencyNote);
 
-    // Bypass the API entirely — read the raw column values directly.
-    const raw = await prisma.medicalInfo.findUniqueOrThrow({ where: { id: createRes.body.id } });
+    // Bypass the API entirely — read the raw column values directly (still
+    // through withRls: RLS is on now, and this user genuinely has access).
+    const raw = await withRls(userId, (tx) => tx.medicalInfo.findUniqueOrThrow({ where: { id: createRes.body.id } }));
     expect(raw.condition).not.toBe(condition);
     expect(raw.condition).not.toContain("peanut");
     expect(raw.description).not.toBe(description);
@@ -54,7 +55,7 @@ describe("MedicalInfo encryption at rest (spec-adjacent, Phase G)", () => {
 
   it("updating an entry re-encrypts the new value, decryptable again on read", async () => {
     const app = createApp();
-    const { agent } = await signupTestUser(app, { email: "medenc-update@example.com" });
+    const { agent, userId } = await signupTestUser(app, { email: "medenc-update@example.com" });
     const childRes = await agent.post("/children").send({ firstName: "Kid", gender: "GIRL", birthday: "2020-01-01" });
     const childId = childRes.body.id;
 
@@ -65,7 +66,7 @@ describe("MedicalInfo encryption at rest (spec-adjacent, Phase G)", () => {
     expect(patchRes.status).toBe(200);
     expect(patchRes.body.condition).toBe("Asthma (mild, controlled with inhaler)");
 
-    const raw = await prisma.medicalInfo.findUniqueOrThrow({ where: { id: createRes.body.id } });
+    const raw = await withRls(userId, (tx) => tx.medicalInfo.findUniqueOrThrow({ where: { id: createRes.body.id } }));
     expect(raw.condition).not.toContain("Asthma");
   });
 });

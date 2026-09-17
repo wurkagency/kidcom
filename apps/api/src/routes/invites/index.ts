@@ -1,7 +1,7 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
-import type { AcceptInviteRequest, CreateInviteRequest, CreateInviteResponse, InvitePreviewResponse, MeResponse } from "@kidcom/shared";
-import { ALL_RELATIONSHIP_TYPES, relationshipTypeToRole, isValidEmail } from "@kidcom/shared";
+import type { AcceptInviteRequest, CreateInviteRequest, CreateInviteResponse, InvitePreviewResponse, MeResponse, PublicUser } from "@kidcom/shared";
+import { ALL_RELATIONSHIP_TYPES, relationshipTypeToRole, isValidEmail, isSkinId } from "@kidcom/shared";
 
 import { prisma } from "../../db";
 import { config } from "../../config";
@@ -13,6 +13,7 @@ import { sendVerificationEmail } from "../../lib/emailVerification";
 import { logAccessGrant } from "../../lib/accessGrantAnalytics";
 import { findClaimableChild, mergeChildAccessInto } from "../../lib/claimMerge";
 import { assertUnderMemberFairUseCap } from "../../lib/fairUseCaps";
+import { bypassRls } from "../../lib/rls";
 
 export const invitesRouter = Router();
 
@@ -323,6 +324,7 @@ invitesRouter.post("/:token/accept", async (req, res, next) => {
         lastName: user.lastName,
         avatarUrl: user.avatarUrl,
         emailVerifiedAt: null,
+        skinId: isSkinId(user.skinId ?? "") ? (user.skinId as PublicUser["skinId"]) : null,
       },
     } satisfies MeResponse);
   } catch (err) {
@@ -379,6 +381,12 @@ invitesRouter.post(
         // reference, then move every *other* member's access onto the real
         // child — `me` already holds PARENT access there, nothing to grant.
         await tx.invite.update({ where: { id: invite.id }, data: { childId: claimTargetChildId, acceptedAt: new Date() } });
+        // Reassigns OTHER members' journal/medical/etc. content between two
+        // child records — already verified legitimate by findClaimableChild
+        // above (me's own real PARENT-access child, matched by name +
+        // birthday), not something `me`'s own ChildAccess grants would
+        // authorize on their own. See lib/rls.ts's bypassRls().
+        await bypassRls(tx);
         await mergeChildAccessInto(tx, invite.childId, claimTargetChildId, me.id);
       } else if (invite.childId) {
         const existingAccess = await tx.childAccess.findUnique({
@@ -431,6 +439,7 @@ invitesRouter.post(
         lastName: me.lastName,
         avatarUrl: me.avatarUrl,
         emailVerifiedAt: me.emailVerifiedAt ? me.emailVerifiedAt.toISOString() : null,
+        skinId: isSkinId(me.skinId ?? "") ? (me.skinId as PublicUser["skinId"]) : null,
       },
     } satisfies MeResponse);
   } catch (err) {

@@ -5,6 +5,7 @@ import { prisma } from "../../db";
 import { requireAuth } from "../../middleware/session";
 import { ApiError } from "../../middleware/errorHandler";
 import { pushQueue } from "../../lib/pushQueue";
+import { withRls } from "../../lib/rls";
 
 // Top-level (not child-scoped) — Thread/Message have no childId. A caller
 // may only message people they share at least one child's ChildAccess with
@@ -224,7 +225,7 @@ messagesRouter.post("/threads/:threadId/messages", requireThreadMembership, asyn
       throw new ApiError(400, "text or mediaId is required");
     }
     if (body.mediaId) {
-      const asset = await prisma.mediaAsset.findUnique({ where: { id: body.mediaId } });
+      const asset = await withRls(userId, (tx) => tx.mediaAsset.findUnique({ where: { id: body.mediaId! } }));
       if (!asset || asset.ownerId !== userId) {
         throw new ApiError(403, "You don't own that media");
       }

@@ -1,4 +1,5 @@
 import { prisma } from "../db";
+import { withRlsBypass } from "./rls";
 import { RESTORE_WINDOW_DAYS } from "../routes/children/deletion";
 
 // Post-launch backlog Phase H — the real gap found while confirming what
@@ -19,7 +20,11 @@ export async function purgeExpiredDeletedChildren(now: Date = new Date()): Promi
   });
 
   for (const child of expired) {
-    await prisma.child.delete({ where: { id: child.id } });
+    // System-level purge job, no per-request user — and the cascade deletes
+    // into every RLS-protected child-scoped table (medical_info,
+    // journal_posts, growth_entries, etc.), which a specific user's GUC
+    // couldn't authorize wholesale anyway.
+    await withRlsBypass((tx) => tx.child.delete({ where: { id: child.id } }));
   }
 
   return { purged: expired.length };

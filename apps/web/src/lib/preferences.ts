@@ -10,6 +10,9 @@
 // interactive and persist across visits, even though nothing else in the
 // app reads them yet — "functions are embedded later" per Charlie's
 // instruction, not "these are decorative."
+import type { PublicUser } from "@kidcom/shared";
+
+import { apiPatch } from "./api";
 import { applySkin, DEFAULT_SKIN, SKINS, type SkinId } from "./themes";
 
 export type UnitSystem = "metric" | "imperial";
@@ -83,6 +86,10 @@ export function setWeekStart(value: WeekStart) {
   setString(WEEK_START_KEY, value);
 }
 
+// localStorage is the boot-time fast-paint cache (read synchronously in
+// main.tsx before the profile fetch resolves) — once a session is
+// authenticated, User.skinId on the server is the source of truth. See
+// setSkin/reconcileSkinFromServer below.
 export function getSkin(): SkinId {
   return getString(
     SKIN_KEY,
@@ -90,9 +97,45 @@ export function getSkin(): SkinId {
     DEFAULT_SKIN
   );
 }
-export function setSkin(value: SkinId) {
+
+// Applies + caches immediately (instant repaint, matches the pre-v2.0
+// behavior), then persists to the account in the background. Rolls the
+// local choice back on failure — same optimistic-update-with-rollback shape
+// NotificationSettingsPage.tsx uses for its server-persisted toggles.
+export async function setSkin(value: SkinId) {
+  const previous = getSkin();
   setString(SKIN_KEY, value);
   applySkin(value);
+  try {
+    await apiPatch("/auth/me", { skinId: value });
+  } catch (err) {
+    setString(SKIN_KEY, previous);
+    applySkin(previous);
+    throw err;
+  }
+}
+
+// Called once per AuthContext refresh (after GET /auth/me resolves). The
+// server's skinId wins whenever it's set. When it's null — a pre-v2.0
+// account that only ever had a local, device-only skin choice — push the
+// local cache up instead of resetting the user back to the default, so
+// existing choices survive the migration to per-user persistence.
+export function reconcileSkinFromServer(user: PublicUser | null) {
+  if (!user) return;
+  if (user.skinId) {
+    if (user.skinId !== getSkin()) {
+      setString(SKIN_KEY, user.skinId);
+      applySkin(user.skinId);
+    }
+    return;
+  }
+  const local = getSkin();
+  if (local !== DEFAULT_SKIN) {
+    apiPatch("/auth/me", { skinId: local }).catch(() => {
+      // best-effort — the local cache still shows the right skin on this
+      // device even if the one-time sync-up fails
+    });
+  }
 }
 
 export function getTheme(): Theme {

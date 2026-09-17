@@ -12,6 +12,7 @@ import ffmpegPath from "ffmpeg-static";
 import ffprobeStatic from "ffprobe-static";
 
 import { prisma } from "./db";
+import { withRlsBypass } from "./lib/rls";
 import { bullConnection, type ProcessMediaJob } from "./lib/mediaQueue";
 import { mediaStorage } from "./lib/mediaStorage";
 import { billingQueue, reconciliationQueue, type RenewSubscriptionsJob, type ReconcileSubscriptionsJob } from "./lib/billingQueue";
@@ -106,27 +107,31 @@ async function processVideo(originalKey: string, assetId: string) {
 const worker = new Worker<ProcessMediaJob>(
   "process-media",
   async (job) => {
-    const asset = await prisma.mediaAsset.findUniqueOrThrow({ where: { id: job.data.mediaAssetId } });
+    // System-level: this job has no per-request user, and legitimately
+    // needs to update any media asset regardless of who owns/tagged it.
+    const asset = await withRlsBypass((tx) => tx.mediaAsset.findUniqueOrThrow({ where: { id: job.data.mediaAssetId } }));
     try {
       const result =
         asset.type === "IMAGE"
           ? await processImage(asset.originalPath, asset.id)
           : await processVideo(asset.originalPath, asset.id);
 
-      await prisma.mediaAsset.update({
-        where: { id: asset.id },
-        data: {
-          status: "READY",
-          derivedPath: result.derivedKey,
-          playablePath: "playableKey" in result ? result.playableKey : undefined,
-          width: result.width,
-          height: result.height,
-        },
-      });
+      await withRlsBypass((tx) =>
+        tx.mediaAsset.update({
+          where: { id: asset.id },
+          data: {
+            status: "READY",
+            derivedPath: result.derivedKey,
+            playablePath: "playableKey" in result ? result.playableKey : undefined,
+            width: result.width,
+            height: result.height,
+          },
+        })
+      );
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error(`Failed to process media asset ${asset.id}:`, err);
-      await prisma.mediaAsset.update({ where: { id: asset.id }, data: { status: "FAILED" } });
+      await withRlsBypass((tx) => tx.mediaAsset.update({ where: { id: asset.id }, data: { status: "FAILED" } }));
     }
   },
   { connection: bullConnection }
@@ -264,14 +269,18 @@ const remindersWorker = new Worker<RemindAppointmentsJob>(
   "remind-appointments",
   async () => {
     const windowEnd = new Date(Date.now() + 24 * 60 * 60 * 1000);
-    const dueEvents = await prisma.calendarEvent.findMany({
-      where: {
-        category: "APPOINTMENT",
-        remindedAt: null,
-        startsAt: { gte: new Date(), lte: windowEnd },
-      },
-      include: { child: { include: { access: true } } },
-    });
+    // System-level: scans across every child in the system, not one user's
+    // — no single current_user_id could ever legitimately see all of it.
+    const dueEvents = await withRlsBypass((tx) =>
+      tx.calendarEvent.findMany({
+        where: {
+          category: "APPOINTMENT",
+          remindedAt: null,
+          startsAt: { gte: new Date(), lte: windowEnd },
+        },
+        include: { child: { include: { access: true } } },
+      })
+    );
 
     for (const event of dueEvents) {
       await Promise.all(
@@ -284,7 +293,7 @@ const remindersWorker = new Worker<RemindAppointmentsJob>(
           })
         )
       );
-      await prisma.calendarEvent.update({ where: { id: event.id }, data: { remindedAt: new Date() } });
+      await withRlsBypass((tx) => tx.calendarEvent.update({ where: { id: event.id }, data: { remindedAt: new Date() } }));
     }
   },
   { connection: bullConnection }

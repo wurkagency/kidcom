@@ -1,10 +1,10 @@
 import { Router, type Request } from "express";
 import type { CreateCalendarEventRequest, ToggleChecklistItemRequest, ToggleConfirmationRequest, UpdateCalendarEventRequest } from "@kidcom/shared";
 
-import { prisma } from "../../db";
 import { ApiError } from "../../middleware/errorHandler";
 import { CALENDAR_EVENT_INCLUDE, toCalendarEventDto } from "../../lib/calendarEventDto";
 import { requireCapability } from "../../lib/permissions";
+import { withRls } from "../../lib/rls";
 
 // Mounted at /children/:childId/calendar-events. Every category except
 // HOLIDAY is writable here — HOLIDAY rows are system-seeded (see the
@@ -64,14 +64,16 @@ async function replaceChecklist(tx: any, calendarEventId: string, items: { label
 calendarEventsRouter.get("/", async (req: Request<ChildParams>, res, next) => {
   try {
     const linkedToWishlist = req.query.linkedToWishlist === "1" || req.query.linkedToWishlist === "true";
-    const rows = await prisma.calendarEvent.findMany({
-      where: {
-        childId: req.params.childId,
-        ...(linkedToWishlist ? { listItems: { some: { type: "WISHLIST" } } } : {}),
-      },
-      include: CALENDAR_EVENT_INCLUDE,
-      orderBy: { startsAt: "asc" },
-    });
+    const rows = await withRls(req.session.userId!, (tx) =>
+      tx.calendarEvent.findMany({
+        where: {
+          childId: req.params.childId,
+          ...(linkedToWishlist ? { listItems: { some: { type: "WISHLIST" } } } : {}),
+        },
+        include: CALENDAR_EVENT_INCLUDE,
+        orderBy: { startsAt: "asc" },
+      })
+    );
     res.json({ items: rows.map(toCalendarEventDto) });
   } catch (err) {
     next(err);
@@ -80,10 +82,12 @@ calendarEventsRouter.get("/", async (req: Request<ChildParams>, res, next) => {
 
 calendarEventsRouter.get("/:id", async (req: Request<ChildEventParams>, res, next) => {
   try {
-    const row = await prisma.calendarEvent.findFirst({
-      where: { id: req.params.id, childId: req.params.childId },
-      include: CALENDAR_EVENT_INCLUDE,
-    });
+    const row = await withRls(req.session.userId!, (tx) =>
+      tx.calendarEvent.findFirst({
+        where: { id: req.params.id, childId: req.params.childId },
+        include: CALENDAR_EVENT_INCLUDE,
+      })
+    );
     if (!row) throw new ApiError(404, "Event not found");
     res.json(toCalendarEventDto(row));
   } catch (err) {
@@ -105,7 +109,7 @@ calendarEventsRouter.post("/", requireCapability("calendar_event:manage"), async
       throw new ApiError(400, `category must be one of: ${WRITABLE_CATEGORIES.join(", ")}`);
     }
     validateRecurrence(body);
-    const row = await prisma.$transaction(async (tx) => {
+    const row = await withRls(req.session.userId!, async (tx) => {
       const created = await tx.calendarEvent.create({
         data: {
           childId: req.params.childId,
@@ -137,20 +141,20 @@ calendarEventsRouter.post("/", requireCapability("calendar_event:manage"), async
 
 calendarEventsRouter.patch("/:id", requireCapability("calendar_event:manage"), async (req: Request<ChildEventParams>, res, next) => {
   try {
-    const existing = await prisma.calendarEvent.findFirst({
-      where: { id: req.params.id, childId: req.params.childId },
-    });
-    if (!existing) throw new ApiError(404, "Event not found");
-    if (existing.category === "HOLIDAY") {
-      throw new ApiError(400, "System holidays can't be edited");
-    }
-
     const body = req.body as UpdateCalendarEventRequest;
-    if (body.category && !WRITABLE_CATEGORIES.includes(body.category)) {
-      throw new ApiError(400, `category must be one of: ${WRITABLE_CATEGORIES.join(", ")}`);
-    }
     validateRecurrence(body);
-    const row = await prisma.$transaction(async (tx) => {
+    const row = await withRls(req.session.userId!, async (tx) => {
+      const existing = await tx.calendarEvent.findFirst({
+        where: { id: req.params.id, childId: req.params.childId },
+      });
+      if (!existing) throw new ApiError(404, "Event not found");
+      if (existing.category === "HOLIDAY") {
+        throw new ApiError(400, "System holidays can't be edited");
+      }
+      if (body.category && !WRITABLE_CATEGORIES.includes(body.category)) {
+        throw new ApiError(400, `category must be one of: ${WRITABLE_CATEGORIES.join(", ")}`);
+      }
+
       await tx.calendarEvent.update({
         where: { id: req.params.id },
         data: {
@@ -182,15 +186,17 @@ calendarEventsRouter.patch("/:id", requireCapability("calendar_event:manage"), a
 
 calendarEventsRouter.delete("/:id", requireCapability("calendar_event:manage"), async (req: Request<ChildEventParams>, res, next) => {
   try {
-    const existing = await prisma.calendarEvent.findFirst({
-      where: { id: req.params.id, childId: req.params.childId },
-    });
-    if (!existing) throw new ApiError(404, "Event not found");
-    if (existing.category === "HOLIDAY") {
-      throw new ApiError(400, "System holidays can't be deleted");
-    }
+    await withRls(req.session.userId!, async (tx) => {
+      const existing = await tx.calendarEvent.findFirst({
+        where: { id: req.params.id, childId: req.params.childId },
+      });
+      if (!existing) throw new ApiError(404, "Event not found");
+      if (existing.category === "HOLIDAY") {
+        throw new ApiError(400, "System holidays can't be deleted");
+      }
 
-    await prisma.calendarEvent.delete({ where: { id: req.params.id } });
+      await tx.calendarEvent.delete({ where: { id: req.params.id } });
+    });
     res.status(204).end();
   } catch (err) {
     next(err);
@@ -202,25 +208,27 @@ calendarEventsRouter.delete("/:id", requireCapability("calendar_event:manage"), 
 // calendar views' inline checklist ("Packed" badge tap) uses this instead.
 calendarEventsRouter.patch("/:id/checklist/:itemId", async (req: Request<ChecklistItemParams>, res, next) => {
   try {
-    const event = await prisma.calendarEvent.findFirst({
-      where: { id: req.params.id, childId: req.params.childId },
-    });
-    if (!event) throw new ApiError(404, "Event not found");
-
     const body = req.body as Partial<ToggleChecklistItemRequest>;
     if (typeof body.isChecked !== "boolean") {
       throw new ApiError(400, "isChecked (boolean) is required");
     }
 
-    const { count } = await prisma.calendarEventChecklistItem.updateMany({
-      where: { id: req.params.itemId, calendarEventId: req.params.id },
-      data: { isChecked: body.isChecked },
-    });
-    if (count === 0) throw new ApiError(404, "Checklist item not found");
+    const row = await withRls(req.session.userId!, async (tx) => {
+      const event = await tx.calendarEvent.findFirst({
+        where: { id: req.params.id, childId: req.params.childId },
+      });
+      if (!event) throw new ApiError(404, "Event not found");
 
-    const row = await prisma.calendarEvent.findUniqueOrThrow({
-      where: { id: req.params.id },
-      include: CALENDAR_EVENT_INCLUDE,
+      const { count } = await tx.calendarEventChecklistItem.updateMany({
+        where: { id: req.params.itemId, calendarEventId: req.params.id },
+        data: { isChecked: body.isChecked },
+      });
+      if (count === 0) throw new ApiError(404, "Checklist item not found");
+
+      return tx.calendarEvent.findUniqueOrThrow({
+        where: { id: req.params.id },
+        include: CALENDAR_EVENT_INCLUDE,
+      });
     });
     res.json(toCalendarEventDto(row));
   } catch (err) {
@@ -233,35 +241,37 @@ calendarEventsRouter.patch("/:id/checklist/:itemId", async (req: Request<Checkli
 // someone else's behalf.
 calendarEventsRouter.patch("/:id/confirm", async (req: Request<ChildEventParams>, res, next) => {
   try {
-    const event = await prisma.calendarEvent.findFirst({
-      where: { id: req.params.id, childId: req.params.childId },
-    });
-    if (!event) throw new ApiError(404, "Event not found");
-    if (!event.confirmable) {
-      throw new ApiError(400, "This event isn't open for confirmation");
-    }
-
     const body = req.body as Partial<ToggleConfirmationRequest>;
     if (typeof body.confirmed !== "boolean") {
       throw new ApiError(400, "confirmed (boolean) is required");
     }
     const userId = req.session.userId!;
 
-    if (body.confirmed) {
-      await prisma.calendarEventConfirmation.upsert({
-        where: { calendarEventId_userId: { calendarEventId: req.params.id, userId } },
-        create: { calendarEventId: req.params.id, userId },
-        update: {},
+    const row = await withRls(userId, async (tx) => {
+      const event = await tx.calendarEvent.findFirst({
+        where: { id: req.params.id, childId: req.params.childId },
       });
-    } else {
-      await prisma.calendarEventConfirmation.deleteMany({
-        where: { calendarEventId: req.params.id, userId },
-      });
-    }
+      if (!event) throw new ApiError(404, "Event not found");
+      if (!event.confirmable) {
+        throw new ApiError(400, "This event isn't open for confirmation");
+      }
 
-    const row = await prisma.calendarEvent.findUniqueOrThrow({
-      where: { id: req.params.id },
-      include: CALENDAR_EVENT_INCLUDE,
+      if (body.confirmed) {
+        await tx.calendarEventConfirmation.upsert({
+          where: { calendarEventId_userId: { calendarEventId: req.params.id, userId } },
+          create: { calendarEventId: req.params.id, userId },
+          update: {},
+        });
+      } else {
+        await tx.calendarEventConfirmation.deleteMany({
+          where: { calendarEventId: req.params.id, userId },
+        });
+      }
+
+      return tx.calendarEvent.findUniqueOrThrow({
+        where: { id: req.params.id },
+        include: CALENDAR_EVENT_INCLUDE,
+      });
     });
     res.json(toCalendarEventDto(row));
   } catch (err) {

@@ -31,6 +31,7 @@ import { requireChildEntitlement, isChildSatisfied, childInGraceWindow, childSat
 import { assertUnderChildFairUseCap, assertUnderMemberFairUseCap } from "../../lib/fairUseCaps";
 import { pushQueue } from "../../lib/pushQueue";
 import { mailSender } from "../../lib/mailSender";
+import { withRls } from "../../lib/rls";
 import bcrypt from "bcryptjs";
 import { randomBytes } from "node:crypto";
 import { deletionRouter } from "./deletion";
@@ -315,22 +316,23 @@ childrenRouter.patch(
     // transaction as the new one is set so no two assets ever claim this
     // child's avatar at once.
     if (body.profileImageMediaAssetId) {
-      const asset = await prisma.mediaAsset.findUnique({
-        where: { id: body.profileImageMediaAssetId },
-      });
-      if (!asset) {
-        throw new ApiError(404, "Media not found");
-      }
-      if (asset.ownerId !== req.session.userId) {
-        throw new ApiError(403, "You don't have access to this media");
-      }
-      await prisma.$transaction(async (tx) => {
+      const profileImageMediaAssetId = body.profileImageMediaAssetId;
+      await withRls(req.session.userId!, async (tx) => {
+        const asset = await tx.mediaAsset.findUnique({
+          where: { id: profileImageMediaAssetId },
+        });
+        if (!asset) {
+          throw new ApiError(404, "Media not found");
+        }
+        if (asset.ownerId !== req.session.userId) {
+          throw new ApiError(403, "You don't have access to this media");
+        }
         await tx.mediaAsset.updateMany({
           where: { avatarForChildId: req.params.childId },
           data: { avatarForChildId: null },
         });
         await tx.mediaAsset.update({
-          where: { id: body.profileImageMediaAssetId },
+          where: { id: profileImageMediaAssetId },
           data: { avatarForChildId: req.params.childId },
         });
       });

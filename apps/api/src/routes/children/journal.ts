@@ -4,6 +4,7 @@ import type { CreateJournalPostRequest, JournalMediaDto, JournalPostDto, MediaAs
 import { prisma } from "../../db";
 import { ApiError } from "../../middleware/errorHandler";
 import { requireCapability } from "../../lib/permissions";
+import { withRls } from "../../lib/rls";
 import { journalCommentsRouter } from "./journalComments";
 import { journalReactionsRouter } from "./journalReactions";
 
@@ -64,19 +65,21 @@ journalRouter.get("/", async (req: Request<ChildParams>, res, next) => {
     const take = Math.min(Number(req.query.limit ?? 20), 50);
     const cursor = req.query.cursor as string | undefined;
 
-    const posts = await prisma.journalPost.findMany({
-      where: { children: { some: { childId: req.params.childId } } },
-      orderBy: { createdAt: "desc" },
-      take: take + 1,
-      ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
-      include: {
-        author: true,
-        media: true,
-        children: { select: { childId: true } },
-        _count: { select: { comments: true, reactions: true } },
-        reactions: { where: { userId }, select: { userId: true } },
-      },
-    });
+    const posts = await withRls(userId, (tx) =>
+      tx.journalPost.findMany({
+        where: { children: { some: { childId: req.params.childId } } },
+        orderBy: { createdAt: "desc" },
+        take: take + 1,
+        ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+        include: {
+          author: true,
+          media: true,
+          children: { select: { childId: true } },
+          _count: { select: { comments: true, reactions: true } },
+          reactions: { where: { userId }, select: { userId: true } },
+        },
+      })
+    );
 
     const hasMore = posts.length > take;
     const page = posts.slice(0, take);
@@ -97,14 +100,16 @@ journalRouter.get("/", async (req: Request<ChildParams>, res, next) => {
 // post id.
 journalRouter.get("/media", async (req: Request<ChildParams>, res, next) => {
   try {
-    const assets = await prisma.mediaAsset.findMany({
-      where: {
-        status: "READY",
-        journalPost: { children: { some: { childId: req.params.childId } } },
-      },
-      include: { journalPost: { include: { children: { select: { childId: true } } } } },
-      orderBy: { journalPost: { createdAt: "desc" } },
-    });
+    const assets = await withRls(req.session.userId!, (tx) =>
+      tx.mediaAsset.findMany({
+        where: {
+          status: "READY",
+          journalPost: { children: { some: { childId: req.params.childId } } },
+        },
+        include: { journalPost: { include: { children: { select: { childId: true } } } } },
+        orderBy: { journalPost: { createdAt: "desc" } },
+      })
+    );
     const items: JournalMediaDto[] = assets
       .filter((a) => a.journalPost)
       .map((a) => ({
@@ -131,16 +136,18 @@ journalRouter.get("/media", async (req: Request<ChildParams>, res, next) => {
 journalRouter.get("/:postId", async (req: Request<PostParams>, res, next) => {
   try {
     const userId = req.session.userId!;
-    const post = await prisma.journalPost.findFirst({
-      where: { id: req.params.postId, children: { some: { childId: req.params.childId } } },
-      include: {
-        author: true,
-        media: true,
-        children: { select: { childId: true } },
-        _count: { select: { comments: true, reactions: true } },
-        reactions: { where: { userId }, select: { userId: true } },
-      },
-    });
+    const post = await withRls(userId, (tx) =>
+      tx.journalPost.findFirst({
+        where: { id: req.params.postId, children: { some: { childId: req.params.childId } } },
+        include: {
+          author: true,
+          media: true,
+          children: { select: { childId: true } },
+          _count: { select: { comments: true, reactions: true } },
+          reactions: { where: { userId }, select: { userId: true } },
+        },
+      })
+    );
     if (!post) throw new ApiError(404, "Post not found");
     res.json(toPostDto({ ...post, currentUserId: userId }));
   } catch (err) {
@@ -169,7 +176,7 @@ journalRouter.post("/", requireCapability("journal:post"), async (req: Request<C
       throw new ApiError(403, "No access to one or more tagged children");
     }
 
-    const post = await prisma.$transaction(async (tx) => {
+    const post = await withRls(userId, async (tx) => {
       const created = await tx.journalPost.create({
         data: {
           authorId: userId,
@@ -208,14 +215,16 @@ journalRouter.post("/", requireCapability("journal:post"), async (req: Request<C
 
 journalRouter.delete("/:postId", async (req: Request<PostParams>, res, next) => {
   try {
-    const post = await prisma.journalPost.findFirst({
-      where: { id: req.params.postId, children: { some: { childId: req.params.childId } } },
+    await withRls(req.session.userId!, async (tx) => {
+      const post = await tx.journalPost.findFirst({
+        where: { id: req.params.postId, children: { some: { childId: req.params.childId } } },
+      });
+      if (!post) throw new ApiError(404, "Post not found");
+      if (post.authorId !== req.session.userId) {
+        throw new ApiError(403, "Only the author can delete this post");
+      }
+      await tx.journalPost.delete({ where: { id: post.id } });
     });
-    if (!post) throw new ApiError(404, "Post not found");
-    if (post.authorId !== req.session.userId) {
-      throw new ApiError(403, "Only the author can delete this post");
-    }
-    await prisma.journalPost.delete({ where: { id: post.id } });
     res.status(204).end();
   } catch (err) {
     next(err);

@@ -5,6 +5,7 @@ import { prisma } from "../../db";
 import { ApiError } from "../../middleware/errorHandler";
 import { pushQueue } from "../../lib/pushQueue";
 import { requireCapability } from "../../lib/permissions";
+import { withRls } from "../../lib/rls";
 
 // Mounted at /children/:childId/calendar-event-requests. Post-launch backlog
 // Phase C — close sibling of swapRequests.ts, for the FAMILY/Caregiver
@@ -58,10 +59,12 @@ function toDto(row: {
 
 calendarEventRequestsRouter.get("/", async (req: Request<ChildParams>, res, next) => {
   try {
-    const rows = await prisma.calendarEventRequest.findMany({
-      where: { childId: req.params.childId },
-      orderBy: { createdAt: "desc" },
-    });
+    const rows = await withRls(req.session.userId!, (tx) =>
+      tx.calendarEventRequest.findMany({
+        where: { childId: req.params.childId },
+        orderBy: { createdAt: "desc" },
+      })
+    );
     res.json({ items: rows.map(toDto) });
   } catch (err) {
     next(err);
@@ -80,19 +83,24 @@ calendarEventRequestsRouter.post(
       if (!REQUESTABLE_CATEGORIES.includes(body.category)) {
         throw new ApiError(400, `category must be one of: ${REQUESTABLE_CATEGORIES.join(", ")}`);
       }
+      const category = body.category;
+      const title = body.title;
+      const startsAt = body.startsAt;
 
-      const row = await prisma.calendarEventRequest.create({
-        data: {
-          childId: req.params.childId,
-          category: body.category,
-          title: body.title,
-          startsAt: new Date(body.startsAt),
-          endsAt: body.endsAt ? new Date(body.endsAt) : undefined,
-          notes: body.notes,
-          requestedById: req.session.userId!,
-          message: body.message,
-        },
-      });
+      const row = await withRls(req.session.userId!, (tx) =>
+        tx.calendarEventRequest.create({
+          data: {
+            childId: req.params.childId,
+            category,
+            title,
+            startsAt: new Date(startsAt),
+            endsAt: body.endsAt ? new Date(body.endsAt) : undefined,
+            notes: body.notes,
+            requestedById: req.session.userId!,
+            message: body.message,
+          },
+        })
+      );
 
       // Push to every other PARENT/GUARDIAN member — best-effort, same
       // pattern as swapRequests.ts.
@@ -126,25 +134,26 @@ calendarEventRequestsRouter.patch(
   requireCapability("calendar_event_request:approve"),
   async (req: Request<ChildRequestParams>, res, next) => {
     try {
-      const existing = await prisma.calendarEventRequest.findFirst({
-        where: { id: req.params.id, childId: req.params.childId },
-      });
-      if (!existing) throw new ApiError(404, "Calendar event request not found");
-      if (existing.requestedById === req.session.userId) {
-        throw new ApiError(400, "You can't approve or decline your own request");
-      }
-
       const body = req.body as { status?: "APPROVED" | "DECLINED" };
-      if (body.status !== "APPROVED" && body.status !== "DECLINED") {
-        throw new ApiError(400, "status must be APPROVED or DECLINED");
-      }
 
-      const row = await prisma.$transaction(async (tx) => {
+      const { existing, row, status } = await withRls(req.session.userId!, async (tx) => {
+        const existing = await tx.calendarEventRequest.findFirst({
+          where: { id: req.params.id, childId: req.params.childId },
+        });
+        if (!existing) throw new ApiError(404, "Calendar event request not found");
+        if (existing.requestedById === req.session.userId) {
+          throw new ApiError(400, "You can't approve or decline your own request");
+        }
+        if (body.status !== "APPROVED" && body.status !== "DECLINED") {
+          throw new ApiError(400, "status must be APPROVED or DECLINED");
+        }
+        const status = body.status;
+
         const updated = await tx.calendarEventRequest.update({
           where: { id: req.params.id },
-          data: { status: body.status, resolvedAt: new Date() },
+          data: { status, resolvedAt: new Date() },
         });
-        if (body.status === "APPROVED") {
+        if (status === "APPROVED") {
           await tx.calendarEvent.create({
             data: {
               childId: req.params.childId,
@@ -156,13 +165,13 @@ calendarEventRequestsRouter.patch(
             },
           });
         }
-        return updated;
+        return { existing, row: updated, status };
       });
 
       await pushQueue.add("send-push", {
         userId: existing.requestedById,
-        title: "Calendar event request " + (body.status === "APPROVED" ? "approved" : "declined"),
-        body: `Your request for "${existing.title}" was ${body.status.toLowerCase()}`,
+        title: "Calendar event request " + (status === "APPROVED" ? "approved" : "declined"),
+        body: `Your request for "${existing.title}" was ${status.toLowerCase()}`,
         url: "/calendar",
       });
 

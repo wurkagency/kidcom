@@ -5,10 +5,10 @@ import type {
   UpdateMedicalInfoRequest,
 } from "@kidcom/shared";
 
-import { prisma } from "../../db";
 import { ApiError } from "../../middleware/errorHandler";
 import { canViewMedicalInfo, requireCapability } from "../../lib/permissions";
 import { decryptField, decryptNullableField, encryptField, encryptNullableField } from "../../lib/medicalEncryption";
+import { withRls } from "../../lib/rls";
 
 // Mounted at /children/:childId/medical-info — mergeParams so req.params.childId
 // is visible here even though this router is defined in its own file.
@@ -49,10 +49,12 @@ medicalInfoRouter.get("/", async (req: Request<ChildParams>, res, next) => {
     if (!req.childAccess || !canViewMedicalInfo(req.childAccess)) {
       throw new ApiError(403, "You don't have permission to view medical info for this child");
     }
-    const rows = await prisma.medicalInfo.findMany({
-      where: { childId: req.params.childId },
-      orderBy: { createdAt: "asc" },
-    });
+    const rows = await withRls(req.session.userId!, (tx) =>
+      tx.medicalInfo.findMany({
+        where: { childId: req.params.childId },
+        orderBy: { createdAt: "asc" },
+      })
+    );
     res.json({ items: rows.map(toDto) });
   } catch (err) {
     next(err);
@@ -65,15 +67,19 @@ medicalInfoRouter.post("/", requireCapability("medical_info:edit"), async (req: 
     if (!body.category || !body.condition) {
       throw new ApiError(400, "category and condition are required");
     }
-    const row = await prisma.medicalInfo.create({
-      data: {
-        childId: req.params.childId,
-        category: body.category,
-        condition: encryptField(body.condition),
-        description: encryptNullableField(body.description),
-        emergencyNote: encryptNullableField(body.emergencyNote),
-      },
-    });
+    const category = body.category;
+    const condition = body.condition;
+    const row = await withRls(req.session.userId!, (tx) =>
+      tx.medicalInfo.create({
+        data: {
+          childId: req.params.childId,
+          category,
+          condition: encryptField(condition),
+          description: encryptNullableField(body.description),
+          emergencyNote: encryptNullableField(body.emergencyNote),
+        },
+      })
+    );
     res.status(201).json(toDto(row));
   } catch (err) {
     next(err);
@@ -83,19 +89,21 @@ medicalInfoRouter.post("/", requireCapability("medical_info:edit"), async (req: 
 medicalInfoRouter.patch("/:id", requireCapability("medical_info:edit"), async (req: Request<ChildEntryParams>, res, next) => {
   try {
     const body = req.body as UpdateMedicalInfoRequest;
-    const existing = await prisma.medicalInfo.findFirst({
-      where: { id: req.params.id, childId: req.params.childId },
-    });
-    if (!existing) throw new ApiError(404, "Medical info entry not found");
+    const row = await withRls(req.session.userId!, async (tx) => {
+      const existing = await tx.medicalInfo.findFirst({
+        where: { id: req.params.id, childId: req.params.childId },
+      });
+      if (!existing) throw new ApiError(404, "Medical info entry not found");
 
-    const row = await prisma.medicalInfo.update({
-      where: { id: req.params.id },
-      data: {
-        category: body.category,
-        condition: body.condition !== undefined ? encryptField(body.condition) : undefined,
-        description: encryptNullableField(body.description),
-        emergencyNote: encryptNullableField(body.emergencyNote),
-      },
+      return tx.medicalInfo.update({
+        where: { id: req.params.id },
+        data: {
+          category: body.category,
+          condition: body.condition !== undefined ? encryptField(body.condition) : undefined,
+          description: encryptNullableField(body.description),
+          emergencyNote: encryptNullableField(body.emergencyNote),
+        },
+      });
     });
     res.json(toDto(row));
   } catch (err) {
@@ -105,12 +113,14 @@ medicalInfoRouter.patch("/:id", requireCapability("medical_info:edit"), async (r
 
 medicalInfoRouter.delete("/:id", requireCapability("medical_info:edit"), async (req: Request<ChildEntryParams>, res, next) => {
   try {
-    const existing = await prisma.medicalInfo.findFirst({
-      where: { id: req.params.id, childId: req.params.childId },
-    });
-    if (!existing) throw new ApiError(404, "Medical info entry not found");
+    await withRls(req.session.userId!, async (tx) => {
+      const existing = await tx.medicalInfo.findFirst({
+        where: { id: req.params.id, childId: req.params.childId },
+      });
+      if (!existing) throw new ApiError(404, "Medical info entry not found");
 
-    await prisma.medicalInfo.delete({ where: { id: req.params.id } });
+      await tx.medicalInfo.delete({ where: { id: req.params.id } });
+    });
     res.status(204).end();
   } catch (err) {
     next(err);

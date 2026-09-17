@@ -68,6 +68,11 @@ model User {
   firstName       String
   lastName        String
   avatarUrl       String?
+  // Per-user visual skin choice (v2.0 theming). Nullable, no DB-level
+  // default — resolves client-side as `skinId ?? DEFAULT_SKIN`. Not
+  // validated at the DB layer against the SkinId union; validated in the
+  // PATCH /auth/me handler via packages/shared's isSkinId().
+  skinId          String?
   emailVerifiedAt DateTime?
   // I-2 (spec §2.2/§4.3): one 30-day trial per user, ever — granted at
   // account creation regardless of how the account was created (organic

@@ -9,6 +9,7 @@ import {
 import type { ChildSummary, PublicUser } from "@kidcom/shared";
 
 import { apiGet } from "./api";
+import { reconcileSkinFromServer } from "./preferences";
 
 type AuthState = {
   user: PublicUser | null;
@@ -29,6 +30,7 @@ export function AuthProvider({ children: providerChildren }: { children: ReactNo
     try {
       const me = await apiGet<{ user: PublicUser | null }>("/auth/me");
       setUser(me.user);
+      reconcileSkinFromServer(me.user);
       if (me.user) {
         const res = await apiGet<{ children: ChildSummary[] }>("/children");
         setChildList(res.children);
