@@ -1,7 +1,7 @@
 // Per-user visual skin catalogue (v2.0 theming). Shared between apps/api
 // (validates PATCH /auth/me's skinId) and apps/web (applies it) so both
 // sides agree on the same fixed, pre-built set — no end-user authoring.
-export type SkinId = "greenkeeper" | "sky";
+export type SkinId = "greenkeeper" | "sky" | "architecture";
 
 export type SkinDefinition = {
   id: SkinId;
@@ -14,6 +14,11 @@ export type SkinDefinition = {
 export const SKINS: SkinDefinition[] = [
   { id: "greenkeeper", name: "Greenkeeper" },
   { id: "sky", name: "Sky" },
+  // The first skin built on shadcn/ui components (apps/web/src/components/
+  // Card.tsx, Toggle.tsx, SegmentedControl.tsx, FormInput.tsx, Banner.tsx,
+  // Avatar.tsx, AssignSheet.tsx) rather than this app's hand-rolled ones —
+  // see docs/Themes/Spring Morning/DESIGN.md for the source design system.
+  { id: "architecture", name: "Quiet Architecture" },
 ];
 
 export const DEFAULT_SKIN: SkinId = "greenkeeper";

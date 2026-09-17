@@ -1,3 +1,5 @@
+import * as SwitchPrimitives from "@radix-ui/react-switch";
+
 type ToggleProps = {
   checked: boolean;
   onToggle: () => void;
@@ -10,6 +12,13 @@ type ToggleProps = {
   "aria-label"?: string;
 };
 
+// Built on Radix's Switch primitive (@radix-ui/react-switch — the same one
+// shadcn/ui's generated ui/switch.tsx wraps) composed directly rather than
+// through that generated wrapper: its border-inset sizing technique doesn't
+// match this component's absolute-positioned knob, and every skin (including
+// Greenkeeper/Sky) needs this to render pixel-identical to the hand-rolled
+// <button>/<span> version it replaces. Radix's Root renders role="switch"
+// and aria-checked natively, matching what this component set by hand before.
 export function Toggle({
   checked,
   onToggle,
@@ -26,22 +35,20 @@ export function Toggle({
   const knobRest = size === "lg" ? "translate-x-0.5" : "translate-x-1";
 
   return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      aria-label={ariaLabel}
-      onClick={onToggle}
+    <SwitchPrimitives.Root
+      checked={checked}
+      onCheckedChange={() => onToggle()}
       disabled={disabled}
+      aria-label={ariaLabel}
       className={`w-12 h-6 rounded-full relative transition-colors duration-300 shrink-0 disabled:opacity-60 ${
         checked ? onColor : offColor
       }`}
     >
-      <span
+      <SwitchPrimitives.Thumb
         className={`absolute ${knobOffset} ${knobSize} rounded-full shadow-sm transition-transform duration-300 ${
           checked ? `translate-x-6 ${onKnobColor}` : `${knobRest} ${offKnobColor}`
         }`}
       />
-    </button>
+    </SwitchPrimitives.Root>
   );
 }

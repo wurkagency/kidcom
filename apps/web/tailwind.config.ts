@@ -75,6 +75,35 @@ export default {
         "nav-icon": withOpacity("--color-nav-icon"),
         "nav-icon-active": withOpacity("--color-nav-icon-active"),
         "nav-active-chip": withOpacity("--color-nav-active-chip"),
+
+        // shadcn/ui bridge — the "Quiet Architecture" skin (packages/shared/src/skins.ts)
+        // is the first to pull in shadcn/ui components. Rather than let shadcn's own
+        // HSL --background/--foreground/etc. variable convention exist alongside this
+        // project's RGB-triplet --color-* system, these are the exact key names shadcn's
+        // generated component source expects, pointed at the closest existing token via
+        // the same withOpacity() bridge every other color already uses. No new CSS
+        // variables — every skin (including Greenkeeper/Sky) themes these identically to
+        // the token they're aliased to.
+        // "background"/"on-background" already exist above — reused as-is, not
+        // redefined, to avoid a duplicate key. "foreground" is new.
+        foreground: withOpacity("--color-on-background"),
+        card: withOpacity("--color-surface-container-lowest"),
+        "card-foreground": withOpacity("--color-on-surface"),
+        popover: withOpacity("--color-surface-container-lowest"),
+        "popover-foreground": withOpacity("--color-on-surface"),
+        // Not redefining "secondary" — it already exists above (--color-secondary) and
+        // every skin already varies it correctly. Just adding the "-foreground" pairing
+        // shadcn's generated component source expects but this project never needed.
+        "secondary-foreground": withOpacity("--color-on-secondary"),
+        muted: withOpacity("--color-surface-container"),
+        "muted-foreground": withOpacity("--color-on-surface-variant"),
+        accent: withOpacity("--color-surface-container-high"),
+        "accent-foreground": withOpacity("--color-on-surface"),
+        destructive: withOpacity("--color-error"),
+        "destructive-foreground": withOpacity("--color-on-error"),
+        border: withOpacity("--color-outline-variant"),
+        input: withOpacity("--color-outline-variant"),
+        ring: withOpacity("--color-primary"),
       },
       fontFamily: {
         "display-lg": ["Plus Jakarta Sans"],

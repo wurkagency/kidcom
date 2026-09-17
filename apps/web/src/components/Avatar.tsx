@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { fetchMediaUrl, releaseMediaUrl } from "../lib/media";
+import { Avatar as AvatarRoot, AvatarFallback, AvatarImage } from "./ui/avatar";
 
 // Single place that resolves "an avatarUrl/profileImageUrl field, which is
 // actually a MediaAsset id" into a real displayable image, or falls back to
@@ -25,6 +26,14 @@ const PLACEHOLDER_SRC: Record<"adult" | "child", string> = {
   child: "/avatars/child-placeholder.svg",
 };
 
+// Built on Radix's Avatar primitive (@radix-ui/react-avatar, via
+// ui/avatar.tsx) — the highest-traffic of the shadcn swaps (rendered inside
+// Header.tsx on nearly every screen), so kept as close to the original as
+// possible: AvatarFallback renders the same kind-based placeholder <img>
+// this component always fell back to, just moved off a single conditional
+// `src` swap onto Radix's own image-load-state tracking, which as a side
+// effect now also falls back correctly if a resolved URL 404s, not only when
+// there's no avatarAssetId at all.
 export function Avatar({
   name,
   avatarAssetId,
@@ -60,11 +69,11 @@ export function Avatar({
   }, [avatarAssetId]);
 
   return (
-    <img
-      src={resolvedUrl ?? PLACEHOLDER_SRC[kind]}
-      alt=""
-      title={name}
-      className={`${SIZE_CLASSES[size]} rounded-full object-cover shrink-0 bg-surface-container-lowest ${className}`}
-    />
+    <AvatarRoot className={`${SIZE_CLASSES[size]} rounded-full shrink-0 bg-surface-container-lowest ${className}`}>
+      {resolvedUrl && <AvatarImage src={resolvedUrl} alt="" title={name} className="object-cover" />}
+      <AvatarFallback delayMs={0} className="bg-transparent rounded-none">
+        <img src={PLACEHOLDER_SRC[kind]} alt="" title={name} className="w-full h-full object-cover" />
+      </AvatarFallback>
+    </AvatarRoot>
   );
 }

@@ -1,3 +1,5 @@
+import { Card as ShadcnCard } from "./ui/card";
+
 type CardProps = {
   children: React.ReactNode;
   className?: string;
@@ -6,10 +8,10 @@ type CardProps = {
 
 export function Card({ children, className = "", padded = true }: CardProps) {
   return (
-    <div
-      className={`bg-surface-container-lowest rounded-2xl shadow-sm ${padded ? "p-4" : ""} ${className}`.trim()}
+    <ShadcnCard
+      className={`border-0 bg-surface-container-lowest text-inherit rounded-2xl shadow-sm ${padded ? "p-4" : ""} ${className}`.trim()}
     >
       {children}
-    </div>
+    </ShadcnCard>
   );
 }

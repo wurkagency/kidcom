@@ -1,3 +1,5 @@
+import * as ToggleGroupPrimitive from "@radix-ui/react-toggle-group";
+
 type SegmentedControlOption<T extends string> = {
   value: T;
   label: string;
@@ -10,6 +12,12 @@ type SegmentedControlProps<T extends string> = {
   size?: "sm" | "md";
 };
 
+// Built on Radix's ToggleGroup primitive (@radix-ui/react-toggle-group) in
+// single-select mode, composed directly rather than through shadcn/ui's
+// generated ui/toggle-group.tsx wrapper — its default data-[state=on]
+// styling doesn't map onto this component's per-option selected-state
+// classes, so this keeps the exact class logic the hand-rolled version used,
+// just on Radix's primitive elements instead of a plain div/button pair.
 export function SegmentedControl<T extends string>({
   options,
   value,
@@ -21,19 +29,27 @@ export function SegmentedControl<T extends string>({
   const buttonClass = size === "md" ? "flex-1 py-2 px-4 rounded-lg" : "py-1.5 px-3 rounded-md";
 
   return (
-    <div className={wrapperClass}>
+    <ToggleGroupPrimitive.Root
+      type="single"
+      value={value}
+      onValueChange={(next) => {
+        // Radix lets the selected item toggle itself off (empty string) —
+        // this control has no "none selected" state, so ignore that.
+        if (next) onChange(next as T);
+      }}
+      className={wrapperClass}
+    >
       {options.map((option) => (
-        <button
+        <ToggleGroupPrimitive.Item
           key={option.value}
-          type="button"
-          onClick={() => onChange(option.value)}
+          value={option.value}
           className={`${buttonClass} font-label-md text-label-md transition-colors ${
             value === option.value ? "bg-surface-container-lowest text-on-surface shadow-sm" : "text-on-surface-variant"
           }`}
         >
           {option.label}
-        </button>
+        </ToggleGroupPrimitive.Item>
       ))}
-    </div>
+    </ToggleGroupPrimitive.Root>
   );
 }

@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import { Icon } from "./Icon";
+import { Alert } from "./ui/alert";
 
 // A small generic persistent-nudge banner — nothing like this existed
 // before (post-launch backlog Phase D): the closest precedent was
@@ -9,6 +10,9 @@ import { Icon } from "./Icon";
 // component is deliberately dumb — just the visual shell — so callers
 // decide their own show/dismiss logic rather than this component
 // accumulating install-prompt-style special cases over time.
+//
+// Built on shadcn/ui's Alert (src/components/ui/alert.tsx) — same icon/
+// children/action/onDismiss API as before, now with role="alert" for free.
 export function Banner({
   icon,
   children,
@@ -21,7 +25,7 @@ export function Banner({
   onDismiss?: () => void;
 }) {
   return (
-    <div className="bg-secondary-container/40 border border-secondary-container rounded-2xl p-4 flex items-start gap-3">
+    <Alert className="bg-secondary-container/40 border-secondary-container rounded-2xl p-4 flex items-start gap-3">
       <Icon name={icon} className="text-on-secondary-container text-[20px] shrink-0 mt-0.5" />
       <div className="flex-1 min-w-0">
         <p className="font-body-md text-body-md text-on-surface">{children}</p>
@@ -45,6 +49,6 @@ export function Banner({
           <Icon name="close" className="text-[18px]" />
         </button>
       )}
-    </div>
+    </Alert>
   );
 }

@@ -161,6 +161,82 @@
     --radius-xl: 2rem;
   }
 
+  /* Quiet Architecture: the shadcn/ui-based skin (docs/Themes/Spring Morning/
+     DESIGN.md) — a Danish-functionalist palette of spruce green, clay
+     ochre, and chalk-sandstone neutrals, tighter radii, and an edge-to-edge
+     labeled bottom nav (not a floating pill like Sky). Values below are
+     converted 1:1 from DESIGN.md's hex palette. Tokens it doesn't define
+     (growth-green, journal-peach, category-*, alert-soft-red, surface-beige,
+     text-main) are left un-overridden, same as Sky — they inherit
+     Greenkeeper's :root values via the normal CSS cascade. */
+  [data-skin="architecture"] {
+    --color-surface: 250 249 246;
+    --color-surface-dim: 219 218 215;
+    --color-surface-bright: 250 249 246;
+    --color-surface-container-lowest: 255 255 255;
+    --color-surface-container-low: 244 243 240;
+    --color-surface-container: 239 238 235;
+    --color-surface-container-high: 233 232 229;
+    --color-surface-container-highest: 227 226 223;
+    --color-on-surface: 27 28 26;
+    --color-on-surface-variant: 66 72 67;
+    --color-inverse-surface: 47 49 47;
+    --color-inverse-on-surface: 242 241 238;
+    --color-outline: 114 121 115;
+    --color-outline-variant: 194 200 193;
+    --color-surface-tint: 69 102 81;
+    --color-primary: 50 83 63;
+    --color-on-primary: 255 255 255;
+    --color-primary-container: 74 107 86;
+    --color-on-primary-container: 197 234 208;
+    --color-inverse-primary: 171 207 182;
+    --color-secondary: 139 79 42;
+    --color-on-secondary: 255 255 255;
+    --color-secondary-container: 253 175 130;
+    --color-on-secondary-container: 120 64 28;
+    --color-tertiary: 81 76 60;
+    --color-on-tertiary: 255 255 255;
+    --color-tertiary-container: 105 100 82;
+    --color-on-tertiary-container: 233 225 203;
+    --color-error: 186 26 26;
+    --color-on-error: 255 255 255;
+    --color-error-container: 255 218 214;
+    --color-on-error-container: 147 0 10;
+    --color-primary-fixed: 198 235 209;
+    --color-primary-fixed-dim: 171 207 182;
+    --color-on-primary-fixed: 0 33 17;
+    --color-on-primary-fixed-variant: 45 77 58;
+    --color-secondary-fixed: 255 219 201;
+    --color-secondary-fixed-dim: 255 182 140;
+    --color-on-secondary-fixed: 50 18 0;
+    --color-on-secondary-fixed-variant: 110 56 21;
+    --color-tertiary-fixed: 234 226 204;
+    --color-tertiary-fixed-dim: 206 198 177;
+    --color-on-tertiary-fixed: 31 28 14;
+    --color-on-tertiary-fixed-variant: 75 71 54;
+    --color-background: 250 249 246;
+    --color-on-background: 27 28 26;
+    --color-surface-variant: 227 226 223;
+
+    --color-nav-surface: 255 255 255;
+    --color-nav-icon: 66 72 67;
+    --color-nav-icon-active: 50 83 63;
+    --color-nav-active-chip: 255 255 255;
+    --nav-active-chip-opacity: 0;
+    --nav-radius: 0px;
+    --nav-inset-x: 0px;
+    --nav-inset-bottom: 0px;
+    --nav-shadow: 0 -2px 8px -1px rgba(35, 43, 40, 0.04), 0 -6px 20px -2px rgba(35, 43, 40, 0.03);
+    --nav-label-opacity: 1;
+    --nav-label-max-height: 1rem;
+
+    --radius-sm: 0.25rem;
+    --radius-default: 0.5rem;
+    --radius-md: 0.75rem;
+    --radius-lg: 1rem;
+    --radius-xl: 1.5rem;
+  }
+
   html,
   body,
   #root {
