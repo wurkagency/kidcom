@@ -216,7 +216,15 @@ export function GalleryThumb({
 }) {
   const [url, setUrl] = useState<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const longPressFiredRef = useRef(false);
+  // Tracks whether THIS gesture (whichever path recognizes it first) has
+  // already toggled selection — on mobile, a long-press fires both our own
+  // pointer-timer below AND the browser's native `contextmenu` event around
+  // the same threshold, so without this guard one physical long-press
+  // toggles selection twice: select, then immediately deselect again (the
+  // reported "selection disables itself on mobile" symptom). Desktop
+  // right-click never raced with the timer — a quick click doesn't hold
+  // pointerdown long enough to fire it — which is why it worked on Edge.
+  const gestureHandledRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -254,18 +262,19 @@ export function GalleryThumb({
   // down event is what actually suppresses it.
   function handlePointerDown(e: PointerEvent) {
     e.preventDefault();
-    longPressFiredRef.current = false;
+    gestureHandledRef.current = false;
     clearTimer();
     timerRef.current = setTimeout(() => {
-      longPressFiredRef.current = true;
+      if (gestureHandledRef.current) return;
+      gestureHandledRef.current = true;
       onToggleSelect();
     }, LONG_PRESS_MS);
   }
 
   function handlePointerUp() {
     clearTimer();
-    if (longPressFiredRef.current) {
-      longPressFiredRef.current = false;
+    if (gestureHandledRef.current) {
+      gestureHandledRef.current = false;
       return;
     }
     if (hasSelection) onToggleSelect();
@@ -274,6 +283,7 @@ export function GalleryThumb({
 
   function handlePointerLeaveOrCancel() {
     clearTimer();
+    gestureHandledRef.current = false;
   }
 
   return (
@@ -285,8 +295,14 @@ export function GalleryThumb({
       onPointerLeave={handlePointerLeaveOrCancel}
       onPointerCancel={handlePointerLeaveOrCancel}
       onContextMenu={(e) => {
-        // Harmless desktop affordance — right-click also toggles selection.
+        // Desktop affordance — right-click also toggles selection. Also the
+        // other half of the mobile double-toggle fix above: a touch
+        // long-press fires this too, so it shares gestureHandledRef with the
+        // pointer-timer path rather than toggling unconditionally.
         e.preventDefault();
+        clearTimer();
+        if (gestureHandledRef.current) return;
+        gestureHandledRef.current = true;
         onToggleSelect();
       }}
       onKeyDown={(e) => {
