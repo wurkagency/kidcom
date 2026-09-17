@@ -43,11 +43,20 @@ export function BottomNav() {
           >
             {({ isActive }) => (
               <>
-                <span
-                  className="w-10 h-10 rounded-full flex items-center justify-center bg-nav-active-chip transition-opacity duration-300"
-                  style={{ opacity: isActive ? "var(--nav-active-chip-opacity)" : 0 }}
-                >
-                  <Icon name={item.icon} className={isActive ? "text-nav-icon-active" : "text-nav-icon"} />
+                <span className="relative w-10 h-10 rounded-full flex items-center justify-center">
+                  {/* Decorative background layer, separate from the icon — the icon
+                      used to be nested inside this and inherited its opacity, so it
+                      went invisible (not just chip-less) whenever the chip faded to 0
+                      for an inactive item on every skin, not just Sky. */}
+                  <span
+                    aria-hidden="true"
+                    className="absolute inset-0 rounded-full bg-nav-active-chip transition-opacity duration-300"
+                    style={{ opacity: isActive ? "var(--nav-active-chip-opacity)" : 0 }}
+                  />
+                  <Icon
+                    name={item.icon}
+                    className={`relative z-10 ${isActive ? "text-nav-icon-active" : "text-nav-icon"}`}
+                  />
                 </span>
                 <span
                   className={`font-label-sm text-label-sm transition-colors ${
