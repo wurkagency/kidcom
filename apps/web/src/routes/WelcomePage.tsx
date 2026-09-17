@@ -1,9 +1,6 @@
 import { useNavigate } from "react-router-dom";
 
-// Matches docs/stitch_splitkid/welcome_to_splitkid/code.html. The hero photo
-// there is a placeholder AI-generated image from the Stitch export — kept
-// out for now (no real brand photography yet) in favor of a plain gradient
-// hero so nothing here depends on an external image URL.
+// Matches docs/stitch_splitkid/welcome_to_splitkid/code.html.
 export function WelcomePage() {
   const navigate = useNavigate();
 
@@ -13,7 +10,9 @@ export function WelcomePage() {
       <div className="relative z-10 flex flex-col flex-1 px-container-padding pb-safe pt-section-margin">
         <div className="flex-1 flex flex-col items-center justify-center space-y-element-gap mt-8">
           <div className="w-full max-w-sm aspect-square relative mb-4">
-            <div className="absolute inset-0 bg-primary-container/40 rounded-[2rem] transform -rotate-3 shadow-xl shadow-primary/5" />
+            <div className="absolute inset-0 rounded-[2rem] overflow-hidden transform -rotate-3 shadow-xl shadow-primary/5">
+              <img src="/images/welcome-hero.jpg" alt="" className="w-full h-full object-cover" />
+            </div>
             <div className="absolute -bottom-4 -right-4 bg-surface-container-lowest rounded-full p-3 shadow-md shadow-primary/10 z-20 flex items-center justify-center">
               <span
                 className="material-symbols-outlined text-growth-green text-3xl"
@@ -25,10 +24,10 @@ export function WelcomePage() {
           </div>
           <div className="text-center space-y-4 max-w-sm mt-8">
             <h1 className="font-display-lg text-display-lg text-on-primary-fixed-variant">
-              Welcome to SplitKid
+              Kidcom
             </h1>
             <p className="font-body-lg text-body-lg text-on-surface-variant leading-relaxed px-4">
-              Putting your child at the center of co-parenting.
+              Co-parenting, family collaboration and child memories in a safe space.
             </p>
           </div>
         </div>

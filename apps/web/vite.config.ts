@@ -45,7 +45,18 @@ export default defineConfig({
         ],
       },
       injectManifest: {
-        globPatterns: ["**/*.{js,css,html,svg,png,ico}"],
+        // woff2 added for the self-hosted Material Symbols font
+        // (material-symbols/outlined.css, imported from index.css) — cached
+        // offline like every other build asset instead of depending on a
+        // third-party CDN request at runtime. It's the full variable font
+        // (~4MB, over the 2MB default) rather than a hand-picked icon
+        // subset deliberately: a missed icon in a manual subset fails
+        // silently (a blank glyph, easy to not notice until a user hits
+        // it) — not a tradeoff worth making right after two small-oversight
+        // production incidents in the same session. One-time cached
+        // download, not repeated per visit.
+        globPatterns: ["**/*.{js,css,html,svg,png,ico,woff2}"],
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
       },
     }),
   ],

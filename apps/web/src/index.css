@@ -1,4 +1,11 @@
 @import url("https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;600&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap");
+/* Self-hosted (not Google Fonts CDN) — the CDN link previously used here
+   served a reduced "fallback" response to some clients (confirmed directly
+   against production) that doesn't reliably support the ligature
+   substitution Icon.tsx depends on (icon names like "favorite" rendering as
+   literal text instead of the glyph). Same font-family name and
+   .material-symbols-outlined class as before, so no call site changes. */
+@import "material-symbols/outlined.css";
 
 @tailwind base;
 @tailwind components;
