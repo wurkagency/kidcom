@@ -1,4 +1,4 @@
-export type SkinId = "greenkeeper";
+export type SkinId = "greenkeeper" | "sky";
 
 export type SkinDefinition = {
   id: SkinId;
@@ -8,7 +8,10 @@ export type SkinDefinition = {
 // Each skin's CSS variables live in index.css under `[data-skin="<id>"]`
 // (Greenkeeper's values are the :root defaults). Add a new skin by adding
 // its id/name here and its variable overrides there.
-export const SKINS: SkinDefinition[] = [{ id: "greenkeeper", name: "Greenkeeper" }];
+export const SKINS: SkinDefinition[] = [
+  { id: "greenkeeper", name: "Greenkeeper" },
+  { id: "sky", name: "Sky" },
+];
 
 export const DEFAULT_SKIN: SkinId = "greenkeeper";
 

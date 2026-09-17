@@ -16,23 +16,53 @@ const NAV_ITEMS = [
   { to: "/kids", label: "Kids", icon: "child_care" },
 ] as const;
 
+// Shape (edge-to-edge bar vs. floating pill), color, and label visibility
+// all come from the --nav-* / --color-nav-* tokens in index.css, so a skin
+// restyles this bar entirely by overriding variables under
+// `[data-skin="<id>"]` — no per-skin branching here. Greenkeeper's values
+// reproduce today's bar exactly; Sky floats it as a pill with icon-only
+// items and an active-item chip.
 export function BottomNav() {
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-50 pb-safe bg-surface-container/90 backdrop-blur-xl shadow-[0_-1px_8px_rgba(0,0,0,0.04)]">
+    <nav
+      className="fixed inset-x-0 bottom-0 z-50 pb-safe bg-nav-surface/90 backdrop-blur-xl transition-[margin,border-radius,box-shadow] duration-300"
+      style={{
+        margin: "0 var(--nav-inset-x) var(--nav-inset-bottom)",
+        borderRadius: "var(--nav-radius)",
+        boxShadow: "var(--nav-shadow)",
+      }}
+    >
       <div className="flex justify-between items-center h-20 px-container-padding">
         {NAV_ITEMS.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
             end={"end" in item ? item.end : false}
-            className={({ isActive }) =>
-              `flex flex-col items-center justify-center gap-1 flex-1 transition-colors ${
-                isActive ? "text-primary font-semibold" : "text-on-surface-variant"
-              }`
-            }
+            aria-label={item.label}
+            className="flex flex-col items-center justify-center gap-1 flex-1"
           >
-            <Icon name={item.icon} />
-            <span className="font-label-sm text-label-sm">{item.label}</span>
+            {({ isActive }) => (
+              <>
+                <span
+                  className="w-10 h-10 rounded-full flex items-center justify-center bg-nav-active-chip transition-opacity duration-300"
+                  style={{ opacity: isActive ? "var(--nav-active-chip-opacity)" : 0 }}
+                >
+                  <Icon name={item.icon} className={isActive ? "text-nav-icon-active" : "text-nav-icon"} />
+                </span>
+                <span
+                  className={`font-label-sm text-label-sm transition-colors ${
+                    isActive ? "text-nav-icon-active font-semibold" : "text-nav-icon"
+                  }`}
+                  style={{
+                    opacity: "var(--nav-label-opacity)",
+                    maxHeight: "var(--nav-label-max-height)",
+                    overflow: "hidden",
+                  }}
+                >
+                  {item.label}
+                </span>
+              </>
+            )}
           </NavLink>
         ))}
       </div>

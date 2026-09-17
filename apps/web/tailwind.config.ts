@@ -71,6 +71,10 @@ export default {
         "on-category-school": withOpacity("--color-on-category-school"),
         "category-activity": withOpacity("--color-category-activity"),
         "on-category-activity": withOpacity("--color-on-category-activity"),
+        "nav-surface": withOpacity("--color-nav-surface"),
+        "nav-icon": withOpacity("--color-nav-icon"),
+        "nav-icon-active": withOpacity("--color-nav-icon-active"),
+        "nav-active-chip": withOpacity("--color-nav-active-chip"),
       },
       fontFamily: {
         "display-lg": ["Plus Jakarta Sans"],

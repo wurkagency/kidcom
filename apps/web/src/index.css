@@ -65,6 +65,21 @@
     --color-category-activity: 142 68 173;
     --color-on-category-activity: 108 38 140;
 
+    /* BottomNav shape/color, factored out of the generic surface tokens so a
+       skin can restyle the nav bar (e.g. an edge-to-edge bar vs a floating
+       pill) without any per-skin branching in BottomNav.tsx. */
+    --color-nav-surface: 237 239 233;
+    --color-nav-icon: 65 73 65;
+    --color-nav-icon-active: 50 105 67;
+    --color-nav-active-chip: 255 255 255;
+    --nav-active-chip-opacity: 0;
+    --nav-radius: 0px;
+    --nav-inset-x: 0px;
+    --nav-inset-bottom: 0px;
+    --nav-shadow: 0 -1px 8px rgba(0, 0, 0, 0.04);
+    --nav-label-opacity: 1;
+    --nav-label-max-height: 1rem;
+
     --radius-sm: 0.25rem;
     --radius-default: 0.5rem;
     --radius-md: 0.75rem;
@@ -76,6 +91,74 @@
     --space-element-gap: 16px;
     --space-section-margin: 32px;
     --space-grid-gutter: 16px;
+  }
+
+  /* Sky: light, airy, travel-inspired — pale mint/sage surfaces, near-black
+     text, a teal primary accent, and a floating black pill bottom nav. */
+  [data-skin="sky"] {
+    --color-surface: 246 248 245;
+    --color-surface-dim: 216 220 214;
+    --color-surface-bright: 246 248 245;
+    --color-surface-container-lowest: 255 255 255;
+    --color-surface-container-low: 238 244 239;
+    --color-surface-container: 230 239 232;
+    --color-surface-container-high: 220 232 223;
+    --color-surface-container-highest: 207 223 211;
+    --color-on-surface: 20 23 26;
+    --color-on-surface-variant: 107 114 128;
+    --color-inverse-surface: 22 24 26;
+    --color-inverse-on-surface: 245 247 245;
+    --color-outline: 138 148 140;
+    --color-outline-variant: 199 210 201;
+    --color-surface-tint: 46 140 130;
+    --color-primary: 46 140 130;
+    --color-on-primary: 255 255 255;
+    --color-primary-container: 227 239 230;
+    --color-on-primary-container: 30 58 44;
+    --color-inverse-primary: 143 217 205;
+    --color-secondary: 91 102 96;
+    --color-on-secondary: 255 255 255;
+    --color-secondary-container: 231 236 232;
+    --color-on-secondary-container: 72 82 76;
+    --color-tertiary: 62 127 166;
+    --color-on-tertiary: 255 255 255;
+    --color-tertiary-container: 220 234 242;
+    --color-on-tertiary-container: 27 58 77;
+    --color-primary-fixed: 191 234 227;
+    --color-primary-fixed-dim: 143 217 205;
+    --color-on-primary-fixed: 5 35 29;
+    --color-on-primary-fixed-variant: 20 80 72;
+    --color-secondary-fixed: 231 236 232;
+    --color-secondary-fixed-dim: 198 208 201;
+    --color-on-secondary-fixed: 42 50 45;
+    --color-on-secondary-fixed-variant: 72 82 76;
+    --color-tertiary-fixed: 220 234 242;
+    --color-tertiary-fixed-dim: 174 203 218;
+    --color-on-tertiary-fixed: 16 34 44;
+    --color-on-tertiary-fixed-variant: 27 58 77;
+    --color-background: 246 248 245;
+    --color-on-background: 20 23 26;
+    --color-surface-variant: 215 228 218;
+    --color-growth-green: 63 124 99;
+    --color-text-main: 20 23 26;
+
+    --color-nav-surface: 22 24 26;
+    --color-nav-icon: 214 222 217;
+    --color-nav-icon-active: 20 23 26;
+    --color-nav-active-chip: 255 255 255;
+    --nav-active-chip-opacity: 1;
+    --nav-radius: 9999px;
+    --nav-inset-x: 16px;
+    --nav-inset-bottom: 16px;
+    --nav-shadow: 0 10px 30px rgba(10, 15, 13, 0.35);
+    --nav-label-opacity: 0;
+    --nav-label-max-height: 0px;
+
+    --radius-sm: 0.375rem;
+    --radius-default: 0.75rem;
+    --radius-md: 1rem;
+    --radius-lg: 1.25rem;
+    --radius-xl: 2rem;
   }
 
   html,
