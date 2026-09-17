@@ -4,7 +4,6 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Icon } from "../components/Icon";
 import { ApiRequestError } from "../lib/api";
 import { useHeaderConfig } from "../lib/HeaderContext";
-import { useSkin } from "../lib/SkinContext";
 import {
   getCalendarDefaultView,
   getDateFormat,
@@ -20,7 +19,6 @@ import {
   type DateFormat,
   type JournalVisibility,
 } from "../lib/preferences";
-import { SKINS, type SkinId } from "../lib/themes";
 
 const LANGUAGE_OPTIONS = ["English (US)", "English (UK)", "Español", "Français", "Dansk"];
 const DATE_FORMAT_OPTIONS: DateFormat[] = ["MM/DD/YYYY", "DD/MM/YYYY", "YYYY-MM-DD"];
@@ -40,10 +38,6 @@ const JOURNAL_VISIBILITY_OPTIONS: { value: JournalVisibility; label: string }[] 
   { value: "shared", label: "Shared" },
   { value: "private", label: "Private" },
 ];
-const SKIN_OPTIONS: { value: SkinId; label: string }[] = SKINS.map((skin) => ({
-  value: skin.id,
-  label: skin.name,
-}));
 
 type ChoiceConfig = {
   title: string;
@@ -88,17 +82,6 @@ const CONFIGS: Record<string, ChoiceConfig> = {
     getValue: getCalendarDefaultView,
     setValue: (v) => setCalendarDefaultView(v as CalendarDefaultView),
   },
-  // getValue/setValue are placeholders — the "skin" field is overridden in
-  // the component below with the reactive useSkin() hook instead of a bare
-  // localStorage read/write, since a server-persisted, cross-device value
-  // needs to reflect AuthContext's reconciliation, not just be read once.
-  skin: {
-    title: "Skin",
-    backTo: "/preferences",
-    options: SKIN_OPTIONS,
-    getValue: () => "",
-    setValue: () => {},
-  },
   "journal-visibility": {
     title: "Journal Entry Visibility",
     backTo: "/security",
@@ -111,12 +94,7 @@ const CONFIGS: Record<string, ChoiceConfig> = {
 export function SettingsChoicePage() {
   const { field } = useParams<{ field: string }>();
   const navigate = useNavigate();
-  const { skin, setSkin } = useSkin();
-  const baseConfig = field ? CONFIGS[field] : undefined;
-  const config: ChoiceConfig | undefined =
-    baseConfig && field === "skin"
-      ? { ...baseConfig, getValue: () => skin, setValue: (v) => setSkin(v as SkinId) }
-      : baseConfig;
+  const config = field ? CONFIGS[field] : undefined;
 
   useHeaderConfig({ title: config?.title ?? "Settings", backTo: config?.backTo ?? "/profile" }, [config?.title]);
 

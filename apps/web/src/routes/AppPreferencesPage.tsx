@@ -4,7 +4,6 @@ import { useNavigate } from "react-router-dom";
 import { Card } from "../components/Card";
 import { Icon } from "../components/Icon";
 import { SegmentedControl } from "../components/SegmentedControl";
-import { Toggle } from "../components/Toggle";
 import { useHeaderConfig } from "../lib/HeaderContext";
 import { useSkin } from "../lib/SkinContext";
 import {
@@ -12,16 +11,13 @@ import {
   getDateFormat,
   getLanguage,
   getTextSize,
-  getTheme,
   getTimeZone,
   getUnitSystem,
   getWeekStart,
   setTextSize,
-  setTheme,
   setUnitSystem,
   setWeekStart,
   type TextSize,
-  type Theme,
   type UnitSystem,
   type WeekStart,
 } from "../lib/preferences";
@@ -40,7 +36,6 @@ export function AppPreferencesPage() {
   useHeaderConfig({ title: "App Preferences", backTo: "/profile" }, []);
   const navigate = useNavigate();
 
-  const [theme, setThemeState] = useState<Theme>(() => getTheme());
   const { skin } = useSkin();
   const [textSize, setTextSizeState] = useState<TextSize>(() => getTextSize());
   const [language] = useState(() => getLanguage());
@@ -49,12 +44,6 @@ export function AppPreferencesPage() {
   const [units, setUnits] = useState<UnitSystem>(() => getUnitSystem());
   const [calendarView] = useState(() => getCalendarDefaultView());
   const [weekStart, setWeekStartState] = useState<WeekStart>(() => getWeekStart());
-
-  function handleThemeToggle() {
-    const next = theme === "light" ? "dark" : "light";
-    setThemeState(next);
-    setTheme(next);
-  }
 
   function handleUnitsChange(next: UnitSystem) {
     setUnits(next);
@@ -76,31 +65,10 @@ export function AppPreferencesPage() {
           <PickerRow
             icon="style"
             iconClass="text-primary"
-            label="Skin"
+            label="Theme"
             value={SKINS.find((s) => s.id === skin)?.name ?? skin}
-            onClick={() => navigate("/preferences/skin")}
+            onClick={() => navigate("/preferences/themes")}
           />
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-full bg-primary-container/20 flex items-center justify-center">
-                <Icon name="palette" className="text-primary" />
-              </div>
-              <div>
-                <p className="font-label-md text-label-md text-on-surface">Theme</p>
-                <p className="font-body-md text-[14px] text-on-surface-variant leading-tight">
-                  Current: {theme === "light" ? "Light Mode" : "Dark Mode"}
-                </p>
-              </div>
-            </div>
-            <Toggle
-              checked={theme === "dark"}
-              onToggle={handleThemeToggle}
-              size="lg"
-              onKnobColor="bg-on-tertiary"
-              offKnobColor="bg-on-tertiary"
-              aria-label="Toggle Theme"
-            />
-          </div>
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-4">
               <div className="w-10 h-10 rounded-full bg-secondary-container/20 flex items-center justify-center">

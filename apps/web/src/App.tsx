@@ -31,6 +31,7 @@ import { MessageComposePage } from "./routes/MessageComposePage";
 import { MessageThreadPage } from "./routes/MessageThreadPage";
 import { BillingPage } from "./routes/BillingPage";
 import { AppPreferencesPage } from "./routes/AppPreferencesPage";
+import { ThemesPage } from "./routes/ThemesPage";
 import { NotificationSettingsPage } from "./routes/NotificationSettingsPage";
 import { SettingsChoicePage } from "./routes/SettingsChoicePage";
 import { PrivacySecurityPage } from "./routes/PrivacySecurityPage";
@@ -127,6 +128,7 @@ export default function App() {
               <Route path="/messages/:threadId" element={<MessageThreadPage />} />
               <Route path="/notes" element={<Navigate to="/messages?tab=notes" replace />} />
               <Route path="/preferences" element={<AppPreferencesPage />} />
+              <Route path="/preferences/themes" element={<ThemesPage />} />
               <Route path="/preferences/:field" element={<SettingsChoicePage />} />
               <Route path="/security" element={<PrivacySecurityPage />} />
               <Route path="/security/:field" element={<SettingsChoicePage />} />
