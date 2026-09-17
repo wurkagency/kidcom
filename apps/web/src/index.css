@@ -7,6 +7,26 @@
    .material-symbols-outlined class as before, so no call site changes. */
 @import "material-symbols/outlined.css";
 
+/* Overrides the @font-face above: the package ships font-display: block,
+   which gives ~3s of fully invisible text (no fallback glyph exists for an
+   icon ligature) before it even starts showing anything — on this font's
+   full ~4MB size, that's long enough to paint a blank bottom nav on a slow
+   first load (confirmed happening in production). swap cuts the initial
+   block to ~100ms and self-corrects the instant the font arrives, instead
+   of staying blank for the full block window. Subsetting the font down
+   from 4MB was tried first and abandoned — its ligature/GSUB structure is
+   too interconnected to prune safely (barely shrank, ~9%, for real risk of
+   silently breaking icons rather than a size win worth having). Preloaded
+   in index.html so the download starts immediately rather than waiting on
+   this CSS file to parse. */
+@font-face {
+  font-family: "Material Symbols Outlined";
+  font-style: normal;
+  font-weight: 100 700;
+  font-display: swap;
+  src: url("material-symbols/material-symbols-outlined.woff2") format("woff2");
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
