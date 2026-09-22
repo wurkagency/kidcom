@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import type { ResetPasswordRequest } from "@kidcom/shared";
 
+import { AuthHero } from "../components/AuthHero";
 import { FormInput } from "../components/FormInput";
 import { apiPost, ApiRequestError } from "../lib/api";
 
@@ -54,6 +55,7 @@ export function ResetPasswordPage() {
 
   return (
     <div className="flex flex-col w-full min-h-screen bg-surface text-on-surface pb-safe">
+      <AuthHero />
       <header className="px-container-padding py-6">
         <h1 className="font-headline-lg-mobile text-headline-lg-mobile text-on-surface">Choose a new password</h1>
       </header>

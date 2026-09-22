@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import type { ForgotPasswordRequest } from "@kidcom/shared";
 
+import { AuthHero } from "../components/AuthHero";
 import { FormInput } from "../components/FormInput";
 import { apiPost, ApiRequestError } from "../lib/api";
 
@@ -32,6 +33,7 @@ export function ForgotPasswordPage() {
 
   return (
     <div className="flex flex-col w-full min-h-screen bg-surface text-on-surface pb-safe">
+      <AuthHero />
       <header className="px-container-padding py-6">
         <h1 className="font-headline-lg-mobile text-headline-lg-mobile text-on-surface">Reset your password</h1>
         <p className="font-body-md text-body-md text-on-surface-variant mt-1">

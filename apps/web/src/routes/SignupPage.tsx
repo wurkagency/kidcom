@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import type { MeResponse, SignupRequest } from "@kidcom/shared";
 
+import { AuthHero } from "../components/AuthHero";
 import { OnboardingProgress } from "../components/OnboardingProgress";
 import { FormInput } from "../components/FormInput";
 import { apiPost, ApiRequestError } from "../lib/api";
@@ -46,6 +47,7 @@ export function SignupPage() {
 
   return (
     <div className="flex flex-col w-full min-h-screen relative overflow-hidden bg-surface text-on-surface pb-safe">
+      <AuthHero />
       <OnboardingProgress step={1} title="Welcome" subtitle="Let's set up your account." />
       <form
         onSubmit={handleSubmit}

@@ -3,12 +3,18 @@ import { useSearchParams } from "react-router-dom";
 import type { JournalPostDto } from "@kidcom/shared";
 
 import { JournalPostCard } from "../components/JournalPostCard";
+import { ViewSwitcherDropdown } from "../components/ViewSwitcherDropdown";
 import { apiGet, ApiRequestError } from "../lib/api";
 import { useAuth } from "../lib/AuthContext";
 import { MediaGalleryTab } from "./MediaGalleryPage";
 
 const PAGE_LIMIT = 20;
 const POLL_INTERVAL_MS = 4000;
+
+const JOURNAL_TAB_OPTIONS: { value: "journal" | "media"; label: string }[] = [
+  { value: "journal", label: "Journal" },
+  { value: "media", label: "Media Gallery" },
+];
 
 type ChildFeedState = {
   items: JournalPostDto[];
@@ -178,9 +184,17 @@ export function JournalPage() {
 
   return (
     <div className="flex flex-col w-full h-full pb-20 relative">
+      {/* "Moments" + "Journal ⌄" dropdown, matching
+          docs/Themes/Aura/kidcom_moments_feed_1/code.html — replaces the
+          Journal/Media Gallery segmented pill pair with the Switch View
+          dropdown Calendar and Lists now use too. */}
       <div className="px-container-padding py-section-margin flex items-center justify-between gap-2">
         <h1 className="font-headline-lg text-headline-lg-mobile text-on-surface shrink-0">Moments</h1>
-        {tab === "journal" && children.length > 1 && (
+        <ViewSwitcherDropdown options={JOURNAL_TAB_OPTIONS} value={tab} onChange={setTab} triggerIcon="dashboard" />
+      </div>
+
+      {tab === "journal" && children.length > 1 && (
+        <div className="px-container-padding pb-2">
           <select
             value={filterChildId}
             onChange={(e) => setFilterChildId(e.target.value)}
@@ -193,29 +207,8 @@ export function JournalPage() {
               </option>
             ))}
           </select>
-        )}
-      </div>
-
-      <div className="px-container-padding pb-2 sticky top-0 z-10 bg-surface">
-        <div className="flex p-1 bg-surface-container-high rounded-full w-full">
-          <button
-            onClick={() => setTab("journal")}
-            className={`flex-1 py-2 text-center rounded-full font-label-md text-label-md transition-colors ${
-              tab === "journal" ? "bg-primary text-on-primary shadow-sm" : "text-on-surface-variant"
-            }`}
-          >
-            Journal
-          </button>
-          <button
-            onClick={() => setTab("media")}
-            className={`flex-1 py-2 text-center rounded-full font-label-md text-label-md transition-colors ${
-              tab === "media" ? "bg-primary text-on-primary shadow-sm" : "text-on-surface-variant"
-            }`}
-          >
-            Media Gallery
-          </button>
         </div>
-      </div>
+      )}
 
       {tab === "media" ? (
         <MediaGalleryTab />

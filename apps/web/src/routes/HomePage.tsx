@@ -5,10 +5,13 @@ import type {
   ChildFamilyMember,
   CustodyPlanDto,
   JournalPostDto,
+  PersonalNoteDto,
+  ToggleChecklistItemRequest,
 } from "@kidcom/shared";
 
 import { Icon } from "../components/Icon";
-import { apiGet, ApiRequestError } from "../lib/api";
+import { SwapRequestCard } from "../components/SwapRequestCard";
+import { apiGet, apiPatch, ApiRequestError } from "../lib/api";
 import { fetchMediaUrl } from "../lib/media";
 import { useAuth } from "../lib/AuthContext";
 
@@ -37,24 +40,42 @@ const CATEGORY_ICON: Record<string, string> = {
   PLANNED_HOLIDAY: "flight_takeoff",
 };
 
+type Reminder = {
+  eventId: string;
+  childId: string;
+  itemId: string;
+  label: string;
+  eventTitle: string;
+  category: string;
+  startsAt: string;
+};
+
 type DashboardData = {
   plan: CustodyPlanDto | null;
   todaysOwnerName: string | null;
   nextSwitch: { date: string; ownerName: string | null } | null;
   nextAppointment: { title: string; startsAt: string } | null;
   latestPost: JournalPostDto | null;
+  reminders: Reminder[];
+  notes: PersonalNoteDto[];
 };
 
 // Layout follows docs/Themes/Aura/kidcom_today_screen_updated_note/code.html:
-// greeting, a mint custody card with a handover link, then Next
-// Appointment/Latest Journal as their own cards, then quick actions. That
-// mockup also shows "Reminders & Tasks" and "Notes" sections — deliberately
-// left out here, not just unstyled: there's no backing data model for
-// either (Lists/Necessities is a distinct, per-child feature, not a
-// dashboard task list, and there's no notes-on-the-dashboard concept in the
-// API) — adding them would mean fabricating fake content rather than
-// reskinning something real. Quick Actions deep-link into the Calendar page
-// (see CalendarPage's ?action= handling) rather than duplicating forms here.
+// greeting, a mint custody card with a handover link, Next Appointment/
+// Latest Journal cards, Reminders & Tasks, Notes, a Swap Request card, then
+// quick actions.
+//
+// Reminders & Tasks and Notes both looked like they'd need new backend
+// features at first read — they don't. "Reminders & Tasks" is every
+// unchecked CalendarEventChecklistItem across the next 7 days' events,
+// aggregated here rather than left buried per-event (checklist items
+// already exist — see EventCard.tsx). "Notes" is deliberately scoped to
+// PersonalNote — GET /notes is explicitly documented server-side as "a
+// private per-user scratchpad... there's no sharing here" (see
+// apps/api/src/routes/notes/index.ts), not the shared, co-parent-attributed
+// notes the mockup shows. Surfacing it as "Written by Mom"/"Shared by Dad"
+// would misrepresent private data as shared, so this shows only the
+// signed-in user's own notes, honestly labeled "Your Notes" instead.
 export function HomePage() {
   const { user, children } = useAuth();
   const navigate = useNavigate();
@@ -63,6 +84,8 @@ export function HomePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [journalMediaUrl, setJournalMediaUrl] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [togglingItemId, setTogglingItemId] = useState<string | null>(null);
 
   const childId = selectedChildId ?? children[0]?.id;
   const child = children.find((c) => c.id === childId);
@@ -81,13 +104,32 @@ export function HomePage() {
       const today = new Date();
       const start = toLocalDateOnly(today);
       const end = toLocalDateOnly(new Date(today.getTime() + 14 * 86400000));
+      const reminderCutoff = today.getTime() + 7 * 86400000;
 
-      const [planRes, rangeRes, familyRes, journalRes] = await Promise.all([
+      const [planRes, rangeRes, familyRes, journalRes, notesRes] = await Promise.all([
         apiGet<{ plan: CustodyPlanDto | null }>(`/children/${childId}/custody-plan`),
         apiGet<CalendarRangeResponse>(`/children/${childId}/calendar?start=${start}&end=${end}`),
         apiGet<{ members: ChildFamilyMember[] }>(`/children/${childId}/family`),
         apiGet<{ items: JournalPostDto[] }>(`/children/${childId}/journal?limit=1`),
+        apiGet<{ items: PersonalNoteDto[] }>("/notes"),
       ]);
+
+      const reminders: Reminder[] = rangeRes.events
+        .filter((e) => new Date(e.startsAt).getTime() <= reminderCutoff)
+        .flatMap((e) =>
+          e.checklist
+            .filter((item) => !item.isChecked)
+            .map((item) => ({
+              eventId: e.id,
+              childId: childId!,
+              itemId: item.id,
+              label: item.label,
+              eventTitle: e.title,
+              category: e.category,
+              startsAt: e.startsAt,
+            }))
+        )
+        .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
 
       const todaysOwnerId = rangeRes.custodyByDate[start] ?? null;
       const nameFor = (userId: string | null) => {
@@ -139,6 +181,8 @@ export function HomePage() {
           ? { title: nextAppointment.title, startsAt: nextAppointment.startsAt }
           : null,
         latestPost,
+        reminders,
+        notes: notesRes.items.slice(0, 2),
       } satisfies DashboardData;
     })()
       .then((result) => {
@@ -167,7 +211,24 @@ export function HomePage() {
     return () => {
       cancelled = true;
     };
-  }, [childId, user?.id]);
+  }, [childId, user?.id, refreshKey]);
+
+  async function toggleReminder(reminder: Reminder) {
+    setTogglingItemId(reminder.itemId);
+    try {
+      await apiPatch(
+        `/children/${reminder.childId}/calendar-events/${reminder.eventId}/checklist/${reminder.itemId}`,
+        { isChecked: true } satisfies ToggleChecklistItemRequest
+      );
+      setData((prev) =>
+        prev ? { ...prev, reminders: prev.reminders.filter((r) => r.itemId !== reminder.itemId) } : prev
+      );
+    } catch {
+      setError("Couldn't update that item — try again.");
+    } finally {
+      setTogglingItemId(null);
+    }
+  }
 
   if (children.length === 0) {
     return (
@@ -371,6 +432,77 @@ export function HomePage() {
               </div>
             </Link>
           </section>
+
+          {data && data.reminders.length > 0 && (
+            <section className="px-container-padding flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <h2 className="font-headline-md text-headline-md text-on-surface">Reminders & Tasks</h2>
+                <span className="font-micro-meta text-micro-meta uppercase tracking-wider bg-surface-container text-on-surface-variant px-2.5 py-1 rounded-full">
+                  {data.reminders.length} remaining
+                </span>
+              </div>
+              <div className="flex flex-col gap-2">
+                {data.reminders.map((reminder) => (
+                  <div
+                    key={reminder.itemId}
+                    className="flex items-center gap-3 bg-surface-container-lowest rounded-2xl p-3.5 shadow-sm"
+                  >
+                    <button
+                      onClick={() => toggleReminder(reminder)}
+                      disabled={togglingItemId === reminder.itemId}
+                      aria-label="Mark done"
+                      className="shrink-0"
+                    >
+                      <Icon
+                        name={togglingItemId === reminder.itemId ? "progress_activity" : "radio_button_unchecked"}
+                        className={`text-on-surface-variant ${togglingItemId === reminder.itemId ? "animate-spin" : ""}`}
+                      />
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-body-md text-body-md text-on-surface truncate">{reminder.label}</p>
+                      <p className="font-label-sm text-label-sm text-on-surface-variant truncate">{reminder.eventTitle}</p>
+                    </div>
+                    {reminder.category === "MEDICAL" && (
+                      <span className="shrink-0 font-micro-meta text-micro-meta uppercase tracking-wider bg-error-container text-on-error-container px-2 py-1 rounded-full">
+                        Health
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {data && data.notes.length > 0 && (
+            <section className="px-container-padding flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <h2 className="font-headline-md text-headline-md text-on-surface">Your Notes</h2>
+                <Link to="/messages?tab=notes" className="font-label-sm text-label-sm text-on-surface-variant underline underline-offset-4">
+                  See all
+                </Link>
+              </div>
+              <div className="flex flex-col gap-2">
+                {data.notes.map((note) => (
+                  <div key={note.id} className="bg-secondary-container/40 rounded-2xl p-3.5 shadow-sm">
+                    <p className="font-body-md text-body-md text-on-surface line-clamp-2">{note.text}</p>
+                    <p className="font-label-sm text-label-sm text-on-surface-variant mt-1">
+                      {new Date(note.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {childId && (
+            <section className="px-container-padding">
+              <SwapRequestCard
+                childId={childId}
+                selectedDate={toLocalDateOnly(new Date())}
+                onSent={() => setRefreshKey((k) => k + 1)}
+              />
+            </section>
+          )}
 
           <section className="px-container-padding flex flex-col gap-3">
             <button

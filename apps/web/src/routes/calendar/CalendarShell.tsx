@@ -30,6 +30,7 @@ import { CalendarActionButtons } from "./CalendarActionButtons";
 import { MonthView } from "./MonthView";
 import { WeekView } from "./WeekView";
 import { ListView } from "./ListView";
+import { SchoolView } from "./SchoolView";
 
 // Shared header controls every view renders identically at its top —
 // child selector, view tabs, range nav, category filter — kept here so
@@ -93,7 +94,7 @@ export function CalendarShell() {
   // in the selected month, grouped by date).
   const { rangeStartIso, rangeEndIso } = useMemo(() => {
     const anchor = new Date(selectedDate);
-    if (view === "week") {
+    if (view === "week" || view === "school") {
       const weekStartDate = startOfWeek(anchor, weekStartPref);
       return { rangeStartIso: toDateOnly(weekStartDate), rangeEndIso: toDateOnly(addDays(weekStartDate, 6)) };
     }
@@ -283,12 +284,12 @@ export function CalendarShell() {
     setSelectedDate(toDateOnly(new Date(new Date(selectedDate).getTime() + days * 86400000)));
   }
   function goPrev() {
-    if (view === "week") return stepDate(-7);
+    if (view === "week" || view === "school") return stepDate(-7);
     const d = new Date(selectedDate);
     setSelectedDate(toDateOnly(new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - 1, 1))));
   }
   function goNext() {
-    if (view === "week") return stepDate(7);
+    if (view === "week" || view === "school") return stepDate(7);
     const d = new Date(selectedDate);
     setSelectedDate(toDateOnly(new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1))));
   }
@@ -406,6 +407,17 @@ export function CalendarShell() {
                 onOpenEvent={openEvent}
                 onToggleChecklistItem={toggleChecklistItem}
                 onToggleConfirm={toggleConfirm}
+              />
+            )}
+            {view === "school" && (
+              <SchoolView
+                header={headerProps}
+                anchorDate={selectedDate}
+                weekStartPref={weekStartPref}
+                events={merged.events}
+                currentUserId={user?.id ?? null}
+                onOpenEvent={openEvent}
+                onToggleChecklistItem={toggleChecklistItem}
               />
             )}
           </div>

@@ -23,40 +23,15 @@ function toDateOnly(d: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-type ScheduleGroup = {
-  templateId: string;
-  label: string;
-  description: string | null;
-  provider: string | null;
-  ageInMonths: number;
-  isRecurring: boolean;
-  items: ScheduleItem[];
-};
-
-// Groups the flat ScheduleItem[] (one row per occurrence) back into one
-// entry per template, in the order the API already sorts them (by
-// ageInMonths, then occurrence sequence within a template).
-function groupScheduleItems(items: ScheduleItem[]): ScheduleGroup[] {
-  const groups: ScheduleGroup[] = [];
-  const byTemplate = new Map<string, ScheduleGroup>();
-  for (const item of items) {
-    let group = byTemplate.get(item.templateId);
-    if (!group) {
-      group = {
-        templateId: item.templateId,
-        label: item.label,
-        description: item.description,
-        provider: item.provider,
-        ageInMonths: item.ageInMonths,
-        isRecurring: item.isRecurring,
-        items: [],
-      };
-      byTemplate.set(item.templateId, group);
-      groups.push(group);
-    }
-    group.items.push(item);
-  }
-  return groups;
+// "AGE 11" / "5 WEEKS" style badge from
+// docs/Themes/Aura/kidcom_child_profile_2/code.html's Health & Care
+// Timeline — converts the API's ageInMonths into whichever unit reads most
+// naturally at that age, matching the mockup's mixed weeks/months/years.
+function formatAge(ageInMonths: number): string {
+  if (ageInMonths < 2) return `${Math.round(ageInMonths * 4.345)} WEEKS`;
+  if (ageInMonths < 24) return `${ageInMonths} MONTHS`;
+  const years = Math.round(ageInMonths / 12);
+  return `${years} YEAR${years === 1 ? "" : "S"}`;
 }
 
 // Matches docs/stitch_splitkid/medical_info_schedules/code.html. The
@@ -171,10 +146,14 @@ export function ChildMedicalPage() {
   const percentComplete = schedule && schedule.totalCount > 0
     ? Math.round((schedule.completedCount / schedule.totalCount) * 100)
     : 0;
-  // One card per template, each listing its occurrence row(s) — a recurring
-  // template (the ongoing dental screening) can have several dated rows once
-  // it's been completed at least once; every other template has exactly one.
-  const scheduleGroups = groupScheduleItems(schedule?.items ?? []);
+  // Flattened Upcoming/Completed lists, matching
+  // docs/Themes/Aura/kidcom_child_profile_2/code.html's timeline — a
+  // recurring template's separate occurrence rows just appear as separate
+  // entries here rather than nested under one grouped card.
+  const upcomingItems = (schedule?.items ?? []).filter((i) => !i.completed);
+  const completedItems = (schedule?.items ?? [])
+    .filter((i) => i.completed)
+    .sort((a, b) => new Date(b.completedAt ?? 0).getTime() - new Date(a.completedAt ?? 0).getTime());
 
   return (
     <div className="flex flex-col w-full pb-8">
@@ -376,83 +355,101 @@ export function ChildMedicalPage() {
           )}
         </section>
 
+        {/* Health & Care Timeline, matching
+            docs/Themes/Aura/kidcom_child_profile_2/code.html — a progress
+            bar plus flattened Upcoming/Completed lists (age badge, title,
+            provider/description) rather than one card per template with
+            nested occurrence rows. Tapping an item still toggles
+            completed/not and edits its planned date, via the same
+            updateOccurrence call the old grouped layout used. */}
         <section className="flex flex-col gap-base">
-          <h2 className="font-headline-md text-headline-md text-on-surface">Medical Progress</h2>
-          <div className="bg-surface-container-lowest rounded-[1.5rem] p-container-padding shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <span className="font-label-md text-label-md text-on-surface-variant">
-                {child.countryCode} default schedule
-              </span>
-              <span className="font-label-md text-label-md text-primary">
-                {percentComplete}% Complete
-              </span>
-            </div>
-            <div className="w-full h-3 bg-surface-container rounded-full overflow-hidden mb-6">
-              <div className="h-full bg-primary rounded-full" style={{ width: `${percentComplete}%` }} />
-            </div>
-            <div className="flex flex-col gap-5">
-              {scheduleGroups.map((group) => (
-                <div key={group.templateId} className="flex flex-col gap-2">
-                  <div>
-                    <p className="font-label-md text-label-md text-on-surface">{group.label}</p>
-                    <p className="font-label-sm text-label-sm text-on-surface-variant">
-                      {[group.provider, `Recommended around ${group.ageInMonths} months`]
-                        .filter(Boolean)
-                        .join(" · ")}
-                      {group.isRecurring ? " · Repeats every 12 months" : ""}
-                    </p>
-                    {group.description && (
-                      <p className="font-body-md text-[13px] text-on-surface-variant mt-0.5">
-                        {group.description}
-                      </p>
+          <div className="flex items-center justify-between">
+            <h2 className="font-headline-md text-headline-md text-on-surface">Health & Care Timeline</h2>
+            <span className="font-label-md text-label-md text-primary shrink-0">{percentComplete}% Complete</span>
+          </div>
+          <div className="w-full h-2.5 bg-surface-container rounded-full overflow-hidden">
+            <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${percentComplete}%` }} />
+          </div>
+          <span className="font-label-sm text-label-sm text-on-surface-variant">
+            {child.countryCode} default schedule
+          </span>
+
+          {upcomingItems.length === 0 && completedItems.length === 0 && (
+            <p className="font-body-md text-body-md text-on-surface-variant mt-2">
+              No schedule template loaded for {child.countryCode} yet.
+            </p>
+          )}
+
+          {upcomingItems.length > 0 && (
+            <div className="flex flex-col gap-2 mt-2">
+              <div className="flex items-center justify-between">
+                <h3 className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Upcoming</h3>
+                <span className="font-micro-meta text-micro-meta uppercase tracking-wider bg-surface-container text-on-surface-variant px-2.5 py-1 rounded-full">
+                  {upcomingItems.length} upcoming
+                </span>
+              </div>
+              {upcomingItems.map((item) => (
+                <div key={`${item.templateId}-${item.sequence}`} className="flex items-center gap-3 bg-surface-container-lowest rounded-2xl p-3.5 shadow-sm">
+                  <button
+                    onClick={() => updateOccurrence(item.templateId, item.sequence, { completed: true })}
+                    aria-label="Mark completed"
+                    className="shrink-0"
+                  >
+                    <Icon name="radio_button_unchecked" className="text-outline" />
+                  </button>
+                  <div className="flex-1 min-w-0 flex flex-col gap-1">
+                    <span className="font-micro-meta text-micro-meta uppercase tracking-wider bg-on-surface text-inverse-on-surface px-2 py-0.5 rounded-full self-start">
+                      {formatAge(item.ageInMonths)}
+                    </span>
+                    <p className="font-label-md text-label-md text-on-surface">{item.label}</p>
+                    {item.description && (
+                      <p className="font-label-sm text-label-sm text-on-surface-variant">{item.description}</p>
                     )}
-                  </div>
-                  <div className="flex flex-col gap-2 pl-1">
-                    {group.items.map((item) => (
-                      <div key={item.sequence} className="flex items-center gap-3">
-                        <button
-                          onClick={() => updateOccurrence(item.templateId, item.sequence, { completed: !item.completed })}
-                          aria-label={item.completed ? "Mark not completed" : "Mark completed"}
-                          className="shrink-0"
-                        >
-                          <Icon
-                            name={item.completed ? "check_circle" : "radio_button_unchecked"}
-                            className={item.completed ? "text-primary" : "text-outline"}
-                          />
-                        </button>
-                        <div className="flex-1 flex items-center justify-between gap-3">
-                          <span className="font-label-sm text-label-sm text-on-surface-variant">
-                            {group.isRecurring
-                              ? item.completed
-                                ? `Completed ${new Date(item.completedAt!).toLocaleDateString()}`
-                                : "Planned"
-                              : item.completed
-                                ? `Completed ${new Date(item.completedAt!).toLocaleDateString()}`
-                                : "Planned date"}
-                          </span>
-                          <input
-                            type="date"
-                            value={item.plannedAt ? item.plannedAt.slice(0, 10) : ""}
-                            onChange={(e) =>
-                              updateOccurrence(item.templateId, item.sequence, {
-                                plannedAt: e.target.value || null,
-                              })
-                            }
-                            className="bg-surface-container rounded-lg px-2 py-1 text-[13px] outline-none focus:ring-2 focus:ring-primary"
-                          />
-                        </div>
-                      </div>
-                    ))}
+                    <input
+                      type="date"
+                      value={item.plannedAt ? item.plannedAt.slice(0, 10) : ""}
+                      onChange={(e) =>
+                        updateOccurrence(item.templateId, item.sequence, { plannedAt: e.target.value || null })
+                      }
+                      className="self-start bg-surface-container rounded-lg px-2 py-1 text-[12px] outline-none focus:ring-2 focus:ring-primary mt-0.5"
+                    />
                   </div>
                 </div>
               ))}
-              {scheduleGroups.length === 0 && (
-                <p className="font-body-md text-body-md text-on-surface-variant">
-                  No schedule template loaded for {child.countryCode} yet.
-                </p>
-              )}
             </div>
-          </div>
+          )}
+
+          {completedItems.length > 0 && (
+            <div className="flex flex-col gap-2 mt-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Completed</h3>
+                <span className="font-micro-meta text-micro-meta uppercase tracking-wider bg-secondary-container text-on-secondary-container px-2.5 py-1 rounded-full">
+                  {completedItems.length} completed
+                </span>
+              </div>
+              {completedItems.map((item) => (
+                <div key={`${item.templateId}-${item.sequence}`} className="flex items-center gap-3 bg-surface-container/60 rounded-2xl p-3.5">
+                  <button
+                    onClick={() => updateOccurrence(item.templateId, item.sequence, { completed: false })}
+                    aria-label="Mark not completed"
+                    className="shrink-0"
+                  >
+                    <Icon name="check_circle" className="text-primary" />
+                  </button>
+                  <div className="flex-1 min-w-0 flex flex-col gap-1">
+                    <span className="font-micro-meta text-micro-meta uppercase tracking-wider bg-surface-container-lowest text-on-surface-variant px-2 py-0.5 rounded-full self-start">
+                      {formatAge(item.ageInMonths)}
+                    </span>
+                    <p className="font-label-md text-label-md text-on-surface">{item.label}</p>
+                    <p className="font-label-sm text-label-sm text-on-surface-variant">
+                      {item.completedAt ? `Completed ${new Date(item.completedAt).toLocaleDateString()}` : ""}
+                      {item.description ? ` · ${item.description}` : ""}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
       </div>
     </div>

@@ -1,43 +1,24 @@
-import * as ToggleGroupPrimitive from "@radix-ui/react-toggle-group";
+import { ViewSwitcherDropdown } from "../../components/ViewSwitcherDropdown";
 
-export type CalendarViewMode = "month" | "week" | "list";
+export type CalendarViewMode = "month" | "week" | "list" | "school";
 
-const TABS: { value: CalendarViewMode; label: string }[] = [
-  { value: "month", label: "Month" },
+// "list" keeps its internal value (every ?view=list link/preference in the
+// app already uses it) but reads as "Agenda" in the switcher, matching
+// docs/Themes/Aura/kidcom_calendar_1/code.html's dropdown exactly (Agenda
+// default, then Week, Month, School).
+const OPTIONS: { value: CalendarViewMode; label: string }[] = [
+  { value: "list", label: "Agenda" },
   { value: "week", label: "Week" },
-  { value: "list", label: "List" },
+  { value: "month", label: "Month" },
+  { value: "school", label: "School" },
 ];
 
-// Month/Week/List pill tab switcher — identical markup across all three
-// mockups (docs/stitch_splitkid/calendar_{month,week,list}_view). Built on
-// Radix's ToggleGroup primitive (@radix-ui/react-toggle-group, same one
-// SegmentedControl.tsx uses) composed directly rather than through shadcn/ui's
-// generated wrapper, same reasoning as SegmentedControl: keeps the exact
-// current classNames so every skin renders identically to the hand-rolled
-// version it replaces.
+// Was a Month/Week/List segmented pill switcher — replaced by Aura's
+// "Switch View" dropdown (see ViewSwitcherDropdown.tsx) across every skin,
+// per the full structural adoption. Same props as before, so MonthView/
+// WeekView/ListView/SchoolView's call sites didn't need to change.
 export function ViewTabs({ view, onChange }: { view: CalendarViewMode; onChange: (view: CalendarViewMode) => void }) {
   return (
-    <ToggleGroupPrimitive.Root
-      type="single"
-      value={view}
-      onValueChange={(next) => {
-        // Radix lets the selected item toggle itself off (empty string) —
-        // this control always has exactly one view active, so ignore that.
-        if (next) onChange(next as CalendarViewMode);
-      }}
-      className="flex items-center bg-surface-container-low p-1 rounded-full w-full"
-    >
-      {TABS.map((tab) => (
-        <ToggleGroupPrimitive.Item
-          key={tab.value}
-          value={tab.value}
-          className={`flex-1 py-1.5 text-center rounded-full font-label-md text-label-md transition-all ${
-            view === tab.value ? "bg-primary text-on-primary shadow-sm" : "text-on-surface-variant hover:text-on-surface"
-          }`}
-        >
-          {tab.label}
-        </ToggleGroupPrimitive.Item>
-      ))}
-    </ToggleGroupPrimitive.Root>
+    <ViewSwitcherDropdown options={OPTIONS} value={view} onChange={onChange} defaultValue="list" />
   );
 }

@@ -6,16 +6,23 @@ import { AssignSheet, type Member } from "../components/AssignSheet";
 import { Avatar } from "../components/Avatar";
 import { Icon } from "../components/Icon";
 import { ListItemImage } from "../components/ListItemImage";
+import { ViewSwitcherDropdown } from "../components/ViewSwitcherDropdown";
 import { apiDelete, apiGet, apiPatch, ApiRequestError } from "../lib/api";
 import { useAuth } from "../lib/AuthContext";
 
-// Matches docs/Themes/Aura/kidcom_lists/code.html: a two-tab
-// Necessities/Wishlist screen with a sliding pill switcher. The page-local
-// "add item" FAB this used to have is now redundant with the global
-// QuickAddButton's "Add list item" (see AppShell.tsx) and was removed.
-// Necessities support real assignment (any family member can assign/reassign
-// an item to any other family member — ListItem.assignedToId). Wishlist keeps
-// the existing self-claim mechanic, relabeled "Reserve" per the mockup.
+const LIST_TAB_OPTIONS: { value: ListItemType; label: string }[] = [
+  { value: "NECESSITY", label: "Necessities" },
+  { value: "WISHLIST", label: "Wishlist" },
+];
+
+// Matches docs/Themes/Aura/kidcom_lists/code.html: a "Necessities ⌄" Switch
+// View dropdown (see ViewSwitcherDropdown.tsx) rather than a segmented pill
+// pair. The page-local "add item" FAB this used to have is now redundant
+// with the global QuickAddButton's "Add list item" (see AppShell.tsx) and
+// was removed. Necessities support real assignment (any family member can
+// assign/reassign an item to any other family member —
+// ListItem.assignedToId). Wishlist keeps the existing self-claim mechanic,
+// relabeled "Reserve" per the mockup.
 export function ListsPage() {
   const { children, user } = useAuth();
   const navigate = useNavigate();
@@ -150,25 +157,18 @@ export function ListsPage() {
         <p className="font-body-md text-body-md text-error bg-error-container rounded-lg px-4 py-3">{error}</p>
       )}
 
-      <div className="flex flex-col gap-element-gap">
-        <div className="flex p-1 bg-surface-container-high rounded-full w-full">
-          <button
-            onClick={() => setTab("NECESSITY")}
-            className={`flex-1 py-2 text-center rounded-full font-label-md text-label-md transition-colors ${
-              tab === "NECESSITY" ? "bg-primary text-on-primary shadow-sm" : "text-on-surface-variant"
-            }`}
-          >
-            Necessities
-          </button>
-          <button
-            onClick={() => setTab("WISHLIST")}
-            className={`flex-1 py-2 text-center rounded-full font-label-md text-label-md transition-colors ${
-              tab === "WISHLIST" ? "bg-primary text-on-primary shadow-sm" : "text-on-surface-variant"
-            }`}
-          >
-            Wishlist
-          </button>
-        </div>
+      {/* "Lists" + "Necessities ⌄" dropdown, matching
+          docs/Themes/Aura/kidcom_lists/code.html — replaces the Necessities/
+          Wishlist segmented pill pair with the same Switch View dropdown
+          Calendar and Moments now use. */}
+      <div className="flex items-center justify-between">
+        <h1 className="font-headline-lg-mobile text-headline-lg-mobile text-on-surface">Lists</h1>
+        <ViewSwitcherDropdown
+          options={LIST_TAB_OPTIONS}
+          value={tab}
+          onChange={setTab}
+          triggerIcon="checklist"
+        />
       </div>
 
       <div className="flex flex-col gap-element-gap">
