@@ -40,7 +40,7 @@ export function ViewSwitcherDropdown<T extends string>({
         <DropdownMenu.Content
           align="end"
           sideOffset={8}
-          className="w-48 rounded-2xl bg-surface-container-lowest p-1.5 shadow-[0_12px_32px_-6px_rgba(22,26,24,0.22)] border border-outline-variant/30 z-50 flex flex-col gap-0.5"
+          className="w-48 rounded-2xl bg-surface-container-lowest p-1.5 shadow-[0_12px_32px_-6px_rgba(0,0,0,0.22)] border border-outline-variant/30 z-50 flex flex-col gap-0.5"
         >
           <div className="px-2.5 py-1.5 font-micro-meta text-micro-meta uppercase tracking-wider text-secondary font-semibold">
             Switch View

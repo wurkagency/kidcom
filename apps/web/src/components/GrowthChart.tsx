@@ -178,30 +178,30 @@ export function GrowthChart({
       >
         <div className="relative h-full" style={{ width, minWidth: "100%" }}>
           <svg className="w-full h-full" preserveAspectRatio="none" viewBox={`0 0 ${width} ${height}`}>
-            <line stroke="#e1e3dd" strokeDasharray="4" strokeWidth="1" x1="0" x2={width} y1={height * 0.8} y2={height * 0.8} />
-            <line stroke="#e1e3dd" strokeDasharray="4" strokeWidth="1" x1="0" x2={width} y1={height * 0.6} y2={height * 0.6} />
-            <line stroke="#e1e3dd" strokeDasharray="4" strokeWidth="1" x1="0" x2={width} y1={height * 0.4} y2={height * 0.4} />
-            <line stroke="#e1e3dd" strokeDasharray="4" strokeWidth="1" x1="0" x2={width} y1={height * 0.2} y2={height * 0.2} />
+            <line stroke="rgb(var(--color-outline-variant))" strokeDasharray="4" strokeWidth="1" x1="0" x2={width} y1={height * 0.8} y2={height * 0.8} />
+            <line stroke="rgb(var(--color-outline-variant))" strokeDasharray="4" strokeWidth="1" x1="0" x2={width} y1={height * 0.6} y2={height * 0.6} />
+            <line stroke="rgb(var(--color-outline-variant))" strokeDasharray="4" strokeWidth="1" x1="0" x2={width} y1={height * 0.4} y2={height * 0.4} />
+            <line stroke="rgb(var(--color-outline-variant))" strokeDasharray="4" strokeWidth="1" x1="0" x2={width} y1={height * 0.2} y2={height * 0.2} />
 
-            {outerBand && <path d={outerBand} fill="#99d4a5" opacity="0.12" />}
-            {innerBand && <path d={innerBand} fill="#99d4a5" opacity="0.22" />}
+            {outerBand && <path d={outerBand} fill="rgb(var(--color-primary))" opacity="0.12" />}
+            {innerBand && <path d={innerBand} fill="rgb(var(--color-primary))" opacity="0.22" />}
             {medianLinePath && (
               <path
                 d={medianLinePath}
                 fill="none"
-                stroke="#717970"
+                stroke="rgb(var(--color-on-surface-variant))"
                 strokeWidth="1.25"
                 strokeDasharray="3 3"
                 opacity="0.55"
               />
             )}
 
-            <path d={linePath} fill="none" stroke="#326943" strokeLinecap="round" strokeWidth="3" />
+            <path d={linePath} fill="none" stroke="rgb(var(--color-primary))" strokeLinecap="round" strokeWidth="3" />
 
             {coords.slice(0, -1).map((c, i) => (
-              <circle key={i} cx={c.x} cy={c.y} fill="#ffffff" r="4" stroke="#326943" strokeWidth="2" />
+              <circle key={i} cx={c.x} cy={c.y} fill="rgb(var(--color-surface-container-lowest))" r="4" stroke="rgb(var(--color-primary))" strokeWidth="2" />
             ))}
-            <circle cx={lastCoord.x} cy={lastCoord.y} fill="#326943" r="6" stroke="#ffffff" strokeWidth="2" />
+            <circle cx={lastCoord.x} cy={lastCoord.y} fill="rgb(var(--color-primary))" r="6" stroke="rgb(var(--color-surface-container-lowest))" strokeWidth="2" />
 
             {points.map((p, i) => {
               if (!showAllTicks && i !== 0 && i !== points.length - 1) return null;
@@ -210,8 +210,8 @@ export function GrowthChart({
               return (
                 <text
                   key={i}
-                  fill="#717970"
-                  fontFamily="Plus Jakarta Sans"
+                  fill="rgb(var(--color-on-surface-variant))"
+                  fontFamily="var(--font-heading)"
                   fontSize="10"
                   x={x}
                   y={height - 5}

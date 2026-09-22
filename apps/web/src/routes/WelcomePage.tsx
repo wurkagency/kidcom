@@ -10,7 +10,7 @@ export function WelcomePage() {
       <div className="relative z-10 flex flex-col flex-1 px-container-padding pb-safe pt-section-margin">
         <div className="flex-1 flex flex-col items-center justify-center space-y-element-gap mt-8">
           <div className="w-full max-w-sm aspect-square relative mb-4">
-            <div className="absolute inset-0 rounded-[2rem] overflow-hidden transform -rotate-3 shadow-xl shadow-primary/5">
+            <div className="absolute inset-0 rounded-[2rem] overflow-hidden shadow-xl shadow-primary/5">
               <img src="/images/welcome-hero.jpg" alt="" className="w-full h-full object-cover" />
             </div>
             <div className="absolute -bottom-4 -right-4 bg-surface-container-lowest rounded-full p-3 shadow-md shadow-primary/10 z-20 flex items-center justify-center">
@@ -23,7 +23,7 @@ export function WelcomePage() {
             </div>
           </div>
           <div className="text-center space-y-4 max-w-sm mt-8">
-            <h1 className="font-display-lg text-display-lg text-on-primary-fixed-variant">
+            <h1 className="font-display-lg text-display-lg text-on-surface">
               Kidcom
             </h1>
             <p className="font-body-lg text-body-lg text-on-surface-variant leading-relaxed px-4">

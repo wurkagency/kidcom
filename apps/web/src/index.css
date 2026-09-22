@@ -257,9 +257,14 @@
      DESIGN.md) — a Danish-functionalist palette of spruce green, clay
      ochre, and chalk-sandstone neutrals, tighter radii, and an edge-to-edge
      labeled bottom nav (not a floating pill like Sky). Values below are
-     converted 1:1 from DESIGN.md's hex palette. Tokens it doesn't define
-     (growth-green, journal-peach, category-*, alert-soft-red, surface-beige,
-     text-main) are left un-overridden, same as Sky — they inherit
+     converted 1:1 from DESIGN.md's hex palette. growth-green is its own
+     primary (spruce green) rather than left un-overridden — Sky already
+     gives it a real value; leaving it unset here meant every growth icon
+     (Growth chart, AppPreferencesPage, ChildProfilePage) silently rendered
+     in Greenkeeper's green regardless of the active skin. Tokens with no
+     visible per-skin difference to justify one yet (journal-peach,
+     category-*, alert-soft-red, surface-beige, text-main) are left
+     un-overridden, same as Sky — they inherit
      Greenkeeper's :root values via the normal CSS cascade. */
   [data-skin="architecture"] {
     --color-surface: 250 249 246;
@@ -309,6 +314,7 @@
     --color-background: 250 249 246;
     --color-on-background: 27 28 26;
     --color-surface-variant: 227 226 223;
+    --color-growth-green: 50 83 63;
 
     --color-nav-surface: 255 255 255;
     --color-nav-icon: 66 72 67;
@@ -333,7 +339,11 @@
      DESIGN.md) — porcelain canvas, sage-tinted mint cards, an obsidian
      floating pill nav, and generous squircle radii. Near-monochrome:
      primary/tertiary are true black, with sage used as the secondary
-     accent. Tokens it doesn't define (growth-green, journal-peach,
+     accent — growth-green uses that same sage (DESIGN.md's "Supportive
+     Accent Sage") rather than being left un-overridden, so the Growth
+     chart/icons don't silently render in Greenkeeper's green (see the
+     architecture block's comment above for the same fix there). Tokens
+     with no visible per-skin difference to justify one yet (journal-peach,
      alert-soft-red, surface-beige, text-main, category-*) inherit
      Greenkeeper's :root values, same as Sky and Architecture. */
   [data-skin="aura"] {
@@ -384,6 +394,7 @@
     --color-background: 248 250 249;
     --color-on-background: 25 28 28;
     --color-surface-variant: 225 227 226;
+    --color-growth-green: 143 175 162;
 
     /* Obsidian floating pill nav — same mechanism as Sky's, darker and with
        a wider, softer shadow per the doc's "Tier 3" elevation spec. Active

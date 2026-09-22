@@ -60,10 +60,16 @@ export function WeekView({
     : null;
 
   const sameMonth = weekStartDate.getUTCMonth() === weekEndDate.getUTCMonth();
+  // A {day, year} skeleton with no month is unusual enough that some locales
+  // (confirmed on da-DK) fall back to a verbose, broken-looking label
+  // instead of a clean date — e.g. "2026 (dag: 27.)" instead of "27". Always
+  // including the month on the end date (even in the same-month case, where
+  // it's technically redundant with the start date's) sidesteps that
+  // fallback entirely and reads fine either way: "21 – 27. sep. 2026".
   const weekRangeLabel = sameMonth
-    ? `${weekStartDate.toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" })} – ${weekEndDate.toLocaleDateString(
+    ? `${weekStartDate.toLocaleDateString(undefined, { day: "numeric", timeZone: "UTC" })} – ${weekEndDate.toLocaleDateString(
         undefined,
-        { day: "numeric", year: "numeric", timeZone: "UTC" }
+        { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }
       )}`
     : `${weekStartDate.toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" })} – ${weekEndDate.toLocaleDateString(
         undefined,

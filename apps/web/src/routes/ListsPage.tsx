@@ -245,7 +245,7 @@ function NecessityCard({
       role="button"
       tabIndex={0}
       onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onOpenDetail()}
-      className="bg-surface-container-lowest rounded-xl p-4 shadow-[0_2px_8px_rgba(50,105,67,0.05)] flex items-start gap-4 cursor-pointer active:scale-[0.99] transition-transform"
+      className="bg-surface-container-lowest rounded-xl p-4 shadow-[0_2px_8px_rgba(0,0,0,0.05)] flex items-start gap-4 cursor-pointer active:scale-[0.99] transition-transform"
     >
       <ListItemImage
         imageAssetId={item.imageAssetId}
@@ -330,7 +330,7 @@ function WishlistCard({
       role="button"
       tabIndex={0}
       onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onOpenDetail()}
-      className={`bg-surface-container-lowest rounded-xl p-4 shadow-[0_2px_8px_rgba(50,105,67,0.05)] flex flex-col gap-3 cursor-pointer active:scale-[0.99] transition-transform ${
+      className={`bg-surface-container-lowest rounded-xl p-4 shadow-[0_2px_8px_rgba(0,0,0,0.05)] flex flex-col gap-3 cursor-pointer active:scale-[0.99] transition-transform ${
         reservedByOther ? "opacity-75" : ""
       }`}
     >

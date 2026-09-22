@@ -293,7 +293,7 @@ function PlanCard({
 
   if (plan.tier === "PARENTS") {
     return (
-      <div className="bg-surface rounded-xl p-6 shadow-[0_8px_30px_rgba(50,105,67,0.08)] relative overflow-hidden ring-1 ring-primary/20">
+      <div className="bg-surface rounded-xl p-6 shadow-[0_8px_30px_rgba(0,0,0,0.08)] relative overflow-hidden ring-1 ring-primary/20">
         <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-bl-full pointer-events-none" />
         <div className="absolute top-0 right-6 bg-primary text-on-primary px-3 py-1 rounded-b-lg font-label-sm shadow-sm">
           Recommended
@@ -328,7 +328,7 @@ function PlanCard({
 
   if (plan.tier === "FAMILY") {
     return (
-      <div className="bg-surface-container-lowest rounded-xl p-6 shadow-[0_4px_20px_rgba(50,105,67,0.04)] relative">
+      <div className="bg-surface-container-lowest rounded-xl p-6 shadow-[0_4px_20px_rgba(0,0,0,0.04)] relative">
         <div className="flex justify-between items-start mb-4">
           <div>
             <h3 className="font-headline-md text-headline-md text-on-surface">{plan.label}</h3>
@@ -359,7 +359,7 @@ function PlanCard({
 
   // FREE
   return (
-    <div className="bg-surface-container-lowest rounded-xl p-6 shadow-[0_4px_20px_rgba(50,105,67,0.04)] relative">
+    <div className="bg-surface-container-lowest rounded-xl p-6 shadow-[0_4px_20px_rgba(0,0,0,0.04)] relative">
       <div className="flex justify-between items-start mb-4">
         <div>
           <h3 className="font-headline-md text-headline-md text-on-surface">{plan.label}</h3>

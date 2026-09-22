@@ -126,7 +126,7 @@ export function ChildProfilePage() {
   return (
     <div className="flex flex-col w-full pb-8">
       <div className="px-container-padding py-6 flex flex-col items-center justify-center relative bg-surface text-on-surface">
-        <div className="relative mb-4 rounded-full shadow-[0_4px_16px_rgba(50,105,67,0.15)] ring-4 ring-surface">
+        <div className="relative mb-4 rounded-full shadow-[0_4px_16px_rgba(0,0,0,0.15)] ring-4 ring-surface">
           <AvatarUpload
             currentAssetId={child.profileImageUrl}
             fallbackLetter={child.firstName.charAt(0)}

@@ -77,6 +77,25 @@ export function MonthView({
   const localMonthAnchor = new Date(year, month, 1);
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
+  // The "own custom weekday-label row" the comment above promises never
+  // actually existed — react-day-picker's built-in one is hidden
+  // (`weekdays: "hidden"` below) and nothing replaced it, so the grid has
+  // been missing its MO/TU/WE.../SU header entirely. 2024-01-07 is a known
+  // Sunday (UTC), so offsetting from it and formatting each day's locale
+  // weekday name gives the right 7 labels in the right order for either
+  // week-start preference, without hardcoding English day names.
+  const weekdayLabels = useMemo(() => {
+    const startOffset = weekStartPref === "sunday" ? 0 : 1;
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(Date.UTC(2024, 0, 7 + ((startOffset + i) % 7)));
+      return d
+        .toLocaleDateString(undefined, { weekday: "short", timeZone: "UTC" })
+        .replace(/\.$/, "")
+        .slice(0, 2)
+        .toUpperCase();
+    });
+  }, [weekStartPref]);
+
   // Background tint marks only actual custody days — days that carry a
   // CUSTODY-category event (handover/transition entries, created manually
   // per the redesign plan) — not every day of the resolved rotation, which
@@ -157,6 +176,14 @@ export function MonthView({
 
       <div className="px-container-padding">
         <CategoryFilterChips selected={header.categoryFilter} onToggle={header.onToggleCategory} />
+      </div>
+
+      <div className="px-container-padding grid grid-cols-7 text-center mb-1">
+        {weekdayLabels.map((label, i) => (
+          <span key={i} className="font-micro-meta text-micro-meta text-on-surface-variant uppercase tracking-wider">
+            {label}
+          </span>
+        ))}
       </div>
 
       <div className="px-container-padding">
