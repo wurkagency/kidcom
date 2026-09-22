@@ -3,14 +3,12 @@
 // family photo behind a gradient fading to the surface color, with the
 // KidCom mark and tagline overlaid at the bottom.
 //
-// Reuses /images/welcome-hero.jpg (WelcomePage.tsx's existing photo) rather
-// than a new asset — it's already a real, licensed project photo in
-// exactly the register the mockup calls for, so there was no need to source
-// or generate a new one.
+// Photo supplied directly by the project owner (apps/web/public/images/
+// auth-hero.jpg) — not generated or hotlinked.
 export function AuthHero() {
   return (
     <div className="relative w-full h-56 shrink-0 overflow-hidden">
-      <img src="/images/welcome-hero.jpg" alt="" className="absolute inset-0 w-full h-full object-cover" />
+      <img src="/images/auth-hero.jpg" alt="" className="absolute inset-0 w-full h-full object-cover" />
       <div className="absolute inset-0 bg-gradient-to-b from-on-surface/10 via-on-surface/5 to-surface" />
       <div className="absolute inset-x-0 bottom-0 flex flex-col items-center pb-4 px-6 text-center">
         <div className="w-12 h-12 rounded-full bg-surface-container-lowest/90 backdrop-blur-md flex items-center justify-center shadow-lg mb-2">
