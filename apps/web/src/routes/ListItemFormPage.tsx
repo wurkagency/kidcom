@@ -264,9 +264,9 @@ export function ListItemFormPage() {
           <ListItemImage
             imageAssetId={imageAssetId}
             alt={title}
-            className="w-20 h-20 rounded-xl shrink-0"
+            className="w-20 h-20 rounded-2xl shrink-0"
             fallback={
-              <div className="w-20 h-20 rounded-xl bg-surface-container flex items-center justify-center shrink-0">
+              <div className="w-20 h-20 rounded-2xl bg-surface-container flex items-center justify-center shrink-0">
                 <Icon name={type === "WISHLIST" ? "redeem" : "checkroom"} className="text-on-surface-variant text-3xl" />
               </div>
             }
@@ -317,7 +317,7 @@ export function ListItemFormPage() {
               placeholder={childSizeHint ? `Size (e.g. ${childSizeHint})` : "Size (optional)"}
               className="w-full bg-surface-container-lowest rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary font-body-md text-body-md"
             />
-            <label className="flex flex-col gap-1 font-label-md text-label-md text-text-main">
+            <label className="flex flex-col gap-1 font-label-md text-label-md text-on-surface">
               Assign to (optional)
               <select
                 value={assignedToId}

@@ -142,7 +142,7 @@ export function NotesPage() {
               </>
             ) : (
               <>
-                <p className="font-body-md text-body-md text-text-main whitespace-pre-wrap">{note.text}</p>
+                <p className="font-body-md text-body-md text-on-surface whitespace-pre-wrap">{note.text}</p>
                 <div className="flex items-center justify-between">
                   <span className="font-label-sm text-label-sm text-on-surface-variant">
                     {new Date(note.updatedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}

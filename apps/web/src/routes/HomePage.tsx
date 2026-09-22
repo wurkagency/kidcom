@@ -40,15 +40,21 @@ const CATEGORY_ICON: Record<string, string> = {
 type DashboardData = {
   plan: CustodyPlanDto | null;
   todaysOwnerName: string | null;
+  nextSwitch: { date: string; ownerName: string | null } | null;
   nextAppointment: { title: string; startsAt: string } | null;
   latestPost: JournalPostDto | null;
 };
 
-// Matches docs/stitch_splitkid/home_dashboard/code.html: greeting, a bento
-// grid (Today's Custody / Next Appointment / Latest Journal Entry), and a
-// horizontal Quick Actions row. Quick Actions deep-link into the Calendar
-// page (see CalendarPage's ?action= handling) rather than duplicating forms
-// here.
+// Layout follows docs/Themes/Aura/kidcom_today_screen_updated_note/code.html:
+// greeting, a mint custody card with a handover link, then Next
+// Appointment/Latest Journal as their own cards, then quick actions. That
+// mockup also shows "Reminders & Tasks" and "Notes" sections — deliberately
+// left out here, not just unstyled: there's no backing data model for
+// either (Lists/Necessities is a distinct, per-child feature, not a
+// dashboard task list, and there's no notes-on-the-dashboard concept in the
+// API) — adding them would mean fabricating fake content rather than
+// reskinning something real. Quick Actions deep-link into the Calendar page
+// (see CalendarPage's ?action= handling) rather than duplicating forms here.
 export function HomePage() {
   const { user, children } = useAuth();
   const navigate = useNavigate();
@@ -84,12 +90,28 @@ export function HomePage() {
       ]);
 
       const todaysOwnerId = rangeRes.custodyByDate[start] ?? null;
-      const owner = familyRes.members.find((m) => m.userId === todaysOwnerId);
-      const todaysOwnerName = owner
-        ? owner.userId === user?.id
-          ? "You"
-          : owner.firstName
-        : null;
+      const nameFor = (userId: string | null) => {
+        if (!userId) return null;
+        const member = familyRes.members.find((m) => m.userId === userId);
+        if (!member) return null;
+        return member.userId === user?.id ? "You" : member.firstName;
+      };
+      const todaysOwnerName = nameFor(todaysOwnerId);
+
+      // Next date (within the fetched 14-day window) the custody owner
+      // differs from today's — drives the mint card's "Until <date> ->
+      // <next parent>" handover line without inventing a time-of-day the
+      // API doesn't actually track.
+      const sortedDates = Object.keys(rangeRes.custodyByDate).sort();
+      let nextSwitch: DashboardData["nextSwitch"] = null;
+      for (const d of sortedDates) {
+        if (d <= start) continue;
+        const owner = rangeRes.custodyByDate[d] ?? null;
+        if (owner !== todaysOwnerId) {
+          nextSwitch = { date: d, ownerName: nameFor(owner) };
+          break;
+        }
+      }
 
       const now = Date.now();
       // Widened from the old "APPOINTMENT only" filter now that the old
@@ -112,6 +134,7 @@ export function HomePage() {
       return {
         plan: planRes.plan,
         todaysOwnerName,
+        nextSwitch,
         nextAppointment: nextAppointment
           ? { title: nextAppointment.title, startsAt: nextAppointment.startsAt }
           : null,
@@ -151,7 +174,7 @@ export function HomePage() {
       <section className="px-container-padding pt-6 flex flex-col gap-section-margin">
         <div className="flex flex-col gap-2">
           <h1 className="font-display-lg text-display-lg text-on-surface">
-            Hello, {user?.firstName ?? ""}
+            Hi {user?.firstName ?? ""},
           </h1>
           <p className="font-body-lg text-body-lg text-on-surface-variant">
             Welcome to KidCom.
@@ -176,7 +199,7 @@ export function HomePage() {
     <div className="flex flex-col w-full gap-section-margin">
       <section className="px-container-padding flex flex-col gap-2">
         <h1 className="font-display-lg text-display-lg text-on-surface">
-          Hello {user?.firstName ?? ""},
+          Hi {user?.firstName ?? ""},
         </h1>
         <p className="font-body-lg text-body-lg text-on-surface-variant">
           {child ? `${child.firstName}'s day looks bright!` : "Welcome to KidCom."}
@@ -208,31 +231,61 @@ export function HomePage() {
         </p>
       ) : (
         <>
-          <section className="px-container-padding grid grid-cols-2 gap-grid-gutter">
-            {/* Today's Custody */}
+          {/* Today's Custody — a mint/sage "handover" card, matching
+              docs/Themes/Aura/kidcom_today_screen_updated_note's split
+              trajectory card, built from the same custodyByDate/plan data
+              the old bento-grid tile used, just laid out as a handover
+              rather than a single "With <name>" line. */}
+          <section className="px-container-padding">
             <Link
               to="/calendar"
-              className="col-span-2 bg-primary-container rounded-[32px] p-6 flex flex-col justify-between relative overflow-hidden min-h-[140px] shadow-sm"
+              className="block bg-secondary-container rounded-[28px] p-5 shadow-sm"
             >
-              <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-primary/20 rounded-full blur-2xl" />
-              <div className="flex items-center gap-2 mb-4 relative z-10">
-                <div className="w-8 h-8 rounded-full bg-surface-container-lowest/50 flex items-center justify-center">
-                  <Icon name="home" className="text-on-primary-container text-sm" />
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex flex-col">
+                  <span className="font-label-sm text-label-sm text-on-secondary-container/70 uppercase tracking-wider">
+                    {data?.todaysOwnerName ? `${data.todaysOwnerName}'s` : "Today"}
+                  </span>
+                  <span className="font-headline-sm text-headline-sm text-on-secondary-container">Today</span>
                 </div>
-                <span className="font-label-md text-label-md text-on-primary-container">
-                  Today's Custody
+                <span className="font-micro-meta text-micro-meta uppercase tracking-wider bg-surface-container-lowest text-on-surface px-3 py-1 rounded-full shadow-sm">
+                  {data?.plan?.label ?? "No plan yet"}
                 </span>
+                <div className="flex flex-col items-end text-right">
+                  <span className="font-label-sm text-label-sm text-on-secondary-container/70 uppercase tracking-wider">
+                    {data?.nextSwitch?.ownerName ? `${data.nextSwitch.ownerName}'s` : "Next"}
+                  </span>
+                  <span className="font-headline-sm text-headline-sm text-on-secondary-container">
+                    {data?.nextSwitch
+                      ? new Date(data.nextSwitch.date).toLocaleDateString(undefined, { weekday: "short" })
+                      : "—"}
+                  </span>
+                </div>
               </div>
-              <div className="relative z-10">
-                <h2 className="font-headline-lg-mobile text-headline-lg-mobile text-on-primary-container mb-1">
-                  {data?.todaysOwnerName ? `With ${data.todaysOwnerName}` : "Not set yet"}
-                </h2>
-                <p className="font-label-sm text-label-sm text-on-primary-container/80 bg-surface-container-lowest/30 inline-flex px-3 py-1 rounded-full backdrop-blur-sm">
-                  {data?.plan?.label ?? "Set up a custody plan"}
-                </p>
+              <div className="mt-4 bg-surface-container-lowest rounded-2xl px-4 py-3 flex items-center justify-between shadow-sm">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-surface-container-low flex items-center justify-center shrink-0">
+                    <Icon name="calendar_month" className="text-on-surface-variant text-base" />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="font-title-md text-title-md text-on-surface">
+                      {data?.plan ? data.plan.label : "Set up a custody plan"}
+                    </span>
+                    <span className="font-label-sm text-label-sm text-on-surface-variant">
+                      {data?.nextSwitch
+                        ? `Until ${new Date(data.nextSwitch.date).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`
+                        : "No upcoming handover"}
+                    </span>
+                  </div>
+                </div>
+                <div className="w-8 h-8 rounded-full bg-primary text-on-primary flex items-center justify-center shrink-0">
+                  <Icon name="arrow_forward" className="text-sm" />
+                </div>
               </div>
             </Link>
+          </section>
 
+          <section className="px-container-padding grid grid-cols-2 gap-grid-gutter">
             {/* Next Appointment */}
             <Link
               to="/calendar"
@@ -319,20 +372,20 @@ export function HomePage() {
             </Link>
           </section>
 
-          <section className="px-container-padding flex gap-4 overflow-x-auto pb-4 snap-x">
-            <button
-              onClick={() => navigate("/calendar?action=add-event")}
-              className="snap-start flex-none flex items-center gap-2 bg-surface-container-lowest rounded-full py-3 px-5 shadow-sm border border-outline-variant/30 active:scale-95 transition-transform"
-            >
-              <Icon name="add_circle" className="text-primary" />
-              <span className="font-label-md text-label-md text-on-surface">Log Event</span>
-            </button>
+          <section className="px-container-padding flex flex-col gap-3">
             <button
               onClick={() => navigate("/calendar?action=swap")}
-              className="snap-start flex-none flex items-center gap-2 bg-surface-container-lowest rounded-full py-3 px-5 shadow-sm border border-outline-variant/30 active:scale-95 transition-transform"
+              className="w-full flex items-center justify-center gap-2 h-12 bg-primary text-on-primary rounded-full font-title-md text-title-md active:scale-[0.99] transition-transform"
             >
-              <Icon name="swap_horiz" className="text-tertiary" />
-              <span className="font-label-md text-label-md text-on-surface">Request Swap</span>
+              <Icon name="swap_horiz" className="text-lg" />
+              Request Swap
+            </button>
+            <button
+              onClick={() => navigate("/calendar?action=add-event")}
+              className="w-full flex items-center justify-center gap-2 h-11 bg-surface-container-lowest text-on-surface rounded-full font-label-md text-label-md shadow-sm border border-outline-variant/30 active:scale-[0.99] transition-transform"
+            >
+              <Icon name="add_circle" />
+              Log Event
             </button>
           </section>
         </>

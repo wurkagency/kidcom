@@ -126,7 +126,7 @@ export function OnboardingInvitePage() {
   }
 
   return (
-    <div className="flex flex-col w-full min-h-screen relative overflow-hidden bg-surface-beige">
+    <div className="flex flex-col w-full min-h-screen relative overflow-hidden bg-surface">
       <OnboardingSegments step={3} total={4} label="Almost there" />
 
       <div className="flex-1 flex flex-col px-container-padding pb-safe relative z-10">
@@ -150,7 +150,7 @@ export function OnboardingInvitePage() {
           <form onSubmit={handleSend} className="space-y-6 flex-1 flex flex-col justify-end pb-8">
             <div className="relative group">
               <label
-                className="absolute -top-2 left-4 px-1 bg-surface-beige text-label-sm font-label-sm text-primary z-10"
+                className="absolute -top-2 left-4 px-1 bg-surface text-label-sm font-label-sm text-primary z-10"
                 htmlFor="coparent-contact"
               >
                 Email Address
@@ -170,7 +170,7 @@ export function OnboardingInvitePage() {
 
             <div className="relative group">
               <label
-                className="absolute -top-2 left-4 px-1 bg-surface-beige text-label-sm font-label-sm text-primary z-10"
+                className="absolute -top-2 left-4 px-1 bg-surface text-label-sm font-label-sm text-primary z-10"
                 htmlFor="family-member-type"
               >
                 Relationship

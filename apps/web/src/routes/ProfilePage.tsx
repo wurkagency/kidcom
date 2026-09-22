@@ -143,7 +143,7 @@ function EditableIdentity() {
         className="flex flex-col items-center gap-1 mt-4 group"
       >
         <span className="flex items-center gap-1.5">
-          <h2 className="font-headline-lg-mobile text-headline-lg-mobile text-text-main">
+          <h2 className="font-headline-lg-mobile text-headline-lg-mobile text-on-surface">
             {user.firstName} {user.lastName}
           </h2>
           <Icon name="edit" className="text-outline text-[16px] group-hover:text-primary transition-colors" />
@@ -227,7 +227,7 @@ function SubscriptionCard() {
             <Icon name="workspace_premium" />
           </div>
           <div>
-            <h3 className="font-label-md text-label-md text-text-main">Subscription Plan</h3>
+            <h3 className="font-label-md text-label-md text-on-surface">Subscription Plan</h3>
             <p className="font-body-md text-[14px] leading-[20px] text-on-surface-variant">{tierLabel}</p>
           </div>
         </div>
@@ -243,7 +243,7 @@ function SubscriptionCard() {
           <div className="h-[1px] w-full bg-surface-container-highest my-3" />
           <div className="flex items-center justify-between">
             <p className="font-body-md text-[14px] leading-[20px] text-on-surface-variant">
-              Next billing date: <span className="font-medium text-text-main">{nextBilling}</span>
+              Next billing date: <span className="font-medium text-on-surface">{nextBilling}</span>
             </p>
           </div>
         </>
@@ -271,7 +271,7 @@ function NavRow({ to, icon, label }: { to: string; icon: string; label: string }
     >
       <div className="flex items-center gap-3">
         <Icon name={icon} className="text-on-surface-variant" />
-        <span className="font-body-md text-body-md text-text-main">{label}</span>
+        <span className="font-body-md text-body-md text-on-surface">{label}</span>
       </div>
       <Icon name="chevron_right" className="text-on-surface-variant" />
     </Link>
@@ -288,7 +288,7 @@ function ExternalRow({ href, icon, label }: { href: string; icon: string; label:
     >
       <div className="flex items-center gap-3">
         <Icon name={icon} className="text-on-surface-variant" />
-        <span className="font-body-md text-body-md text-text-main">{label}</span>
+        <span className="font-body-md text-body-md text-on-surface">{label}</span>
       </div>
       <Icon name="chevron_right" className="text-on-surface-variant" />
     </a>

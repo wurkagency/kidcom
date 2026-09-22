@@ -106,24 +106,111 @@ export default {
         ring: withOpacity("--color-primary"),
       },
       fontFamily: {
-        "display-lg": ["Plus Jakarta Sans"],
-        "headline-lg": ["Plus Jakarta Sans"],
-        "headline-lg-mobile": ["Plus Jakarta Sans"],
-        "headline-md": ["Plus Jakarta Sans"],
-        "label-md": ["Plus Jakarta Sans"],
-        "label-sm": ["Plus Jakarta Sans"],
-        "body-lg": ["Nunito Sans"],
-        "body-md": ["Nunito Sans"],
+        "display-lg": ["var(--font-heading)"],
+        "headline-lg": ["var(--font-heading)"],
+        "headline-lg-mobile": ["var(--font-heading)"],
+        "headline-md": ["var(--font-heading)"],
+        "headline-sm": ["var(--font-heading)"],
+        "title-md": ["var(--font-heading)"],
+        "label-md": ["var(--font-heading)"],
+        "label-sm": ["var(--font-heading)"],
+        "micro-meta": ["var(--font-heading)"],
+        "body-lg": ["var(--font-body)"],
+        "body-md": ["var(--font-body)"],
       },
+      // Every size/line-height/letter-spacing/weight resolves through a CSS
+      // custom property (src/index.css) so a skin can override its whole
+      // type scale at runtime, the same way colors/radii/spacing already
+      // do — see the "Per-skin type scale" comment there.
       fontSize: {
-        "display-lg": ["40px", { lineHeight: "48px", letterSpacing: "-0.02em", fontWeight: "700" }],
-        "headline-lg": ["32px", { lineHeight: "40px", fontWeight: "600" }],
-        "headline-lg-mobile": ["24px", { lineHeight: "32px", fontWeight: "600" }],
-        "headline-md": ["24px", { lineHeight: "32px", fontWeight: "600" }],
-        "body-lg": ["18px", { lineHeight: "28px", fontWeight: "400" }],
-        "body-md": ["16px", { lineHeight: "24px", fontWeight: "400" }],
-        "label-md": ["14px", { lineHeight: "20px", letterSpacing: "0.01em", fontWeight: "600" }],
-        "label-sm": ["12px", { lineHeight: "16px", fontWeight: "500" }],
+        "display-lg": [
+          "var(--text-display-lg)",
+          {
+            lineHeight: "var(--leading-display-lg)",
+            letterSpacing: "var(--tracking-display-lg)",
+            fontWeight: "var(--weight-display-lg)",
+          },
+        ],
+        "headline-lg": [
+          "var(--text-headline-lg)",
+          {
+            lineHeight: "var(--leading-headline-lg)",
+            letterSpacing: "var(--tracking-headline-lg)",
+            fontWeight: "var(--weight-headline-lg)",
+          },
+        ],
+        "headline-lg-mobile": [
+          "var(--text-headline-lg-mobile)",
+          {
+            lineHeight: "var(--leading-headline-lg-mobile)",
+            letterSpacing: "var(--tracking-headline-lg-mobile)",
+            fontWeight: "var(--weight-headline-lg-mobile)",
+          },
+        ],
+        "headline-md": [
+          "var(--text-headline-md)",
+          {
+            lineHeight: "var(--leading-headline-md)",
+            letterSpacing: "var(--tracking-headline-md)",
+            fontWeight: "var(--weight-headline-md)",
+          },
+        ],
+        "headline-sm": [
+          "var(--text-headline-sm)",
+          {
+            lineHeight: "var(--leading-headline-sm)",
+            letterSpacing: "var(--tracking-headline-sm)",
+            fontWeight: "var(--weight-headline-sm)",
+          },
+        ],
+        "title-md": [
+          "var(--text-title-md)",
+          {
+            lineHeight: "var(--leading-title-md)",
+            letterSpacing: "var(--tracking-title-md)",
+            fontWeight: "var(--weight-title-md)",
+          },
+        ],
+        "body-lg": [
+          "var(--text-body-lg)",
+          {
+            lineHeight: "var(--leading-body-lg)",
+            letterSpacing: "var(--tracking-body-lg)",
+            fontWeight: "var(--weight-body-lg)",
+          },
+        ],
+        "body-md": [
+          "var(--text-body-md)",
+          {
+            lineHeight: "var(--leading-body-md)",
+            letterSpacing: "var(--tracking-body-md)",
+            fontWeight: "var(--weight-body-md)",
+          },
+        ],
+        "label-md": [
+          "var(--text-label-md)",
+          {
+            lineHeight: "var(--leading-label-md)",
+            letterSpacing: "var(--tracking-label-md)",
+            fontWeight: "var(--weight-label-md)",
+          },
+        ],
+        "label-sm": [
+          "var(--text-label-sm)",
+          {
+            lineHeight: "var(--leading-label-sm)",
+            letterSpacing: "var(--tracking-label-sm)",
+            fontWeight: "var(--weight-label-sm)",
+          },
+        ],
+        "micro-meta": [
+          "var(--text-micro-meta)",
+          {
+            lineHeight: "var(--leading-micro-meta)",
+            letterSpacing: "var(--tracking-micro-meta)",
+            fontWeight: "var(--weight-micro-meta)",
+          },
+        ],
       },
       borderRadius: {
         sm: "var(--radius-sm)",

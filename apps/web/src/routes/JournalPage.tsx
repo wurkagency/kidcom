@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import type { JournalPostDto } from "@kidcom/shared";
 
 import { JournalPostCard } from "../components/JournalPostCard";
-import { Icon } from "../components/Icon";
 import { apiGet, ApiRequestError } from "../lib/api";
 import { useAuth } from "../lib/AuthContext";
 import { MediaGalleryTab } from "./MediaGalleryPage";
@@ -16,13 +15,15 @@ type ChildFeedState = {
   nextCursor: string | null;
 };
 
-// Matches docs/stitch_splitkid/journal_feed/code.html: a feed of posts for
-// the selected child (or all children), with a FAB opening the composer.
-// Same pill-tab pattern as MessagesPage (?tab=media) merges in the Media
-// Gallery as a second tab rather than a separate screen.
+// Matches docs/Themes/Aura/kidcom_moments_feed_1/code.html: a feed of posts
+// for the selected child (or all children). The composer used to be reached
+// through a page-local FAB here; that's now redundant with the global
+// QuickAddButton's "Add moment" (see AppShell.tsx) and was removed rather
+// than left stacked on top of it. Same pill-tab pattern as MessagesPage
+// (?tab=media) merges in the Media Gallery as a second tab rather than a
+// separate screen.
 export function JournalPage() {
   const { user, children } = useAuth();
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = searchParams.get("tab") === "media" ? "media" : "journal";
   const [filterChildId, setFilterChildId] = useState<string | "ALL">("ALL");
@@ -162,7 +163,7 @@ export function JournalPage() {
     return (
       <section className="px-container-padding pt-6 flex flex-col gap-2">
         <h1 className="font-headline-lg-mobile text-headline-lg-mobile text-on-surface">
-          Journal
+          Moments
         </h1>
         <p className="font-body-md text-body-md text-on-surface-variant">
           Add a child first to start sharing memories.
@@ -178,7 +179,7 @@ export function JournalPage() {
   return (
     <div className="flex flex-col w-full h-full pb-20 relative">
       <div className="px-container-padding py-section-margin flex items-center justify-between gap-2">
-        <h1 className="font-headline-lg text-headline-lg-mobile text-on-surface shrink-0">Journal</h1>
+        <h1 className="font-headline-lg text-headline-lg-mobile text-on-surface shrink-0">Moments</h1>
         {tab === "journal" && children.length > 1 && (
           <select
             value={filterChildId}
@@ -231,7 +232,7 @@ export function JournalPage() {
             )}
             {!loading && feed.length === 0 && (
               <p className="font-body-md text-body-md text-on-surface-variant">
-                No journal entries yet — tap + to share the first one.
+                No moments yet — use Add moment to share the first one.
               </p>
             )}
             {feed.map((post) => (
@@ -255,13 +256,6 @@ export function JournalPage() {
               </button>
             )}
           </div>
-
-          <button
-            onClick={() => navigate("/journal/new")}
-            className="fixed bottom-24 right-6 w-14 h-14 bg-primary text-on-primary rounded-full shadow-lg flex items-center justify-center hover:bg-surface-tint transition-colors z-40"
-          >
-            <Icon name="add" className="text-2xl" />
-          </button>
         </>
       )}
     </div>

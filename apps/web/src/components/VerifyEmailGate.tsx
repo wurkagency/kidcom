@@ -30,9 +30,9 @@ export function VerifyEmailGate() {
   }
 
   return (
-    <div className="flex flex-col w-full min-h-screen bg-surface-beige text-text-main items-center justify-center px-container-padding text-center gap-4">
+    <div className="flex flex-col w-full min-h-screen bg-surface text-on-surface items-center justify-center px-container-padding text-center gap-4">
       <Icon name="mark_email_unread" className="text-primary text-5xl" />
-      <h1 className="font-headline-lg-mobile text-headline-lg-mobile text-text-main">
+      <h1 className="font-headline-lg-mobile text-headline-lg-mobile text-on-surface">
         Verify your email
       </h1>
       <p className="font-body-md text-body-md text-on-surface-variant max-w-sm">

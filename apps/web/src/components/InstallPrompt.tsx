@@ -103,7 +103,7 @@ export function InstallPrompt() {
         <div className="flex items-start gap-3">
           <img src="/logo.svg" alt="" className="h-10 w-10 rounded-lg flex-shrink-0" />
           <div>
-            <h2 className="font-headline-md text-body-lg text-text-main font-semibold">
+            <h2 className="font-headline-md text-body-lg text-on-surface font-semibold">
               Add KidCom to your device
             </h2>
             <p className="font-body-md text-body-md text-on-surface-variant mt-1">

@@ -279,7 +279,7 @@ function PersonalNotesTab() {
               ) : (
                 <div className="pl-2">
                   <div className="flex justify-between items-start mb-2">
-                    <p className="font-body-md text-body-md text-text-main whitespace-pre-wrap flex-1">{note.text}</p>
+                    <p className="font-body-md text-body-md text-on-surface whitespace-pre-wrap flex-1">{note.text}</p>
                     <span className="font-label-sm text-on-surface-variant bg-surface-container px-2 py-1 rounded-full shrink-0 ml-2">
                       {new Date(note.updatedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
                     </span>

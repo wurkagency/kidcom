@@ -55,7 +55,7 @@ export function GrowthChart({
 
   if (points.length === 0) {
     return (
-      <div className="p-4 h-64 w-full bg-surface-beige/30 flex items-center justify-center">
+      <div className="p-4 h-64 w-full bg-surface/30 flex items-center justify-center">
         <p className="font-body-md text-body-md text-on-surface-variant text-center">
           Log a measurement to see the chart.
         </p>
@@ -169,7 +169,7 @@ export function GrowthChart({
   return (
     <div className="relative">
       <div
-        className="p-4 h-64 w-full bg-surface-beige/30 overflow-x-auto snap-x snap-mandatory"
+        className="p-4 h-64 w-full bg-surface/30 overflow-x-auto snap-x snap-mandatory"
         style={
           width > 300
             ? { maskImage: "linear-gradient(to right, transparent, black 12px, black calc(100% - 12px), transparent)" }
@@ -223,7 +223,7 @@ export function GrowthChart({
             })}
           </svg>
           <div
-            className="absolute bg-text-main text-surface-container-lowest px-2 py-1 rounded-lg shadow-md font-label-sm flex items-center gap-1"
+            className="absolute bg-on-surface text-surface-container-lowest px-2 py-1 rounded-lg shadow-md font-label-sm flex items-center gap-1"
             style={{ left: `${badgeLeftPct}%`, top: `${badgeTopPct}%` }}
           >
             <span>{formattedLast}</span>

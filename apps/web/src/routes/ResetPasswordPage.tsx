@@ -41,7 +41,7 @@ export function ResetPasswordPage() {
 
   if (!token) {
     return (
-      <div className="flex flex-col w-full min-h-screen bg-surface-beige text-text-main pb-safe px-container-padding py-6">
+      <div className="flex flex-col w-full min-h-screen bg-surface text-on-surface pb-safe px-container-padding py-6">
         <p className="font-body-md text-body-md text-error bg-error-container rounded-lg px-4 py-3">
           This reset link is invalid or missing its token.
         </p>
@@ -53,9 +53,9 @@ export function ResetPasswordPage() {
   }
 
   return (
-    <div className="flex flex-col w-full min-h-screen bg-surface-beige text-text-main pb-safe">
+    <div className="flex flex-col w-full min-h-screen bg-surface text-on-surface pb-safe">
       <header className="px-container-padding py-6">
-        <h1 className="font-headline-lg-mobile text-headline-lg-mobile text-text-main">Choose a new password</h1>
+        <h1 className="font-headline-lg-mobile text-headline-lg-mobile text-on-surface">Choose a new password</h1>
       </header>
 
       {done ? (

@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 
 import { Icon } from "./Icon";
 import { Avatar } from "./Avatar";
+import { HeaderChildCluster } from "./HeaderChildCluster";
 import { useAuth } from "../lib/AuthContext";
 import { useHeaderContextValue } from "../lib/HeaderContext";
 
@@ -10,21 +11,23 @@ import { useHeaderContextValue } from "../lib/HeaderContext";
 // never made it into AppShell — this fills that gap. Every in-app page now
 // renders through exactly one of three modes, decided by the current path:
 //
-// - Tab roots (the 5 bottom-nav destinations) get the full bar from the
+// - Tab roots (the 4 bottom-nav destinations) get the full bar from the
 //   mockups: app icon + tab title, a bell (-> /messages, the closest thing
 //   to a notification surface today — there's no notification inbox, see
-//   chunk 8's explicit scope), and an avatar (-> /profile).
+//   chunk 8's explicit scope), and a child-avatar cluster (-> /kids, see
+//   HeaderChildCluster.tsx — this replaced a plain self-avatar when the Kids
+//   tab moved off BottomNav in the Aura-driven nav restructuring).
 // - Child sub-pages (profile, medical, contacts) get the lighter
 //   back-chevron + title + avatar bar.
-// - Every other in-app page feeds this same lighter bar a title/back-target/
-//   optional right-side action via useHeaderConfig (see HeaderContext.tsx)
-//   instead of building its own local header.
+// - Every other in-app page (including /kids itself now) feeds this same
+//   lighter bar a title/back-target/optional right-side action via
+//   useHeaderConfig (see HeaderContext.tsx) instead of building its own
+//   local header.
 const TAB_TITLES: Record<string, string> = {
-  "/": "Dashboard",
+  "/": "Today",
   "/calendar": "Calendar",
-  "/journal": "Journal",
+  "/journal": "Moments",
   "/lists": "Lists",
-  "/kids": "Kids",
 };
 
 const CHILD_SUBPAGE_TITLES: Array<{ suffix: string; title: string }> = [
@@ -95,6 +98,7 @@ export function Header() {
             >
               <Icon name="notifications" className="text-on-surface-variant" />
             </Link>
+            <HeaderChildCluster children={children} />
             <Link to="/profile" aria-label="Profile">
               <Avatar name={user?.firstName ?? "?"} avatarAssetId={user?.avatarUrl} kind="adult" />
             </Link>

@@ -23,7 +23,7 @@ export function FormInput({ label, icon, id, type, ...inputProps }: FormInputPro
 
   return (
     <div className="flex flex-col gap-2">
-      <Label className="font-label-md text-label-md text-text-main ml-1" htmlFor={id}>
+      <Label className="font-label-md text-label-md text-on-surface ml-1" htmlFor={id}>
         {label}
       </Label>
       <div className="relative group">
@@ -37,7 +37,7 @@ export function FormInput({ label, icon, id, type, ...inputProps }: FormInputPro
           id={id}
           type={isPassword ? (revealed ? "text" : "password") : type}
           className={cn(
-            "w-full h-auto bg-surface-container-lowest text-text-main font-body-md text-body-md",
+            "w-full h-auto bg-surface-container-lowest text-on-surface font-body-md text-body-md",
             icon ? "pl-12" : "pl-4",
             isPassword ? "pr-12" : "pr-4",
             "py-4 rounded-xl border-0 outline-none transition-all focus-visible:ring-2 focus-visible:ring-primary shadow-sm"
@@ -49,7 +49,7 @@ export function FormInput({ label, icon, id, type, ...inputProps }: FormInputPro
             type="button"
             onClick={() => setRevealed((prev) => !prev)}
             aria-label={revealed ? "Hide password" : "Show password"}
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-outline hover:text-text-main transition-colors"
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-outline hover:text-on-surface transition-colors"
           >
             <Icon name={revealed ? "visibility_off" : "visibility"} />
           </button>

@@ -22,7 +22,7 @@ export function OnboardingProgress({
       </div>
       <div className="flex justify-between items-end">
         <div>
-          <h1 className="font-headline-lg-mobile text-headline-lg-mobile text-text-main">
+          <h1 className="font-headline-lg-mobile text-headline-lg-mobile text-on-surface">
             {title}
           </h1>
           <p className="font-body-md text-body-md text-on-surface-variant mt-1">{subtitle}</p>

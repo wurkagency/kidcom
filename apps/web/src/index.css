@@ -118,6 +118,71 @@
     --space-element-gap: 16px;
     --space-section-margin: 32px;
     --space-grid-gutter: 16px;
+
+    /* Per-skin type scale. Greenkeeper's numbers below are today's exact
+       values (zero visual change) — a skin overrides only what it wants to
+       change under `[data-skin="<id>"]`, same as colors/radii/spacing above.
+       headline-sm, title-md, and micro-meta are new roles introduced for
+       Aura; no component used them before, so their Greenkeeper defaults
+       just mirror Aura's own numbers rather than inventing an unrelated
+       Kindred Path value for a role nothing here ever rendered. */
+    --font-heading: "Plus Jakarta Sans";
+    --font-body: "Nunito Sans";
+
+    --text-display-lg: 40px;
+    --leading-display-lg: 48px;
+    --tracking-display-lg: -0.02em;
+    --weight-display-lg: 700;
+
+    --text-headline-lg: 32px;
+    --leading-headline-lg: 40px;
+    --tracking-headline-lg: normal;
+    --weight-headline-lg: 600;
+
+    --text-headline-lg-mobile: 24px;
+    --leading-headline-lg-mobile: 32px;
+    --tracking-headline-lg-mobile: normal;
+    --weight-headline-lg-mobile: 600;
+
+    --text-headline-md: 24px;
+    --leading-headline-md: 32px;
+    --tracking-headline-md: normal;
+    --weight-headline-md: 600;
+
+    --text-headline-sm: 20px;
+    --leading-headline-sm: 26px;
+    --tracking-headline-sm: -0.015em;
+    --weight-headline-sm: 600;
+
+    --text-title-md: 17px;
+    --leading-title-md: 22px;
+    --tracking-title-md: -0.01em;
+    --weight-title-md: 600;
+
+    --text-body-lg: 18px;
+    --leading-body-lg: 28px;
+    --tracking-body-lg: normal;
+    --weight-body-lg: 400;
+
+    --text-body-md: 16px;
+    --leading-body-md: 24px;
+    --tracking-body-md: normal;
+    --weight-body-md: 400;
+
+    --text-label-md: 14px;
+    --leading-label-md: 20px;
+    --tracking-label-md: 0.01em;
+    --weight-label-md: 600;
+
+    --text-label-sm: 12px;
+    --leading-label-sm: 16px;
+    --tracking-label-sm: normal;
+    --weight-label-sm: 500;
+
+    --text-micro-meta: 10px;
+    --leading-micro-meta: 12px;
+    --tracking-micro-meta: 0.08em;
+    --weight-micro-meta: 700;
   }
 
   /* Sky: light, airy, travel-inspired — pale mint/sage surfaces, near-black
@@ -262,6 +327,134 @@
     --radius-md: 0.75rem;
     --radius-lg: 1rem;
     --radius-xl: 1.5rem;
+  }
+
+  /* Aura: the "Haven Aura" design system (docs/Themes/Aura/haven_aura/
+     DESIGN.md) — porcelain canvas, sage-tinted mint cards, an obsidian
+     floating pill nav, and generous squircle radii. Near-monochrome:
+     primary/tertiary are true black, with sage used as the secondary
+     accent. Tokens it doesn't define (growth-green, journal-peach,
+     alert-soft-red, surface-beige, text-main, category-*) inherit
+     Greenkeeper's :root values, same as Sky and Architecture. */
+  [data-skin="aura"] {
+    --color-surface: 248 250 249;
+    --color-surface-dim: 216 218 218;
+    --color-surface-bright: 248 250 249;
+    --color-surface-container-lowest: 255 255 255;
+    --color-surface-container-low: 242 244 243;
+    --color-surface-container: 236 238 237;
+    --color-surface-container-high: 230 233 232;
+    --color-surface-container-highest: 225 227 226;
+    --color-on-surface: 25 28 28;
+    --color-on-surface-variant: 67 72 69;
+    --color-inverse-surface: 46 49 49;
+    --color-inverse-on-surface: 239 241 240;
+    --color-outline: 116 120 117;
+    --color-outline-variant: 196 199 196;
+    --color-surface-tint: 91 95 93;
+    --color-primary: 0 0 0;
+    --color-on-primary: 255 255 255;
+    --color-primary-container: 24 28 26;
+    --color-on-primary-container: 129 133 130;
+    --color-inverse-primary: 196 199 196;
+    --color-secondary: 85 97 93;
+    --color-on-secondary: 255 255 255;
+    --color-secondary-container: 216 229 224;
+    --color-on-secondary-container: 91 103 99;
+    --color-tertiary: 0 0 0;
+    --color-on-tertiary: 255 255 255;
+    --color-tertiary-container: 2 32 24;
+    --color-on-tertiary-container: 107 138 126;
+    --color-error: 186 26 26;
+    --color-on-error: 255 255 255;
+    --color-error-container: 255 218 214;
+    --color-on-error-container: 147 0 10;
+    --color-primary-fixed: 224 227 224;
+    --color-primary-fixed-dim: 196 199 196;
+    --color-on-primary-fixed: 24 28 26;
+    --color-on-primary-fixed-variant: 68 72 69;
+    --color-secondary-fixed: 216 229 224;
+    --color-secondary-fixed-dim: 188 201 197;
+    --color-on-secondary-fixed: 18 30 27;
+    --color-on-secondary-fixed-variant: 61 73 70;
+    --color-tertiary-fixed: 201 234 220;
+    --color-tertiary-fixed-dim: 173 206 192;
+    --color-on-tertiary-fixed: 2 32 24;
+    --color-on-tertiary-fixed-variant: 47 76 66;
+    --color-background: 248 250 249;
+    --color-on-background: 25 28 28;
+    --color-surface-variant: 225 227 226;
+
+    /* Obsidian floating pill nav — same mechanism as Sky's, darker and with
+       a wider, softer shadow per the doc's "Tier 3" elevation spec. Active
+       items get a faint white chip (bg-on-primary/15) rather than Sky's
+       fully opaque one. */
+    --color-nav-surface: 24 28 26;
+    --color-nav-icon: 129 133 130;
+    --color-nav-icon-active: 255 255 255;
+    --color-nav-active-chip: 255 255 255;
+    --nav-active-chip-opacity: 0.15;
+    --nav-radius: 9999px;
+    --nav-inset-x: 20px;
+    --nav-inset-bottom: 16px;
+    --nav-shadow: 0 12px 32px -6px rgba(22, 26, 24, 0.22);
+    --nav-label-opacity: 0;
+    --nav-label-max-height: 0px;
+
+    --radius-sm: 0.5rem;
+    --radius-default: 1rem;
+    --radius-md: 1.5rem;
+    --radius-lg: 2rem;
+    --radius-xl: 3rem;
+
+    /* Aura's brand rule is a single typeface everywhere, including body
+       copy — every other skin keeps Nunito Sans for body text. */
+    --font-body: "Plus Jakarta Sans";
+
+    --text-headline-lg: 34px;
+    --leading-headline-lg: 42px;
+    --tracking-headline-lg: -0.03em;
+    --weight-headline-lg: 700;
+
+    --text-headline-lg-mobile: 28px;
+    --leading-headline-lg-mobile: 34px;
+    --tracking-headline-lg-mobile: -0.025em;
+    --weight-headline-lg-mobile: 700;
+
+    --text-headline-md: 24px;
+    --leading-headline-md: 30px;
+    --tracking-headline-md: -0.02em;
+    --weight-headline-md: 700;
+
+    --text-headline-sm: 20px;
+    --leading-headline-sm: 26px;
+    --tracking-headline-sm: -0.015em;
+    --weight-headline-sm: 600;
+
+    --text-title-md: 17px;
+    --leading-title-md: 22px;
+    --tracking-title-md: -0.01em;
+    --weight-title-md: 600;
+
+    --text-body-lg: 16px;
+    --leading-body-lg: 24px;
+    --tracking-body-lg: normal;
+    --weight-body-lg: 400;
+
+    --text-body-md: 14px;
+    --leading-body-md: 20px;
+    --tracking-body-md: normal;
+    --weight-body-md: 400;
+
+    --text-label-md: 13px;
+    --leading-label-md: 18px;
+    --tracking-label-md: 0.01em;
+    --weight-label-md: 600;
+
+    --text-label-sm: 11px;
+    --leading-label-sm: 14px;
+    --tracking-label-sm: 0.04em;
+    --weight-label-sm: 600;
   }
 
   html,

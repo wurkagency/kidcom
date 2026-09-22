@@ -147,7 +147,7 @@ export function GrowthPage() {
             className="shadow-sm"
           />
           <div className="flex flex-col">
-            <h1 className="font-headline-lg-mobile text-text-main">{child.firstName}'s Growth</h1>
+            <h1 className="font-headline-lg-mobile text-on-surface">{child.firstName}'s Growth</h1>
             <p className="font-body-md text-on-surface-variant">{ageLabel(child.birthday)}</p>
           </div>
         </div>
@@ -156,14 +156,14 @@ export function GrowthPage() {
           <div className="bg-surface-container-lowest rounded-2xl p-4 shadow-sm flex flex-col items-center justify-center text-center">
             <Icon name="height" className="text-primary mb-1" />
             <span className="font-label-sm text-on-surface-variant uppercase tracking-wider">Height</span>
-            <span className="font-headline-md text-text-main mt-1">
+            <span className="font-headline-md text-on-surface mt-1">
               {latest?.heightCm != null ? formatHeight(latest.heightCm, units) : "—"}
             </span>
           </div>
           <div className="bg-surface-container-lowest rounded-2xl p-4 shadow-sm flex flex-col items-center justify-center text-center">
             <Icon name="scale" className="text-primary mb-1" />
             <span className="font-label-sm text-on-surface-variant uppercase tracking-wider">Weight</span>
-            <span className="font-headline-md text-text-main mt-1">
+            <span className="font-headline-md text-on-surface mt-1">
               {latestWeight?.weightKg != null ? formatWeight(latestWeight.weightKg, units) : "—"}
             </span>
           </div>
@@ -173,7 +173,7 @@ export function GrowthPage() {
       <section className="bg-surface-container-lowest rounded-2xl shadow-sm overflow-hidden">
         <div className="p-container-padding flex justify-between items-center border-b border-surface-variant/50">
           <div>
-            <h2 className="font-headline-md text-text-main">
+            <h2 className="font-headline-md text-on-surface">
               {metric === "height" ? "Height Chart" : isBmiMode ? "BMI-for-age" : "Weight Chart"}
             </h2>
             <p className="font-label-sm text-on-surface-variant mt-1">WHO Percentiles</p>
@@ -182,7 +182,7 @@ export function GrowthPage() {
             <button
               onClick={() => setMetric("height")}
               className={`px-3 py-1 rounded-full font-label-sm transition-all ${
-                metric === "height" ? "bg-surface-container-lowest text-text-main shadow-sm" : "text-on-surface-variant"
+                metric === "height" ? "bg-surface-container-lowest text-on-surface shadow-sm" : "text-on-surface-variant"
               }`}
             >
               cm
@@ -190,7 +190,7 @@ export function GrowthPage() {
             <button
               onClick={() => setMetric("weight")}
               className={`px-3 py-1 rounded-full font-label-sm transition-all ${
-                metric === "weight" ? "bg-surface-container-lowest text-text-main shadow-sm" : "text-on-surface-variant"
+                metric === "weight" ? "bg-surface-container-lowest text-on-surface shadow-sm" : "text-on-surface-variant"
               }`}
             >
               kg
@@ -201,7 +201,7 @@ export function GrowthPage() {
       </section>
 
       <section className="flex flex-col gap-element-gap mb-8">
-        <h3 className="font-headline-md text-text-main">Recent Logs</h3>
+        <h3 className="font-headline-md text-on-surface">Recent Logs</h3>
         {recentLogs.length === 0 && (
           <p className="font-body-md text-body-md text-on-surface-variant">
             No measurements logged yet.
@@ -230,7 +230,7 @@ export function GrowthPage() {
                     <Icon name="calendar_today" className="text-[20px]" />
                   </div>
                   <div className="min-w-0">
-                    <p className="font-label-md text-text-main">
+                    <p className="font-label-md text-on-surface">
                       {new Date(entry.measuredAt).toLocaleDateString(undefined, {
                         month: "short",
                         day: "numeric",
@@ -247,7 +247,7 @@ export function GrowthPage() {
                 <div className="flex items-center gap-2 shrink-0">
                   <div className="text-right">
                     {entry.heightCm != null && (
-                      <p className="font-label-md text-text-main">{formatHeight(entry.heightCm, units)}</p>
+                      <p className="font-label-md text-on-surface">{formatHeight(entry.heightCm, units)}</p>
                     )}
                     {entry.weightKg != null && (
                       <p className="font-label-sm text-on-surface-variant mt-0.5">{formatWeight(entry.weightKg, units)}</p>
@@ -292,7 +292,7 @@ export function GrowthPage() {
                 <Icon name="close" />
               </button>
             </div>
-            <label className="flex flex-col gap-1 font-label-md text-label-md text-text-main">
+            <label className="flex flex-col gap-1 font-label-md text-label-md text-on-surface">
               Date
               <input
                 type="date"
@@ -302,7 +302,7 @@ export function GrowthPage() {
                 required
               />
             </label>
-            <label className="flex flex-col gap-1 font-label-md text-label-md text-text-main">
+            <label className="flex flex-col gap-1 font-label-md text-label-md text-on-surface">
               Height (cm)
               <input
                 type="number"
@@ -312,7 +312,7 @@ export function GrowthPage() {
                 className="bg-surface-container-lowest rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary"
               />
             </label>
-            <label className="flex flex-col gap-1 font-label-md text-label-md text-text-main">
+            <label className="flex flex-col gap-1 font-label-md text-label-md text-on-surface">
               Weight (kg)
               <input
                 type="number"
@@ -386,7 +386,7 @@ function GrowthEntryEditForm({
       className="bg-surface-container rounded-xl p-4 flex flex-col gap-3 shadow-sm"
     >
       <div className="flex gap-3">
-        <label className="flex-1 flex flex-col gap-1 font-label-sm text-label-sm text-text-main">
+        <label className="flex-1 flex flex-col gap-1 font-label-sm text-label-sm text-on-surface">
           Date
           <input
             type="date"
@@ -398,7 +398,7 @@ function GrowthEntryEditForm({
         </label>
       </div>
       <div className="flex gap-3">
-        <label className="flex-1 flex flex-col gap-1 font-label-sm text-label-sm text-text-main">
+        <label className="flex-1 flex flex-col gap-1 font-label-sm text-label-sm text-on-surface">
           Height (cm)
           <input
             type="number"
@@ -408,7 +408,7 @@ function GrowthEntryEditForm({
             className="bg-surface-container-lowest rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-primary"
           />
         </label>
-        <label className="flex-1 flex flex-col gap-1 font-label-sm text-label-sm text-text-main">
+        <label className="flex-1 flex flex-col gap-1 font-label-sm text-label-sm text-on-surface">
           Weight (kg)
           <input
             type="number"
@@ -419,7 +419,7 @@ function GrowthEntryEditForm({
           />
         </label>
       </div>
-      <label className="flex flex-col gap-1 font-label-sm text-label-sm text-text-main">
+      <label className="flex flex-col gap-1 font-label-sm text-label-sm text-on-surface">
         Note
         <input
           value={note}

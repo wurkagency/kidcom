@@ -62,13 +62,13 @@ export function VerifyEmailPage() {
   }, [token]);
 
   return (
-    <div className="flex flex-col w-full min-h-screen bg-surface-beige text-text-main items-center justify-center px-container-padding text-center gap-4">
+    <div className="flex flex-col w-full min-h-screen bg-surface text-on-surface items-center justify-center px-container-padding text-center gap-4">
       {status === "checking" && (
         <p className="font-body-md text-body-md text-on-surface-variant">Verifying…</p>
       )}
       {status === "success" && (
         <>
-          <h1 className="font-headline-lg-mobile text-headline-lg-mobile text-text-main">
+          <h1 className="font-headline-lg-mobile text-headline-lg-mobile text-on-surface">
             Email verified
           </h1>
           <p className="font-body-md text-body-md text-on-surface-variant">
@@ -78,7 +78,7 @@ export function VerifyEmailPage() {
       )}
       {status === "error" && (
         <>
-          <h1 className="font-headline-lg-mobile text-headline-lg-mobile text-text-main">
+          <h1 className="font-headline-lg-mobile text-headline-lg-mobile text-on-surface">
             Link didn't work
           </h1>
           <p className="font-body-md text-body-md text-error">{message}</p>

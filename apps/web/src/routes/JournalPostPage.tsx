@@ -201,7 +201,7 @@ export function JournalPostPage() {
             </div>
             <MediaDetailGallery media={post.media} alt={post.title} />
             {post.text && (
-              <p className="font-body-md text-body-md text-text-main whitespace-pre-wrap">{post.text}</p>
+              <p className="font-body-md text-body-md text-on-surface whitespace-pre-wrap">{post.text}</p>
             )}
           </div>
         )}
@@ -275,7 +275,7 @@ export function JournalPostPage() {
                   </div>
                 </div>
               ) : (
-                <p className="font-body-md text-body-md text-text-main">{c.text}</p>
+                <p className="font-body-md text-body-md text-on-surface">{c.text}</p>
               )}
             </div>
           );

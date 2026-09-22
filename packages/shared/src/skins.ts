@@ -1,7 +1,7 @@
 // Per-user visual skin catalogue (v2.0 theming). Shared between apps/api
 // (validates PATCH /auth/me's skinId) and apps/web (applies it) so both
 // sides agree on the same fixed, pre-built set — no end-user authoring.
-export type SkinId = "greenkeeper" | "sky" | "architecture";
+export type SkinId = "greenkeeper" | "sky" | "architecture" | "aura";
 
 export type SkinDefinition = {
   id: SkinId;
@@ -19,6 +19,10 @@ export const SKINS: SkinDefinition[] = [
   // Avatar.tsx, AssignSheet.tsx) rather than this app's hand-rolled ones —
   // see docs/Themes/Spring Morning/DESIGN.md for the source design system.
   { id: "architecture", name: "Quiet Architecture" },
+  // Obsidian-and-porcelain palette with mint/sage accent cards and a
+  // floating pill nav — see docs/Themes/Aura/haven_aura/DESIGN.md (design
+  // system name "Haven Aura") for the source design system.
+  { id: "aura", name: "Aura" },
 ];
 
 export const DEFAULT_SKIN: SkinId = "greenkeeper";

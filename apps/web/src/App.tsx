@@ -23,6 +23,8 @@ import { EventFormPage } from "./routes/EventFormPage";
 import { EventDetailPage } from "./routes/EventDetailPage";
 import { JournalPostPage } from "./routes/JournalPostPage";
 import { JournalComposePage } from "./routes/JournalComposePage";
+import { MediaViewerPage } from "./routes/MediaViewerPage";
+import { MediaDownloadPage } from "./routes/MediaDownloadPage";
 import { ListsPage } from "./routes/ListsPage";
 import { ListItemFormPage } from "./routes/ListItemFormPage";
 import { ListItemDetailPage } from "./routes/ListItemDetailPage";
@@ -122,6 +124,8 @@ export default function App() {
               <Route path="/children/:childId/calendar-events/:eventId/edit" element={<EventFormPage />} />
               <Route path="/journal/new" element={<JournalComposePage />} />
               <Route path="/journal/media" element={<Navigate to="/journal?tab=media" replace />} />
+              <Route path="/journal/media/download" element={<MediaDownloadPage />} />
+              <Route path="/journal/:postId/media/:mediaId" element={<MediaViewerPage />} />
               <Route path="/journal/:postId" element={<JournalPostPage />} />
               <Route path="/messages" element={<MessagesPage />} />
               <Route path="/messages/new" element={<MessageComposePage />} />

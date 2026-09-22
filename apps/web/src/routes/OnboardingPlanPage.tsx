@@ -214,7 +214,7 @@ function PlanCard({
 
   if (plan.tier === "PARENTS") {
     return (
-      <div className="bg-surface-beige rounded-xl p-6 shadow-[0_8px_30px_rgba(50,105,67,0.08)] relative overflow-hidden ring-2 ring-primary">
+      <div className="bg-surface rounded-xl p-6 shadow-[0_8px_30px_rgba(50,105,67,0.08)] relative overflow-hidden ring-2 ring-primary">
         <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-bl-full pointer-events-none" />
         <div className="absolute top-0 right-6 bg-primary text-on-primary px-3 py-1 rounded-b-lg font-label-sm shadow-sm">
           Recommended

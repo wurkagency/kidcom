@@ -8,12 +8,14 @@ import { fetchMediaUrl } from "../lib/media";
 import { apiGet, ApiRequestError } from "../lib/api";
 import { useAuth } from "../lib/AuthContext";
 
-// Matches docs/stitch_splitkid/media_gallery/code.html: every photo/video
+// Matches docs/Themes/Aura/kidcom_media_gallery/code.html: every photo/video
 // across a family's journal posts, grouped by month, with type and
-// per-child filters and a real multi-select "Download N Selected" flow.
-// Rendered as the "Media Gallery" tab on JournalPage (same tab pattern as
-// Messages/Personal Notes) rather than its own screen — /journal/media
-// redirects to /journal?tab=media in App.tsx for any old links.
+// per-child filters and a multi-select flow that now hands off to
+// MediaDownloadPage (docs/Themes/Aura/kidcom_download_preview) instead of
+// firing browser downloads immediately. Rendered as the "Media Gallery" tab
+// on JournalPage (same tab pattern as Messages/Personal Notes) rather than
+// its own screen — /journal/media redirects to /journal?tab=media in
+// App.tsx for any old links.
 export function MediaGalleryTab() {
   const { children } = useAuth();
   const navigate = useNavigate();
@@ -24,7 +26,6 @@ export function MediaGalleryTab() {
   const [typeFilter, setTypeFilter] = useState<"ALL" | "IMAGE" | "VIDEO">("ALL");
   const [childFilter, setChildFilter] = useState<string | "ALL">("ALL");
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     if (children.length === 0) {
@@ -82,22 +83,10 @@ export function MediaGalleryTab() {
     });
   }
 
-  async function handleDownloadSelected() {
-    setDownloading(true);
-    try {
-      for (const item of items.filter((i) => selected.has(i.id))) {
-        const url = await fetchMediaUrl(item.id, item.type === "VIDEO" ? "original" : undefined);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `${item.id}.${item.type === "VIDEO" ? "mp4" : "jpg"}`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-      }
-      setSelected(new Set());
-    } finally {
-      setDownloading(false);
-    }
+  function handleReviewDownload() {
+    navigate("/journal/media/download", {
+      state: { items: items.filter((i) => selected.has(i.id)) },
+    });
   }
 
   if (children.length === 0) {
@@ -172,7 +161,9 @@ export function MediaGalleryTab() {
                   selected={selected.has(item.id)}
                   hasSelection={selected.size > 0}
                   onToggleSelect={() => toggleSelect(item.id)}
-                  onOpen={() => navigate(`/journal/${item.postId}?childId=${item.childIds[0]}`)}
+                  onOpen={() =>
+                    navigate(`/journal/${item.postId}/media/${item.id}?childId=${item.childIds[0]}`)
+                  }
                 />
               ))}
             </div>
@@ -183,12 +174,11 @@ export function MediaGalleryTab() {
       {selected.size > 0 && (
         <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-48px)] max-w-sm">
           <button
-            onClick={handleDownloadSelected}
-            disabled={downloading}
-            className="w-full h-14 bg-primary text-on-primary rounded-full shadow-lg flex items-center justify-center gap-2 font-label-md active:scale-95 transition-transform disabled:opacity-60"
+            onClick={handleReviewDownload}
+            className="w-full h-14 bg-primary text-on-primary rounded-full shadow-lg flex items-center justify-center gap-2 font-label-md active:scale-95 transition-transform"
           >
             <Icon name="download" />
-            {downloading ? "Downloading…" : `Download ${selected.size} Selected`}
+            {`Download ${selected.size} Selected`}
           </button>
         </div>
       )}
@@ -308,11 +298,15 @@ export function GalleryThumb({
       onKeyDown={(e) => {
         if (e.key === "Enter") (hasSelection ? onToggleSelect : onOpen)();
       }}
-      className="aspect-square rounded-xl overflow-hidden relative cursor-pointer select-none bg-surface-container touch-manipulation"
+      // rounded-2xl (a fixed 16px, not the --radius-xl token) deliberately —
+      // on a small ~100px grid tile, Aura's much larger --radius-xl (48px)
+      // reads as a circle instead of a squircle. A skin-independent radius
+      // keeps small tiles looking like rounded squares on every skin.
+      className="aspect-square rounded-2xl overflow-hidden relative cursor-pointer select-none bg-surface-container touch-manipulation"
       style={{ WebkitTouchCallout: "none", WebkitUserSelect: "none" }}
     >
       {selected && (
-        <div className="absolute inset-0 bg-primary/20 z-10 flex items-center justify-center border-4 border-primary rounded-xl">
+        <div className="absolute inset-0 bg-primary/20 z-10 flex items-center justify-center border-4 border-primary rounded-2xl">
           <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-on-primary shadow-md">
             <Icon name="check" className="text-[20px]" />
           </div>

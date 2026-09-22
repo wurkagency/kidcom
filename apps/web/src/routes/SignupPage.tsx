@@ -45,7 +45,7 @@ export function SignupPage() {
   }
 
   return (
-    <div className="flex flex-col w-full min-h-screen relative overflow-hidden bg-surface-beige text-text-main pb-safe">
+    <div className="flex flex-col w-full min-h-screen relative overflow-hidden bg-surface text-on-surface pb-safe">
       <OnboardingProgress step={1} title="Welcome" subtitle="Let's set up your account." />
       <form
         onSubmit={handleSubmit}

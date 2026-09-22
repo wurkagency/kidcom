@@ -125,8 +125,8 @@ export function ChildProfilePage() {
 
   return (
     <div className="flex flex-col w-full pb-8">
-      <div className="px-container-padding py-6 flex flex-col items-center justify-center relative bg-surface-beige text-on-surface">
-        <div className="relative mb-4 rounded-full shadow-[0_4px_16px_rgba(50,105,67,0.15)] ring-4 ring-surface-beige">
+      <div className="px-container-padding py-6 flex flex-col items-center justify-center relative bg-surface text-on-surface">
+        <div className="relative mb-4 rounded-full shadow-[0_4px_16px_rgba(50,105,67,0.15)] ring-4 ring-surface">
           <AvatarUpload
             currentAssetId={child.profileImageUrl}
             fallbackLetter={child.firstName.charAt(0)}
@@ -427,7 +427,7 @@ function ChildEditForm({
       className="bg-surface-container-lowest rounded-xl p-4 shadow-sm flex flex-col gap-3"
     >
       <div className="flex gap-3">
-        <label className="flex-1 flex flex-col gap-1 font-label-md text-label-md text-text-main">
+        <label className="flex-1 flex flex-col gap-1 font-label-md text-label-md text-on-surface">
           First name
           <input
             value={firstName}
@@ -436,7 +436,7 @@ function ChildEditForm({
             required
           />
         </label>
-        <label className="flex-1 flex flex-col gap-1 font-label-md text-label-md text-text-main">
+        <label className="flex-1 flex flex-col gap-1 font-label-md text-label-md text-on-surface">
           Last name
           <input
             value={lastName}
@@ -445,7 +445,7 @@ function ChildEditForm({
           />
         </label>
       </div>
-      <label className="flex flex-col gap-1 font-label-md text-label-md text-text-main">
+      <label className="flex flex-col gap-1 font-label-md text-label-md text-on-surface">
         Gender
         <select
           value={gender}
@@ -457,7 +457,7 @@ function ChildEditForm({
           <option value="OTHER">Other</option>
         </select>
       </label>
-      <label className="flex flex-col gap-1 font-label-md text-label-md text-text-main">
+      <label className="flex flex-col gap-1 font-label-md text-label-md text-on-surface">
         Birthday
         <input
           type="date"
@@ -467,7 +467,7 @@ function ChildEditForm({
           required
         />
       </label>
-      <label className="flex flex-col gap-1 font-label-md text-label-md text-text-main">
+      <label className="flex flex-col gap-1 font-label-md text-label-md text-on-surface">
         Height (cm)
         <input
           type="number"
@@ -478,7 +478,7 @@ function ChildEditForm({
         />
       </label>
       <div className="flex gap-3">
-        <label className="flex-1 flex flex-col gap-1 font-label-md text-label-md text-text-main">
+        <label className="flex-1 flex flex-col gap-1 font-label-md text-label-md text-on-surface">
           Clothing size
           <input
             value={clothingSize}
@@ -486,7 +486,7 @@ function ChildEditForm({
             className="bg-surface-container rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary"
           />
         </label>
-        <label className="flex-1 flex flex-col gap-1 font-label-md text-label-md text-text-main">
+        <label className="flex-1 flex flex-col gap-1 font-label-md text-label-md text-on-surface">
           Shoe size
           <input
             value={shoeSize}

@@ -226,7 +226,7 @@ export function OnboardingChildPage() {
         />
 
         <div className="flex flex-col gap-1.5">
-          <label className="font-label-md text-label-md text-text-main" id="gender-label">
+          <label className="font-label-md text-label-md text-on-surface" id="gender-label">
             Gender (Optional)
           </label>
           <div
@@ -241,7 +241,7 @@ export function OnboardingChildPage() {
                 onClick={() => setGender(g.value)}
                 className={`flex-1 py-2 font-label-md text-label-md rounded-lg transition-colors text-center ${
                   gender === g.value
-                    ? "bg-surface-container-lowest text-text-main shadow-sm"
+                    ? "bg-surface-container-lowest text-on-surface shadow-sm"
                     : "text-on-surface-variant"
                 }`}
               >
@@ -294,7 +294,7 @@ export function OnboardingChildPage() {
                 <Icon name="family_restroom" className="text-sm" />
               </div>
               <div>
-                <h3 className="font-label-md text-label-md text-text-main">
+                <h3 className="font-label-md text-label-md text-on-surface">
                   {firstName || "This child"}'s parent
                 </h3>
                 <p className="text-sm text-on-surface-variant leading-tight">
@@ -348,7 +348,7 @@ export function OnboardingChildPage() {
               <Icon name="checkroom" className="text-sm" />
             </div>
             <div>
-              <h3 className="font-label-md text-label-md text-text-main">Current Sizes</h3>
+              <h3 className="font-label-md text-label-md text-on-surface">Current Sizes</h3>
               <p className="text-sm text-on-surface-variant leading-tight">
                 Helpful for grandparents &amp; co-parents
               </p>
@@ -390,7 +390,7 @@ export function OnboardingChildPage() {
           <button
             type="button"
             onClick={() => navigate(isAddingAnother ? "/kids" : "/")}
-            className="w-full py-3 text-on-surface-variant font-label-md text-label-md hover:text-text-main transition-colors text-center"
+            className="w-full py-3 text-on-surface-variant font-label-md text-label-md hover:text-on-surface transition-colors text-center"
           >
             {isAddingAnother ? "Cancel" : "I'll add this later"}
           </button>

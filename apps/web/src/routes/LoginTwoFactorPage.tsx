@@ -89,12 +89,12 @@ export function LoginTwoFactorPage() {
   }
 
   return (
-    <div className="flex flex-col w-full min-h-screen bg-surface-beige text-text-main pb-safe">
+    <div className="flex flex-col w-full min-h-screen bg-surface text-on-surface pb-safe">
       <header className="px-container-padding py-6">
         <div className="w-12 h-12 rounded-full bg-primary-container/20 text-primary flex items-center justify-center mb-4">
           <Icon name="lock" />
         </div>
-        <h1 className="font-headline-lg-mobile text-headline-lg-mobile text-text-main">
+        <h1 className="font-headline-lg-mobile text-headline-lg-mobile text-on-surface">
           Enter verification code
         </h1>
         <p className="font-body-md text-body-md text-on-surface-variant mt-1">
@@ -103,7 +103,7 @@ export function LoginTwoFactorPage() {
       </header>
       <form onSubmit={handleSubmit} className="flex-1 px-container-padding py-4 flex flex-col gap-6">
         <div className="flex flex-col gap-2">
-          <label className="font-label-md text-label-md text-text-main ml-1" htmlFor="two-factor-code">
+          <label className="font-label-md text-label-md text-on-surface ml-1" htmlFor="two-factor-code">
             Verification Code
           </label>
           <input
@@ -116,7 +116,7 @@ export function LoginTwoFactorPage() {
             value={code}
             onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
             required
-            className="w-full bg-surface-container-lowest text-text-main font-mono text-center text-2xl tracking-[0.5em] py-4 rounded-xl outline-none transition-all focus:ring-2 focus:ring-primary shadow-sm"
+            className="w-full bg-surface-container-lowest text-on-surface font-mono text-center text-2xl tracking-[0.5em] py-4 rounded-xl outline-none transition-all focus:ring-2 focus:ring-primary shadow-sm"
           />
         </div>
         {error && (

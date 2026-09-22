@@ -178,7 +178,7 @@ export function ChildMedicalPage() {
 
   return (
     <div className="flex flex-col w-full pb-8">
-      <div className="px-container-padding py-section-margin bg-surface-beige shadow-sm">
+      <div className="px-container-padding py-section-margin bg-surface shadow-sm">
         <div className="flex items-center gap-element-gap">
           <div className="relative w-16 h-16 rounded-full overflow-hidden shadow-sm bg-surface-container-high flex items-center justify-center">
             <Icon name="child_care" className="text-2xl text-on-surface-variant" />

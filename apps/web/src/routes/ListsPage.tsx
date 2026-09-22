@@ -9,8 +9,10 @@ import { ListItemImage } from "../components/ListItemImage";
 import { apiDelete, apiGet, apiPatch, ApiRequestError } from "../lib/api";
 import { useAuth } from "../lib/AuthContext";
 
-// Matches docs/stitch_splitkid/shared_lists/code.html: a two-tab
-// Necessities/Wishlist screen with a sliding pill switcher and a single FAB.
+// Matches docs/Themes/Aura/kidcom_lists/code.html: a two-tab
+// Necessities/Wishlist screen with a sliding pill switcher. The page-local
+// "add item" FAB this used to have is now redundant with the global
+// QuickAddButton's "Add list item" (see AppShell.tsx) and was removed.
 // Necessities support real assignment (any family member can assign/reassign
 // an item to any other family member — ListItem.assignedToId). Wishlist keeps
 // the existing self-claim mechanic, relabeled "Reserve" per the mockup.
@@ -210,15 +212,6 @@ export function ListsPage() {
               />
             ))}
       </div>
-
-      {childId && (
-        <button
-          onClick={() => navigate(`/children/${childId}/lists/new?type=${tab}`)}
-          className="fixed bottom-24 right-container-padding w-14 h-14 bg-primary text-on-primary rounded-full shadow-lg flex items-center justify-center hover:bg-surface-tint active:scale-95 transition-transform z-40"
-        >
-          <Icon name="add" className="text-[28px]" />
-        </button>
-      )}
 
       {assigningItem && (
         <AssignSheet

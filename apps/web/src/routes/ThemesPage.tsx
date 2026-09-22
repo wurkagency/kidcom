@@ -16,6 +16,7 @@ const TAGLINES: Partial<Record<SkinId, string>> = {
   greenkeeper: "The original KidCom look — warm greens, soft cards.",
   sky: "Airy and travel-inspired, with a floating pill nav.",
   architecture: "Quiet, Danish-functionalist calm — spruce and clay tones.",
+  aura: "Porcelain and obsidian, with sage-mint cards and a floating dock.",
 };
 
 // Replaces the old plain-text /preferences/skin list (SettingsChoicePage)

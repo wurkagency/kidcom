@@ -5,7 +5,7 @@ export function WelcomePage() {
   const navigate = useNavigate();
 
   return (
-    <div className="flex flex-col w-full min-h-screen bg-surface-beige relative overflow-hidden font-body-md text-text-main">
+    <div className="flex flex-col w-full min-h-screen bg-surface relative overflow-hidden font-body-md text-on-surface">
       <div className="absolute -top-[15%] -left-[10%] w-[120%] h-[60%] bg-gradient-to-b from-primary-fixed-dim/20 to-transparent rounded-[100%] blur-3xl opacity-60 z-0" />
       <div className="relative z-10 flex flex-col flex-1 px-container-padding pb-safe pt-section-margin">
         <div className="flex-1 flex flex-col items-center justify-center space-y-element-gap mt-8">

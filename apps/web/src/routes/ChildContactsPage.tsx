@@ -191,7 +191,7 @@ export function ChildContactsPage() {
               >
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-12 h-12 rounded-xl bg-surface-container-highest flex items-center justify-center text-primary shrink-0">
+                    <div className="w-12 h-12 rounded-2xl bg-surface-container-highest flex items-center justify-center text-primary shrink-0">
                       <Icon name="stethoscope" className="text-[28px]" />
                     </div>
                     <div className="min-w-0">
