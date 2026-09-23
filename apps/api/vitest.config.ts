@@ -9,5 +9,9 @@ export default defineConfig({
     // testUtils/db.ts's per-test truncate) — running files in parallel
     // workers would race each other's resetDb() calls.
     fileParallelism: false,
+    // Child processes rather than worker threads: under Node 24 on Windows a
+    // native module (Prisma engine / sharp) segfaults the shared thread pool
+    // (0xC0000005). Forks contain it to one file; see tasks/todo.md.
+    pool: "forks",
   },
 });

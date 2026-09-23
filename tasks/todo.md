@@ -1,7 +1,8 @@
 # KidCom v3.0 — build tracker
 
 Branch: `v3.0` (from `master` @ ee2174c). Design source of truth: `docs/design/aura/`
-(Stitch exports; header + dock always from `000_base_scaffold`). Full plan and decisions:
+(Stitch exports; header + dock always from `000_base_scaffold`; `kidcom_messages_1` = inbox,
+`kidcom_calendar_5` = thread). Full plan and decisions:
 see "Decisions" below.
 
 ## Decisions (signed off by Charlie, 2026-09-23)
@@ -31,8 +32,15 @@ see "Decisions" below.
       after the repo move) via `npm install`
 - [x] Baseline without DB: `npm run typecheck` 0 errors; `packages/shared` 27/27 tests;
       `apps/web` 27/27 tests (7 files)
-- [ ] Baseline API suites (`npm test --workspace=apps/api`) — **blocked: no Postgres/Redis
-      on this machine (Docker not installed)**
+- [x] Baseline API suites against Docker `splitkid-dev` Postgres/Redis (`splitkid_test` DB
+      migrated): **25/25 files, 144/144 tests pass** (two consecutive clean runs)
+  - Known env flake: Node 24 on Windows intermittently segfaults a vitest worker
+    (0xC0000005, native module). Default threads pool crashes immediately → switched to
+    `pool: "forks"`; still ~1 in 2 runs loses one random file ("Worker exited
+    unexpectedly"). Re-run when it happens; production uses Node 20. Consider pinning
+    local Node 20 (nvm-windows) to eliminate it.
+- Dev DB (`splitkid`) is 2 migrations behind (`migrate_users_to_aura_skin`,
+  `user_terms_accepted_at`) — applied with `migrate deploy` when dev server is first booted
 - [x] Remove placeholder route READMEs, fix stale DEPLOYMENT.md / tasks/todo.md refs
 - [x] Delete `packages/db/prisma/migration_calendar_redesign.sql` (already covered by
       migration `20260908222540_calendar_event_checklist_confirmation`)
@@ -60,7 +68,6 @@ see "Decisions" below.
 ## Phase 8 — Hardening, remove web-legacy, full regression, push
 
 ## Needed from Charlie
-- Local Postgres 16 + Redis 7 (Docker Desktop or native) to run API suites and migrations
 - Google + Microsoft OAuth client IDs/redirect URIs (Phase 2)
 - Brevo API key + SMS sender name (Phase 2)
 - QuickPay test-card credentials (Phase 7)
