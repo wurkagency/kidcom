@@ -405,6 +405,12 @@ export function ChildMedicalPage() {
                     {item.description && (
                       <p className="font-label-sm text-label-sm text-on-surface-variant">{item.description}</p>
                     )}
+                    {item.provider && (
+                      <p className="flex items-center gap-1 font-micro-meta text-micro-meta text-on-surface-variant">
+                        <Icon name="local_hospital" className="text-[12px]" />
+                        {item.provider}
+                      </p>
+                    )}
                     <input
                       type="date"
                       value={item.plannedAt ? item.plannedAt.slice(0, 10) : ""}

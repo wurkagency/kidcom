@@ -12,12 +12,12 @@ import { ChildSelector } from "./ChildSelector";
 import { EventCard } from "./EventCard";
 import { ViewTabs } from "./ViewTabs";
 
-// Matches docs/stitch_splitkid/calendar_list_view: a combined "Showing
-// Schedule For:" + freshness card with the view tabs inside it, one
-// top-level month headline + today/prev/next nav bar (the mockup repeats
-// nav buttons per date-group header, which doesn't make sense to
-// replicate literally for a real data-driven list — one shared nav is
-// used instead), the Categories filter dropdown, and a flat list grouped
+// Matches docs/Themes/Aura/kidcom_calendar_3 (the Agenda/List view): the
+// compact child selector (ChildSelector.tsx) + view tabs, one top-level
+// month headline + today/prev/next nav bar (the mockup repeats nav buttons
+// per date-group header, which doesn't make sense to replicate literally
+// for a real data-driven list — one shared nav is used instead), the
+// Categories filter dropdown, and a flat list grouped
 // by date under headers badged "With Dad"/"With Mom"/"Custody Handover
 // Day". The mockup's floating FAB is dropped — CalendarShell's shared
 // "Add Appointment / Event" button (placed above the swap card) covers it.

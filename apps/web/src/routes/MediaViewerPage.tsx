@@ -5,6 +5,7 @@ import type { JournalPostDto } from "@kidcom/shared";
 import { Avatar } from "../components/Avatar";
 import { Icon } from "../components/Icon";
 import { apiGet, ApiRequestError } from "../lib/api";
+import { useAuth } from "../lib/AuthContext";
 import { fetchMediaUrl, mediaUrl, releaseMediaUrl } from "../lib/media";
 
 // Full-screen media viewer/player from docs/Themes/Aura/
@@ -29,13 +30,16 @@ export function MediaViewerPage() {
   const navigate = useNavigate();
   const childId = searchParams.get("childId");
 
+  const { children } = useAuth();
   const [post, setPost] = useState<JournalPostDto | undefined>(
     () => (location.state as { post?: JournalPostDto } | null)?.post
   );
   const [posterUrl, setPosterUrl] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
+  const [muted, setMuted] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [detailsExpanded, setDetailsExpanded] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [progress, setProgress] = useState({ current: 0, duration: 0 });
 
@@ -127,7 +131,7 @@ export function MediaViewerPage() {
             <Icon name="arrow_back" className="text-[20px]" />
           </button>
           <div className="px-3 py-1 rounded-full bg-white/10 backdrop-blur-md text-white font-label-md text-label-md flex items-center gap-1.5">
-            <Icon name={current.type === "VIDEO" ? "videocam" : "image"} className="text-[15px]" />
+            <Icon name={current.type === "VIDEO" ? "videocam" : "photo_library"} className="text-[15px]" />
             <span>
               {index + 1} of {media.length}
             </span>
@@ -144,9 +148,9 @@ export function MediaViewerPage() {
       </div>
 
       {/* Media stage */}
-      <div className="relative w-full flex-1 flex items-center justify-center overflow-hidden">
+      <div className="relative w-full flex-1 flex items-center justify-center overflow-hidden my-2 mx-0.5 rounded-2xl bg-black/50 shadow-2xl">
         {!posterUrl ? (
-          <div className="w-full h-full bg-inverse-surface animate-pulse" />
+          <div className="w-full h-full bg-inverse-surface animate-pulse rounded-2xl" />
         ) : current.type === "VIDEO" ? (
           <div className="relative w-full aspect-video bg-black flex items-center justify-center">
             <video
@@ -197,8 +201,14 @@ export function MediaViewerPage() {
                   </span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <button onClick={() => videoRef.current && (videoRef.current.muted = !videoRef.current.muted)}>
-                    <Icon name="volume_up" className="text-[18px]" />
+                  <button
+                    onClick={() => {
+                      if (!videoRef.current) return;
+                      videoRef.current.muted = !videoRef.current.muted;
+                      setMuted(videoRef.current.muted);
+                    }}
+                  >
+                    <Icon name={muted ? "volume_off" : "volume_up"} className="text-[18px]" />
                   </button>
                   <button onClick={() => videoRef.current?.requestFullscreen?.()}>
                     <Icon name="fullscreen" className="text-[18px]" />
@@ -208,7 +218,20 @@ export function MediaViewerPage() {
             </div>
           </div>
         ) : (
-          <img src={posterUrl} alt={post?.title ?? ""} className="w-full h-full object-contain select-none" />
+          <img src={posterUrl} alt={post?.title ?? ""} className="w-full h-full object-cover select-none" />
+        )}
+
+        {media.length > 1 && (
+          <div className="absolute bottom-3 inset-x-0 flex items-center justify-center gap-1.5 pointer-events-none">
+            {media.map((m, i) => (
+              <span
+                key={m.id}
+                className={`h-1.5 rounded-full transition-all ${
+                  i === index ? "w-5 bg-secondary-container" : "w-1.5 bg-white/40"
+                }`}
+              />
+            ))}
+          </div>
         )}
 
         {index > 0 && (
@@ -231,27 +254,55 @@ export function MediaViewerPage() {
         )}
       </div>
 
-      {media.length > 1 && (
-        <div className="flex items-center justify-center gap-1.5 py-2.5">
-          {media.map((m, i) => (
-            <span
-              key={m.id}
-              className={`h-1.5 rounded-full transition-all ${
-                i === index ? "w-5 bg-secondary-container" : "w-1.5 bg-white/40"
-              }`}
-            />
-          ))}
-        </div>
+      {/* Collapsed footer (default) — matches docs/Themes/Aura/kidcom_preview's
+          chrome: a real child chip, timestamp, title, and author over the
+          media, with no white sheet. Tapping it expands to the full sheet
+          below (kidcom_media_viewer_player's state), rather than the sheet
+          always being open. */}
+      {post && !detailsExpanded && (
+        <button
+          onClick={() => setDetailsExpanded(true)}
+          className="w-full flex flex-col gap-2.5 z-20 pt-2 pb-4 px-margin bg-gradient-to-t from-black/90 via-black/70 to-transparent text-left"
+        >
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              {post.childIds[0] &&
+                (() => {
+                  const child = children.find((c) => c.id === post.childIds[0]);
+                  return child ? (
+                    <span className="px-2.5 py-0.5 rounded-full bg-secondary-container/20 text-secondary-container border border-secondary-container/30 font-label-sm text-[11px] font-semibold flex items-center gap-1">
+                      <Avatar name={child.firstName} avatarAssetId={child.profileImageUrl} kind="child" size="xs" />
+                      <span>{child.firstName}</span>
+                    </span>
+                  ) : null;
+                })()}
+            </div>
+            <div className="flex items-center gap-1 text-white/60 text-xs">
+              <Icon name="schedule" className="text-[14px]" />
+              <span>{new Date(post.createdAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}</span>
+            </div>
+          </div>
+          <div>
+            <h2 className="font-title-md text-title-md text-white font-semibold leading-tight tracking-tight">
+              {post.title}
+            </h2>
+            <p className="font-label-sm text-xs text-white/70 mt-1">By {post.authorName}</p>
+          </div>
+        </button>
       )}
 
       {/* Bottom info sheet */}
-      {post && (
+      {post && detailsExpanded && (
         <div className="w-full bg-surface-container-lowest text-on-surface rounded-t-[28px] p-space-lg flex flex-col gap-space-md shadow-2xl pb-safe">
-          <div className="w-10 h-1 rounded-full bg-outline-variant mx-auto -mt-1" />
+          <button
+            aria-label="Collapse details"
+            onClick={() => setDetailsExpanded(false)}
+            className="w-10 h-1 rounded-full bg-outline-variant mx-auto -mt-1"
+          />
           <div className="flex items-center justify-between gap-2">
             <h2 className="font-headline-sm text-headline-sm text-on-surface leading-tight flex-1">{post.title}</h2>
             <button
-              aria-label="Close details"
+              aria-label="Close"
               onClick={close}
               className="w-9 h-9 rounded-full bg-surface-container flex items-center justify-center text-on-surface active:scale-95 transition-all shrink-0"
             >

@@ -23,9 +23,9 @@ Success is transparent day-to-day coordination between households (custody, medi
 
 ## Positioning
 
-Unlike traditional co-parenting tools built around legal contention, conflict logging, or courtroom documentation, SplitKid is deliberately not conflict-focused — it treats the child's needs and memories as the organizing principle instead. Confirmed as durable, cross-skin product positioning (2026-09-22), independent of which visual skin is active.
+Unlike traditional co-parenting tools built around legal contention, conflict logging, or courtroom documentation, SplitKid is deliberately not conflict-focused — it treats the child's needs and memories as the organizing principle instead. Confirmed as durable product positioning (2026-09-22).
 
-Note: individual skins may add their own emotional register on top of this (e.g. Quiet Architecture's and Aura's design docs both separately describe a "calm, de-escalating" visual language) — that tone is scoped to those skins' own design docs, confirmed **not** to be a cross-skin product requirement every future skin must inherit.
+Note: Aura's design doc separately describes its own "calm, de-escalating" visual language — that tone is Aura's own design decision, not a separate cross-skin product requirement (the theme system is now single-skin — see Capabilities and Constraints — so this distinction is largely moot going forward, but the underlying positioning claim doesn't depend on which theme exists).
 
 ## Operating Context
 
@@ -42,14 +42,14 @@ Note: individual skins may add their own emotional register on top of this (e.g.
 - **Denmark-specific data**: Danish public holidays auto-populate the calendar; the medical milestone schedule currently seeded is Denmark's (`countryCode: "DK"`, `packages/db/prisma/seed.ts`) — other countries' schedules are an open gap, not yet built.
 - **GDPR / minor data**: medical info (condition/description/emergencyNote) is encrypted at rest (Art. 9 special-category data about a minor) — see `apps/api/src/lib/medicalEncryption.ts`. Data export/anonymization is a stated requirement per the PRD.
 - **Subscription tiers** (DKK): Father/Mother (free, 1 child, basic features), Parents (29 DKK/mo, full 2-parent collaboration), Family (59 DKK/mo, unlimited children + extended family). See the roles/subscription spec under Evidence on Hand for the fuller permissions model.
-- **Multi-skin theming is a durable, user-facing product feature** (confirmed 2026-09-22), not a transitional migration toward one final look. Users pick their own skin in Settings → Themes; today's skins are Greenkeeper (default), Sky, Quiet Architecture, and Aura. New skins are expected to keep appearing over time as real, permanently-selectable options, not one-off experiments to be torn down later.
+- **Single theme of truth: Aura** (superseded 2026-09-22 — reverses the prior "durable multi-skin theming" decision recorded the same day). Greenkeeper, Sky, and Quiet Architecture were archived (fully removed from `packages/shared/src/skins.ts` and `apps/web/src/index.css`); Aura is the only skin and the default for every account, including a one-time data migration (`packages/db/prisma/migrations/20260922120000_migrate_users_to_aura_skin`) moving existing accounts off their prior skin. Settings → Themes is now a read-only "about this theme" screen, not a switcher. `SkinId`/`SKINS`/`isSkinId` still exist in `packages/shared` (a single-entry union) so the account-level `skinId` field and its API validation don't need to change shape if theming is ever revisited — but there is currently no product intent to add another skin.
 - **Web/PWA only** — no native app is currently planned; "mobile" means the responsive/PWA web experience, not a native build.
 - **Storage**: media currently lives on local disk (`MEDIA_STORAGE_PATH`) behind a `MediaStorage` interface specifically so it can move to S3-compatible object storage later without touching route/worker code — that move hasn't happened yet.
 
 ## Brand Commitments
 
 - The project/legal name is **SplitKid**; the in-product brand name shown to users is **KidCom** ("Kidcom" in some copy) — both names are correct and refer to the same product, future work should not treat this as a typo or inconsistency to "fix."
-- Primary typeface is **Plus Jakarta Sans**, used across every skin to date — a deliberate, pinned choice (confirmed against multiple skins' own design docs), not a default left unconsidered.
+- Primary typeface is **Plus Jakarta Sans**, used for both headings and body text — Aura's "singular typeface" brand rule, now the app's only typography (previously headings-only, with Nunito Sans for body text under the retired skins).
 
 ## Evidence on Hand
 
@@ -57,7 +57,7 @@ Paths below are relative to this repo (`app/`) unless noted otherwise. The produ
 
 - Approved product brief (outside this repo): `docs/KidCom - Assets/splitkid_project_prd_product_brief_v2.md`.
 - Roles/subscription spec (outside this repo): `docs/roles_and_subscription_spec.md`.
-- Per-skin design systems (outside this repo): `docs/Themes/Aura/haven_aura/DESIGN.md`, `docs/Themes/Spring Morning/DESIGN.md` (Quiet Architecture), `docs/stitch_splitkid/kindred_path/DESIGN.md` (Greenkeeper).
+- Aura's design system (outside this repo, current — the only remaining skin): `docs/Themes/Aura/haven_aura/DESIGN.md`, plus 20 Stitch mockups under `docs/Themes/Aura/`. The retired skins' docs (`docs/Themes/Spring Morning/DESIGN.md` for Quiet Architecture, `docs/stitch_splitkid/kindred_path/DESIGN.md` for Greenkeeper) are historical only — their tokens no longer exist in the app.
 - Real, licensed project photography (inside this repo): `apps/web/public/images/welcome-hero.jpg`, `apps/web/public/images/auth-hero.jpg` — use these (or request new ones from the project owner) rather than sourcing/generating stock or hotlinked imagery.
 - No native app exists or is planned — do not assume iOS/Android-specific patterns apply.
 
@@ -67,4 +67,4 @@ Paths below are relative to this repo (`app/`) unless noted otherwise. The produ
 2. Transparent logistical harmony between two (or more) households — custody, medical, and sizing state should be visible and current to everyone authorized, without either parent having to chase the other for it.
 3. The journal/media feed is a living memory archive, not just an activity log — treat it as something a family would want to revisit years later.
 4. Frictionless multi-party onboarding — a paying parent's invite should never put a co-parent or grandparent behind a paywall.
-5. Visual skin is a user choice, not a brand mandate — product and interaction decisions must hold up across every skin; a skin's own emotional/visual register (e.g. Aura's calm tone) is that skin's design decision, not a constraint on the others.
+5. One theme, applied everywhere — Aura is the single visual system for the whole product (superseding the earlier multi-skin-choice principle, 2026-09-22); every screen, including ones without an Aura mockup, is built to extend its layout, style, and tone rather than mixing in a retired skin's look.

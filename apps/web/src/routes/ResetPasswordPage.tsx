@@ -1,21 +1,29 @@
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import type { ResetPasswordRequest } from "@kidcom/shared";
 
 import { AuthHero } from "../components/AuthHero";
 import { FormInput } from "../components/FormInput";
+import { Icon } from "../components/Icon";
 import { apiPost, ApiRequestError } from "../lib/api";
+import { passwordStrength } from "../lib/passwordStrength";
 
-// Post-launch backlog Phase F — the link ForgotPasswordPage's email points
-// at (?token=). Same visual language as LoginPage/ForgotPasswordPage.
+// The link ForgotPasswordPage's email points at (?token=). Matches Aura's
+// mockup (docs/Themes/Aura/kidcom_reset_password) except for its "Sign out
+// of all other devices" checkbox — this app's session model (Redis-backed
+// express-session, see apps/api/src/middleware/session.ts) has no per-user
+// session listing or bulk-revoke, so there's nothing real to wire that
+// checkbox to. Left out rather than faked.
 export function ResetPasswordPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
+  const strength = useMemo(() => passwordStrength(password), [password]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -26,6 +34,10 @@ export function ResetPasswordPage() {
     }
     if (password.length < 8) {
       setError("Password must be at least 8 characters long");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError("Those passwords don't match");
       return;
     }
     setSubmitting(true);
@@ -57,7 +69,7 @@ export function ResetPasswordPage() {
     <div className="flex flex-col w-full min-h-screen bg-surface text-on-surface pb-safe">
       <AuthHero />
       <header className="px-container-padding py-6">
-        <h1 className="font-headline-lg-mobile text-headline-lg-mobile text-on-surface">Choose a new password</h1>
+        <h1 className="font-headline-lg-mobile text-headline-lg-mobile text-on-surface">Set a new password</h1>
       </header>
 
       {done ? (
@@ -68,14 +80,69 @@ export function ResetPasswordPage() {
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="flex-1 px-container-padding py-4 flex flex-col gap-6">
+          <div className="flex flex-col gap-2">
+            <FormInput
+              id="password"
+              label="New Password"
+              icon="lock"
+              type="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+            {password.length > 0 && (
+              <div className="flex flex-col gap-1 ml-1">
+                <div className="flex gap-1">
+                  {[0, 1, 2, 3].map((i) => (
+                    <span
+                      key={i}
+                      className={`h-1 flex-1 rounded-full ${
+                        i < strength.score
+                          ? strength.score <= 1
+                            ? "bg-error"
+                            : strength.score <= 2
+                              ? "bg-secondary"
+                              : "bg-primary"
+                          : "bg-surface-container-high"
+                      }`}
+                    />
+                  ))}
+                </div>
+                <ul className="font-label-sm text-label-sm text-on-surface-variant flex flex-col gap-0.5">
+                  <li className="flex items-center gap-1.5">
+                    <Icon
+                      name={password.length >= 8 ? "check_circle" : "radio_button_unchecked"}
+                      className={`text-[14px] ${password.length >= 8 ? "text-primary" : ""}`}
+                    />
+                    At least 8 characters
+                  </li>
+                  <li className="flex items-center gap-1.5">
+                    <Icon
+                      name={/[0-9]/.test(password) ? "check_circle" : "radio_button_unchecked"}
+                      className={`text-[14px] ${/[0-9]/.test(password) ? "text-primary" : ""}`}
+                    />
+                    Includes a number
+                  </li>
+                  <li className="flex items-center gap-1.5">
+                    <Icon
+                      name={/[^A-Za-z0-9]/.test(password) ? "check_circle" : "radio_button_unchecked"}
+                      className={`text-[14px] ${/[^A-Za-z0-9]/.test(password) ? "text-primary" : ""}`}
+                    />
+                    Includes a symbol
+                  </li>
+                </ul>
+              </div>
+            )}
+          </div>
           <FormInput
-            id="password"
-            label="New Password"
+            id="confirmPassword"
+            label="Confirm Password"
             icon="lock"
             type="password"
             placeholder="••••••••"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
             required
           />
           {error && (
@@ -87,7 +154,7 @@ export function ResetPasswordPage() {
               disabled={submitting}
               className="w-full bg-primary text-on-primary font-label-md text-label-md py-4 rounded-full shadow-md active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-60"
             >
-              <span>{submitting ? "Saving…" : "Reset Password"}</span>
+              <span>{submitting ? "Saving…" : "Update Password"}</span>
             </button>
           </div>
         </form>

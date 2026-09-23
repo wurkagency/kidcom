@@ -12,8 +12,8 @@ import { ChildSelector } from "./ChildSelector";
 import { EventCard } from "./EventCard";
 import { ViewTabs } from "./ViewTabs";
 
-// Matches docs/stitch_splitkid/calendar_week_view exactly: the "Showing
-// Schedule For:" card + view tabs, a week-range headline with
+// Matches docs/Themes/Aura/kidcom_calendar_2: the compact child selector
+// (ChildSelector.tsx) + view tabs, a week-range headline with
 // today/prev/next icon buttons, the Categories filter dropdown, a custody
 // rotation banner ("Dad's Full Week Rotation — Day 4 of 7") over a 7-day
 // dot strip, and a date-grouped timeline of the week's events below it.

@@ -25,6 +25,7 @@ export async function signupTestUser(
     password: "password123",
     firstName: overrides.firstName ?? "Test",
     lastName: overrides.lastName ?? "User",
+    acceptedTerms: true,
   });
   if (res.status !== 201) {
     throw new Error(`signupTestUser: signup failed (${res.status}): ${JSON.stringify(res.body)}`);

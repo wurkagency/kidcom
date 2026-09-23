@@ -74,7 +74,7 @@ authRouter.post("/signup", authRateLimiter, async (req, res, next) => {
   try {
     const body = req.body as Partial<SignupRequest>;
     const email = body.email?.trim().toLowerCase();
-    const { password, firstName, lastName } = body;
+    const { password, firstName, lastName, phone, acceptedTerms } = body;
 
     if (!email || !password || !firstName || !lastName) {
       throw new ApiError(400, "email, password, firstName, and lastName are required");
@@ -84,6 +84,9 @@ authRouter.post("/signup", authRateLimiter, async (req, res, next) => {
     }
     if (password.length < 8) {
       throw new ApiError(400, "Password must be at least 8 characters long");
+    }
+    if (acceptedTerms !== true) {
+      throw new ApiError(400, "You must accept the Terms & Privacy Policy to continue");
     }
 
     const existing = await prisma.user.findUnique({ where: { email } });
@@ -111,6 +114,8 @@ authRouter.post("/signup", authRateLimiter, async (req, res, next) => {
           passwordHash,
           firstName,
           lastName,
+          phone: phone?.trim() || undefined,
+          termsAcceptedAt: now,
           trialStartedAt: now,
           trialEndsAt: new Date(now.getTime() + THIRTY_DAYS_MS),
         },
@@ -265,6 +270,7 @@ authRouter.post("/login", authRateLimiter, async (req, res, next) => {
     }
 
     req.session.pendingTwoFactorUserId = user.id;
+    req.session.pendingRememberMe = body.rememberMe !== false;
     await sendLoginTwoFactorCode(user, req);
     res.status(202).json({ twoFactorRequired: true } satisfies TwoFactorRequiredResponse);
   } catch (err) {
@@ -311,8 +317,19 @@ authRouter.post("/verify-2fa", authRateLimiter, async (req, res, next) => {
       return tx.user.findUniqueOrThrow({ where: { id: pendingUserId } });
     });
 
+    const rememberMe = req.session.pendingRememberMe !== false;
     delete req.session.pendingTwoFactorUserId;
+    delete req.session.pendingRememberMe;
     req.session.userId = user.id;
+    // Unchecked "Remember me": grant a browser-session cookie (cleared on
+    // browser close) instead of the configured 30-day maxAge (see
+    // middleware/session.ts) — express-session's own type declaration
+    // documents setting `cookie.expires` to `false` for exactly this
+    // ("to enable the cookie to remain for only the duration of the
+    // user-agent"), even though its type signature only lists `Date`.
+    if (!rememberMe) {
+      req.session.cookie.expires = false as unknown as Date;
+    }
     res.json({ user: toPublicUser(user) } satisfies MeResponse);
   } catch (err) {
     next(err);

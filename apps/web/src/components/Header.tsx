@@ -6,17 +6,23 @@ import { Avatar } from "./Avatar";
 import { HeaderChildCluster } from "./HeaderChildCluster";
 import { useAuth } from "../lib/AuthContext";
 import { useHeaderContextValue } from "../lib/HeaderContext";
+import { useUnreadMessages } from "../lib/useUnreadMessages";
 
-// The mockups' fixed top bar (logo, page title, notification bell, avatar)
-// never made it into AppShell — this fills that gap. Every in-app page now
-// renders through exactly one of three modes, decided by the current path:
+// Every in-app page renders through exactly one of three header modes,
+// decided by the current path:
 //
-// - Tab roots (the 4 bottom-nav destinations) get the full bar from the
-//   mockups: app icon + tab title, a bell (-> /messages, the closest thing
-//   to a notification surface today — there's no notification inbox, see
-//   chunk 8's explicit scope), and a child-avatar cluster (-> /kids, see
-//   HeaderChildCluster.tsx — this replaced a plain self-avatar when the Kids
-//   tab moved off BottomNav in the Aura-driven nav restructuring).
+// - Tab roots (the 4 bottom-nav destinations) get the persistent bar from
+//   the mockups (docs/Themes/Aura/kidcom_today_screen_updated_note,
+//   kidcom_children, kidcom_calendar_1, kidcom_lists — identical markup
+//   across all of them): self-avatar on the far left (-> /profile), a
+//   search entry point (-> /search, a real RLS-scoped search across
+//   children/moments/lists — see apps/api/src/routes/search), a
+//   notification bell (-> /activity, a real aggregation of pending swap/
+//   event requests and unread threads — there's no notification-log table
+//   to back a literal inbox, see ActivityPage.tsx's own note), and a
+//   child-avatar cluster (-> /kids, see HeaderChildCluster.tsx). There's no
+//   app icon/title text in any of these mockups — the tab name is
+//   screen-reader-only there too.
 // - Child sub-pages (profile, medical, contacts) get the lighter
 //   back-chevron + title + avatar bar.
 // - Every other in-app page (including /kids itself now) feeds this same
@@ -78,30 +84,36 @@ export function Header() {
   const params = useParams<{ childId?: string }>();
   const { user, children } = useAuth();
   const { config } = useHeaderContextValue();
+  const hasUnreadMessages = useUnreadMessages();
   const path = location.pathname;
 
   if (path in TAB_TITLES) {
     return (
       <div className="sticky top-0 z-40 bg-surface/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]">
-        <div className="h-16 px-container-padding flex items-center justify-between">
-          <div className="flex items-center gap-element-gap">
-            <img alt="KidCom" className="h-8 w-8 rounded-lg object-contain p-0.5" src="/logo.svg" />
-            <span className="font-headline-md text-headline-md text-on-surface">
-              {TAB_TITLES[path]}
-            </span>
-          </div>
-          <div className="flex items-center gap-element-gap">
+        <div className="h-20 px-gutter flex items-center justify-between gap-2">
+          <Link to="/profile" aria-label="Profile" className="shrink-0">
+            <Avatar name={user?.firstName ?? "?"} avatarAssetId={user?.avatarUrl} kind="adult" />
+          </Link>
+          <Link
+            to="/search"
+            aria-label="Search"
+            className="flex-1 min-w-0 max-w-xs flex items-center gap-2 h-10 px-3 rounded-full bg-surface-container-lowest shadow-[0_1px_6px_rgba(0,0,0,0.03)] text-on-surface-variant/70"
+          >
+            <Icon name="search" className="text-[18px] shrink-0" />
+            <span className="font-label-sm text-label-sm truncate">Search…</span>
+          </Link>
+          <div className="flex items-center gap-2 shrink-0">
             <Link
-              to="/messages"
-              aria-label="Messages"
-              className="w-10 h-10 flex items-center justify-center"
+              to="/activity"
+              aria-label="Activity"
+              className="relative w-11 h-11 flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface transition-colors"
             >
-              <Icon name="notifications" className="text-on-surface-variant" />
+              <Icon name="notifications" className="text-[22px]" />
+              {hasUnreadMessages && (
+                <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-secondary" />
+              )}
             </Link>
             <HeaderChildCluster children={children} />
-            <Link to="/profile" aria-label="Profile">
-              <Avatar name={user?.firstName ?? "?"} avatarAssetId={user?.avatarUrl} kind="adult" />
-            </Link>
           </div>
         </div>
       </div>

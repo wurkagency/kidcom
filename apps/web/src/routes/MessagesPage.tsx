@@ -13,11 +13,26 @@ import { Avatar } from "../components/Avatar";
 import { apiFetch, apiGet, apiPost, ApiRequestError } from "../lib/api";
 import { useHeaderConfig } from "../lib/HeaderContext";
 
-// Matches docs/stitch_splitkid/messages_personal_notes/code.html: one screen
-// with a pill-tab switcher between Conversations and Personal Notes, rather
-// than two separate screens. Tab state lives in the URL (?tab=notes) so
-// /notes can redirect here with the right tab pre-selected (see App.tsx).
+// The Conversations tab matches docs/Themes/Aura/kidcom_calendar_4 (misfiled
+// under the calendar folder — it's actually the Messages inbox screen). The
+// pill-tab switcher between Conversations and Personal Notes has no Aura
+// mockup of its own (Personal Notes isn't covered by any of the 20 mockups)
+// but is kept as one screen per the pre-Aura design this replaced, since it
+// remains a coherent, real piece of navigation. Tab state lives in the URL
+// (?tab=notes) so /notes can redirect here with the right tab pre-selected
+// (see App.tsx).
 const THREAD_LIST_POLL_MS = 15000;
+
+function relativeThreadTime(iso: string): string {
+  const date = new Date(iso);
+  const now = new Date();
+  const isToday = date.toDateString() === now.toDateString();
+  if (isToday) return date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
+  return date.toLocaleDateString(undefined, { day: "2-digit", month: "2-digit", year: "numeric" });
+}
 
 const CATEGORY_META: Record<NoteCategory, { label: string; accent: string; chipBg: string; chipText: string; icon: string }> = {
   ROUTINE: { label: "Routine", accent: "bg-growth-green", chipBg: "bg-primary/10", chipText: "text-primary", icon: "bedtime" },
@@ -113,28 +128,52 @@ function ConversationsTab() {
         </p>
       )}
 
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-2.5">
         {threads.map((thread) => (
           <Link
             key={thread.id}
             to={`/messages/${thread.id}`}
-            className="bg-surface-container-lowest rounded-xl p-4 shadow-sm flex items-center gap-3"
+            className="bg-surface-container-lowest rounded-2xl p-3.5 shadow-sm flex items-start gap-3.5"
           >
-            <Avatar
-              name={threadTitle(thread)}
-              avatarAssetId={thread.members[0]?.avatarUrl}
-              kind="adult"
-              size="md"
-            />
-            <div className="flex-1 min-w-0">
-              <p className="font-label-md text-label-md text-on-surface truncate">{threadTitle(thread)}</p>
-              <p className="font-body-md text-body-md text-on-surface-variant truncate">
-                {thread.lastMessage
-                  ? thread.lastMessage.text ?? (thread.lastMessage.mediaId ? "📷 Photo" : "")
-                  : "Say hello"}
-              </p>
+            <div className="relative shrink-0">
+              <Avatar
+                name={threadTitle(thread)}
+                avatarAssetId={thread.members[0]?.avatarUrl}
+                kind="adult"
+                size="md"
+              />
+              {/* A generic "family" marker on every thread — this app has no
+                  per-contact relationship field on ThreadMemberDto to key a
+                  real per-person badge off of, so it stays uniform rather
+                  than fabricating individual relationships. */}
+              <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-secondary-fixed flex items-center justify-center text-on-secondary-fixed shadow-sm">
+                <Icon name="family_restroom" className="text-[12px]" />
+              </span>
             </div>
-            {thread.unread && <div className="w-2.5 h-2.5 rounded-full bg-primary shrink-0" />}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-2 mb-0.5">
+                <p
+                  className={`font-title-md text-title-md truncate ${thread.unread ? "font-bold text-on-surface" : "text-on-surface"}`}
+                >
+                  {threadTitle(thread)}
+                </p>
+                {thread.lastMessage && (
+                  <span className="shrink-0 font-label-sm text-label-sm text-on-surface-variant">
+                    {relativeThreadTime(thread.lastMessage.createdAt)}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <p
+                  className={`font-body-md text-body-md truncate ${thread.unread ? "font-bold text-on-surface" : "text-on-surface-variant"}`}
+                >
+                  {thread.lastMessage
+                    ? thread.lastMessage.text ?? (thread.lastMessage.mediaId ? "📷 Photo" : "")
+                    : "Say hello"}
+                </p>
+                {thread.unread && <span className="w-2.5 h-2.5 rounded-full bg-primary shrink-0" />}
+              </div>
+            </div>
           </Link>
         ))}
       </div>

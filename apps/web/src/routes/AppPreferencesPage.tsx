@@ -5,7 +5,6 @@ import { Card } from "../components/Card";
 import { Icon } from "../components/Icon";
 import { SegmentedControl } from "../components/SegmentedControl";
 import { useHeaderConfig } from "../lib/HeaderContext";
-import { useSkin } from "../lib/SkinContext";
 import {
   getCalendarDefaultView,
   getDateFormat,
@@ -36,7 +35,6 @@ export function AppPreferencesPage() {
   useHeaderConfig({ title: "App Preferences", backTo: "/profile" }, []);
   const navigate = useNavigate();
 
-  const { skin } = useSkin();
   const [textSize, setTextSizeState] = useState<TextSize>(() => getTextSize());
   const [language] = useState(() => getLanguage());
   const [dateFormat] = useState(() => getDateFormat());
@@ -66,7 +64,7 @@ export function AppPreferencesPage() {
             icon="style"
             iconClass="text-primary"
             label="Theme"
-            value={SKINS.find((s) => s.id === skin)?.name ?? skin}
+            value={SKINS[0].name}
             onClick={() => navigate("/preferences/themes")}
           />
           <div className="flex flex-col gap-3">

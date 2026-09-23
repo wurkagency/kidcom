@@ -14,6 +14,10 @@ declare module "express-session" {
     // POST /auth/verify-2fa succeeds. Never used as an auth credential by
     // itself (requireAuth/requireVerifiedEmail only ever check userId).
     pendingTwoFactorUserId?: string;
+    // Carries the login form's "Remember me" choice across the pending-2FA
+    // gap so POST /verify-2fa can size the session cookie once it actually
+    // grants one — see that handler.
+    pendingRememberMe?: boolean;
   }
 }
 

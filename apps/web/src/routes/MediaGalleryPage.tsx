@@ -26,6 +26,18 @@ export function MediaGalleryTab() {
   const [typeFilter, setTypeFilter] = useState<"ALL" | "IMAGE" | "VIDEO">("ALL");
   const [childFilter, setChildFilter] = useState<string | "ALL">("ALL");
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [tipDismissed, setTipDismissed] = useState(
+    () => localStorage.getItem("kidcom-media-gallery-tip-dismissed") === "true"
+  );
+
+  function dismissTip() {
+    setTipDismissed(true);
+    try {
+      localStorage.setItem("kidcom-media-gallery-tip-dismissed", "true");
+    } catch {
+      // best-effort — a private window or blocked storage just re-shows it next visit
+    }
+  }
 
   useEffect(() => {
     if (children.length === 0) {
@@ -147,11 +159,34 @@ export function MediaGalleryTab() {
         {!loading && filtered.length === 0 && (
           <p className="font-body-md text-body-md text-on-surface-variant">No media yet.</p>
         )}
-        {groups.map(([month, monthItems]) => (
+        {!tipDismissed && filtered.length > 0 && (
+          <div className="bg-secondary-container/40 rounded-2xl p-4 flex items-start gap-3">
+            <Icon name="lightbulb" className="text-on-secondary-container shrink-0 mt-0.5" />
+            <p className="flex-1 font-body-sm text-body-sm text-on-secondary-container">
+              <span className="font-bold">Tip!</span> Download originals — long-press any media and you can
+              choose which ones to download.
+            </p>
+            <button
+              onClick={dismissTip}
+              aria-label="Dismiss tip"
+              className="shrink-0 text-on-secondary-container/70 hover:text-on-secondary-container"
+            >
+              <Icon name="close" className="text-[16px]" />
+            </button>
+          </div>
+        )}
+        {groups.map(([month, monthItems]) => {
+          const photoCount = monthItems.filter((i) => i.type === "IMAGE").length;
+          const videoCount = monthItems.filter((i) => i.type === "VIDEO").length;
+          return (
           <div key={month} className="flex flex-col gap-3">
             <div className="flex justify-between items-end">
               <h2 className="font-headline-md text-on-surface">{month}</h2>
-              <span className="font-label-sm text-on-surface-variant">{monthItems.length} Items</span>
+              <span className="font-label-sm text-on-surface-variant">
+                {photoCount > 0 && `${photoCount} photo${photoCount === 1 ? "" : "s"}`}
+                {photoCount > 0 && videoCount > 0 && ", "}
+                {videoCount > 0 && `${videoCount} video${videoCount === 1 ? "" : "s"}`}
+              </span>
             </div>
             <div className="grid grid-cols-3 gap-2">
               {monthItems.map((item) => (
@@ -168,7 +203,8 @@ export function MediaGalleryTab() {
               ))}
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {selected.size > 0 && (

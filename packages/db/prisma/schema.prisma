@@ -74,6 +74,13 @@ model User {
   // PATCH /auth/me handler via packages/shared's isSkinId().
   skinId          String?
   emailVerifiedAt DateTime?
+  // Set once at signup (POST /auth/signup requires acceptedTerms: true) —
+  // a real consent record, not just a UI gate that forgets itself. There is
+  // no in-app Terms/Privacy document to link the checkbox to yet (see
+  // PRODUCT.md's Evidence on Hand — the privacy notice lives outside this
+  // repo at splitkid.com/privacy), so the checkbox itself is plain text
+  // rather than a link to a page that doesn't demonstrably exist.
+  termsAcceptedAt DateTime?
   // I-2 (spec §2.2/§4.3): one 30-day trial per user, ever — granted at
   // account creation regardless of how the account was created (organic
   // signup or invite-accept), recorded here rather than on Subscription so

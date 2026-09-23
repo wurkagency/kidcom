@@ -56,11 +56,19 @@ export type SignupRequest = {
   password: string;
   firstName: string;
   lastName: string;
+  phone?: string;
+  // Required true — POST /auth/signup rejects anything else. Recorded as
+  // User.termsAcceptedAt, a real timestamp rather than a UI-only gate.
+  acceptedTerms: boolean;
 };
 
 export type LoginRequest = {
   email: string;
   password: string;
+  // Defaults to true (today's only behavior — a 30-day session cookie).
+  // false shortens the session granted once verify-2fa completes to a
+  // browser-session cookie instead (cleared when the browser closes).
+  rememberMe?: boolean;
 };
 
 export type MeResponse = {
@@ -1009,4 +1017,37 @@ export type MinorMemberDto = {
   firstName: string;
   lastName: string;
   relationship: RelationshipType;
+};
+
+// GET /search?q= — real, RLS-scoped results across the three kinds of
+// content the Aura mockups' persistent header search field implies
+// (docs/Themes/Aura's header appears on nearly every screen). No dedicated
+// search-results mockup exists among the 20 Aura screens, so this follows
+// the app's existing list/card conventions instead.
+export type SearchResultChild = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  profileImageUrl: string | null;
+};
+
+export type SearchResultJournalPost = {
+  id: string;
+  childId: string;
+  title: string;
+  snippet: string;
+  createdAt: string;
+};
+
+export type SearchResultListItem = {
+  id: string;
+  childId: string;
+  title: string;
+  type: ListItemType;
+};
+
+export type SearchResponse = {
+  children: SearchResultChild[];
+  journalPosts: SearchResultJournalPost[];
+  listItems: SearchResultListItem[];
 };

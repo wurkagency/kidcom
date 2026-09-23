@@ -148,7 +148,10 @@ function relativeDay(iso: string): string {
   return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-// Matches the post card in docs/stitch_splitkid/journal_feed/code.html.
+// Matches the post card in docs/Themes/Aura/kidcom_moments_feed_1/2 — shows
+// every attached photo/video in a grid rather than the mockup's single hero
+// image + "1 of 4" carousel badge, a deliberate deviation: the grid surfaces
+// all of a post's media at a glance instead of hiding items behind a badge.
 export function JournalPostCard({
   childId,
   post,

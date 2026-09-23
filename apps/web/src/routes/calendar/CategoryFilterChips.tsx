@@ -4,13 +4,13 @@ import type { CalendarEventCategory } from "@kidcom/shared";
 import { Icon } from "../../components/Icon";
 import { CALENDAR_CATEGORY_META, CALENDAR_FILTERABLE_CATEGORIES } from "../../lib/calendarCategories";
 
-// Matches docs/stitch_splitkid/calendar_month_view's "Categories" filter:
-// a collapsed button ("Categories (All 5 selected)") that expands into a
-// wrap-chip list of the 5 categories, each toggleable independently
-// (multi-select) with a checkmark on the selected ones. Week/List's
-// mockups show only the collapsed button (the expanded content is only
-// spelled out in the Month mockup) — reused here identically across all
-// three views since it's the same control everywhere.
+// Matches docs/Themes/Aura/kidcom_calendar_1's "Categories" filter (a
+// "Categories · 3" pill that expands into a wrap-chip list, each toggleable
+// independently with a checkmark on the selected ones) — reused identically
+// across Month/Week/List/School since it's the same control everywhere.
+// The mockups also show a second "Types" pill alongside it with no
+// corresponding data axis in CalendarEvent (category is the only
+// classification field) — left out rather than faked; see the audit notes.
 export function CategoryFilterChips({
   selected,
   onToggle,

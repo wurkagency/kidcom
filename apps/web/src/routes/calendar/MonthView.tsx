@@ -15,12 +15,12 @@ import { ChildSelector } from "./ChildSelector";
 import { EventCard } from "./EventCard";
 import { ViewTabs } from "./ViewTabs";
 
-// Matches docs/stitch_splitkid/calendar_month_view exactly: the
-// "Showing Schedule For:" card + view tabs, a month headline with
-// today/prev/next icon buttons, the Categories filter dropdown, a 7xN
-// month grid with whole-week custody tinting (in-month days only — days
-// from adjacent months stay plain muted numbers, no tint/no dots), and a
-// "Day Quick Preview" panel below.
+// Matches docs/Themes/Aura/kidcom_calendar_1: the compact child selector
+// (ChildSelector.tsx) + view tabs, a month headline with today/prev/next
+// icon buttons, the Categories filter dropdown, a 7xN month grid with
+// whole-week custody tinting (in-month days only — days from adjacent
+// months stay plain muted numbers, no tint/no dots), and a "Day Quick
+// Preview" panel below.
 //
 // The day grid itself is built on react-day-picker (the primitive
 // shadcn/ui's Calendar component wraps) rather than a hand-rolled 42-cell

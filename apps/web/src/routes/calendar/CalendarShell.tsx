@@ -346,6 +346,117 @@ export function CalendarShell() {
         <p className="py-6 font-body-md text-body-md text-on-surface-variant">Loading…</p>
       ) : (
         <div className="flex flex-col gap-6">
+          {/* Aura's mockups (kidcom_calendar_1..3) show the pending swap card
+              right under the header's filter row, not buried at the bottom
+              of the page — moved up here (still real, existing data/handlers,
+              just reordered) so it's seen before someone scrolls the whole
+              schedule. */}
+          {swapRequests.some((r) => r.status === "PENDING") && (
+            <div className="flex flex-col gap-3">
+              <h3 className="font-headline-md text-headline-md text-on-surface">Pending swap requests</h3>
+              {swapRequests
+                .filter((r) => r.status === "PENDING")
+                .map((req) => {
+                  const requester = family.find((m) => m.userId === req.requestedById);
+                  const requesterName = requester?.userId === user?.id ? "You" : requester?.firstName ?? "Someone";
+                  const isOwnRequest = req.requestedById === user?.id;
+                  return (
+                    <div
+                      key={req.id}
+                      className="bg-secondary-container/40 rounded-2xl p-4 flex flex-col gap-2"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-label-md text-label-md text-on-surface">
+                          {requesterName} requested a swap
+                        </span>
+                        <span className="font-label-sm text-label-sm text-on-surface-variant">
+                          {new Date(req.date).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                        </span>
+                      </div>
+                      {req.message && (
+                        <p className="font-body-md text-[14px] text-on-surface-variant">{req.message}</p>
+                      )}
+                      {!isOwnRequest ? (
+                        <div className="flex gap-2 mt-1">
+                          <button
+                            onClick={() => handleResolveSwapRequest(req.id, "DECLINED")}
+                            disabled={resolvingSwapId === req.id}
+                            className="flex-1 py-2 rounded-full bg-surface-container-lowest text-on-surface-variant font-label-md text-label-md disabled:opacity-60"
+                          >
+                            Discuss
+                          </button>
+                          <button
+                            onClick={() => handleResolveSwapRequest(req.id, "APPROVED")}
+                            disabled={resolvingSwapId === req.id}
+                            className="flex-1 py-2 rounded-full bg-primary text-on-primary font-label-md text-label-md disabled:opacity-60"
+                          >
+                            {resolvingSwapId === req.id ? "Saving…" : "Approve"}
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="font-label-sm text-label-sm text-on-surface-variant">
+                          Waiting for the other parent to respond
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+            </div>
+          )}
+
+          {calendarEventRequests.some((r) => r.status === "PENDING") && (
+            <div className="flex flex-col gap-3">
+              <h3 className="font-headline-md text-headline-md text-on-surface">Pending event requests</h3>
+              {calendarEventRequests
+                .filter((r) => r.status === "PENDING")
+                .map((req) => {
+                  const requester = family.find((m) => m.userId === req.requestedById);
+                  const requesterName = requester?.userId === user?.id ? "You" : requester?.firstName ?? "Someone";
+                  const isOwnRequest = req.requestedById === user?.id;
+                  return (
+                    <div
+                      key={req.id}
+                      className="bg-secondary-container/40 rounded-2xl p-4 flex flex-col gap-2"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-label-md text-label-md text-on-surface">
+                          {requesterName} requested "{req.title}"
+                        </span>
+                        <span className="font-label-sm text-label-sm text-on-surface-variant">
+                          {new Date(req.startsAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                        </span>
+                      </div>
+                      {req.message && (
+                        <p className="font-body-md text-[14px] text-on-surface-variant">{req.message}</p>
+                      )}
+                      {!isOwnRequest ? (
+                        <div className="flex gap-2 mt-1">
+                          <button
+                            onClick={() => handleResolveCalendarEventRequest(req.id, "DECLINED")}
+                            disabled={resolvingEventRequestId === req.id}
+                            className="flex-1 py-2 rounded-full bg-surface-container-lowest text-on-surface-variant font-label-md text-label-md disabled:opacity-60"
+                          >
+                            Decline
+                          </button>
+                          <button
+                            onClick={() => handleResolveCalendarEventRequest(req.id, "APPROVED")}
+                            disabled={resolvingEventRequestId === req.id}
+                            className="flex-1 py-2 rounded-full bg-primary text-on-primary font-label-md text-label-md disabled:opacity-60"
+                          >
+                            {resolvingEventRequestId === req.id ? "Saving…" : "Approve"}
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="font-label-sm text-label-sm text-on-surface-variant">
+                          Waiting for a parent or guardian to respond
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+            </div>
+          )}
+
           {/* Bug fix — calendar views weren't full width, padding showed on
               both sides beyond what the mockups call for. Each view
               (Month/Week/List) already applies px-container-padding itself,
@@ -432,114 +543,8 @@ export function CalendarShell() {
             </div>
           )}
 
-          {swapRequests.some((r) => r.status === "PENDING") && (
-            <div className="flex flex-col gap-3 mb-8">
-              <h3 className="font-headline-md text-headline-md text-on-surface">Pending swap requests</h3>
-              {swapRequests
-                .filter((r) => r.status === "PENDING")
-                .map((req) => {
-                  const requester = family.find((m) => m.userId === req.requestedById);
-                  const requesterName = requester?.userId === user?.id ? "You" : requester?.firstName ?? "Someone";
-                  const isOwnRequest = req.requestedById === user?.id;
-                  return (
-                    <div
-                      key={req.id}
-                      className="bg-surface-container-lowest rounded-2xl p-4 shadow-sm border border-surface-variant/50 flex flex-col gap-2"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-label-md text-label-md text-on-surface">
-                          {requesterName} requested a swap
-                        </span>
-                        <span className="font-label-sm text-label-sm text-on-surface-variant">
-                          {new Date(req.date).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-                        </span>
-                      </div>
-                      {req.message && (
-                        <p className="font-body-md text-[14px] text-on-surface-variant">{req.message}</p>
-                      )}
-                      {!isOwnRequest ? (
-                        <div className="flex gap-2 mt-1">
-                          <button
-                            onClick={() => handleResolveSwapRequest(req.id, "DECLINED")}
-                            disabled={resolvingSwapId === req.id}
-                            className="flex-1 py-2 rounded-full bg-surface-container text-on-surface-variant font-label-md text-label-md disabled:opacity-60"
-                          >
-                            Decline
-                          </button>
-                          <button
-                            onClick={() => handleResolveSwapRequest(req.id, "APPROVED")}
-                            disabled={resolvingSwapId === req.id}
-                            className="flex-1 py-2 rounded-full bg-primary text-on-primary font-label-md text-label-md disabled:opacity-60"
-                          >
-                            {resolvingSwapId === req.id ? "Saving…" : "Approve"}
-                          </button>
-                        </div>
-                      ) : (
-                        <span className="font-label-sm text-label-sm text-on-surface-variant">
-                          Waiting for the other parent to respond
-                        </span>
-                      )}
-                    </div>
-                  );
-                })}
-            </div>
-          )}
-
           {user && primaryChildId && (
             <CalendarEventRequestCard childId={primaryChildId} selectedDate={selectedDate} onSent={loadRange} />
-          )}
-
-          {calendarEventRequests.some((r) => r.status === "PENDING") && (
-            <div className="flex flex-col gap-3 mb-8">
-              <h3 className="font-headline-md text-headline-md text-on-surface">Pending event requests</h3>
-              {calendarEventRequests
-                .filter((r) => r.status === "PENDING")
-                .map((req) => {
-                  const requester = family.find((m) => m.userId === req.requestedById);
-                  const requesterName = requester?.userId === user?.id ? "You" : requester?.firstName ?? "Someone";
-                  const isOwnRequest = req.requestedById === user?.id;
-                  return (
-                    <div
-                      key={req.id}
-                      className="bg-surface-container-lowest rounded-2xl p-4 shadow-sm border border-surface-variant/50 flex flex-col gap-2"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-label-md text-label-md text-on-surface">
-                          {requesterName} requested "{req.title}"
-                        </span>
-                        <span className="font-label-sm text-label-sm text-on-surface-variant">
-                          {new Date(req.startsAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-                        </span>
-                      </div>
-                      {req.message && (
-                        <p className="font-body-md text-[14px] text-on-surface-variant">{req.message}</p>
-                      )}
-                      {!isOwnRequest ? (
-                        <div className="flex gap-2 mt-1">
-                          <button
-                            onClick={() => handleResolveCalendarEventRequest(req.id, "DECLINED")}
-                            disabled={resolvingEventRequestId === req.id}
-                            className="flex-1 py-2 rounded-full bg-surface-container text-on-surface-variant font-label-md text-label-md disabled:opacity-60"
-                          >
-                            Decline
-                          </button>
-                          <button
-                            onClick={() => handleResolveCalendarEventRequest(req.id, "APPROVED")}
-                            disabled={resolvingEventRequestId === req.id}
-                            className="flex-1 py-2 rounded-full bg-primary text-on-primary font-label-md text-label-md disabled:opacity-60"
-                          >
-                            {resolvingEventRequestId === req.id ? "Saving…" : "Approve"}
-                          </button>
-                        </div>
-                      ) : (
-                        <span className="font-label-sm text-label-sm text-on-surface-variant">
-                          Waiting for a parent or guardian to respond
-                        </span>
-                      )}
-                    </div>
-                  );
-                })}
-            </div>
           )}
         </div>
       )}

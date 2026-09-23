@@ -31,6 +31,9 @@ import { ListItemDetailPage } from "./routes/ListItemDetailPage";
 import { MessagesPage } from "./routes/MessagesPage";
 import { MessageComposePage } from "./routes/MessageComposePage";
 import { MessageThreadPage } from "./routes/MessageThreadPage";
+import { MessageThreadInfoPage } from "./routes/MessageThreadInfoPage";
+import { SearchPage } from "./routes/SearchPage";
+import { ActivityPage } from "./routes/ActivityPage";
 import { BillingPage } from "./routes/BillingPage";
 import { AppPreferencesPage } from "./routes/AppPreferencesPage";
 import { ThemesPage } from "./routes/ThemesPage";
@@ -130,6 +133,9 @@ export default function App() {
               <Route path="/messages" element={<MessagesPage />} />
               <Route path="/messages/new" element={<MessageComposePage />} />
               <Route path="/messages/:threadId" element={<MessageThreadPage />} />
+              <Route path="/messages/:threadId/info" element={<MessageThreadInfoPage />} />
+              <Route path="/search" element={<SearchPage />} />
+              <Route path="/activity" element={<ActivityPage />} />
               <Route path="/notes" element={<Navigate to="/messages?tab=notes" replace />} />
               <Route path="/preferences" element={<AppPreferencesPage />} />
               <Route path="/preferences/themes" element={<ThemesPage />} />

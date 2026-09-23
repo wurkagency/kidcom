@@ -32,321 +32,14 @@
 @tailwind utilities;
 
 @layer base {
-  /* Greenkeeper (default skin). Additional skins override these variables
-     under `[data-skin="<id>"]` — see src/lib/themes.ts. */
+  /* Aura — "Haven Aura" (docs/Themes/Aura/haven_aura/DESIGN.md) is the
+     app's single theme (v3.0, 2026-09-22; Greenkeeper/Sky/Quiet
+     Architecture were retired). Porcelain canvas, sage-tinted mint cards,
+     an obsidian floating pill nav, and generous squircle radii.
+     Near-monochrome: primary/tertiary are true black, with sage used as
+     the secondary accent — growth-green uses that same sage (DESIGN.md's
+     "Supportive Accent Sage"). */
   :root {
-    --color-surface: 248 250 244;
-    --color-surface-dim: 217 219 213;
-    --color-surface-bright: 248 250 244;
-    --color-surface-container-lowest: 255 255 255;
-    --color-surface-container-low: 242 244 238;
-    --color-surface-container: 237 239 233;
-    --color-surface-container-high: 231 233 227;
-    --color-surface-container-highest: 225 227 221;
-    --color-on-surface: 25 28 25;
-    --color-on-surface-variant: 65 73 65;
-    --color-inverse-surface: 46 49 46;
-    --color-inverse-on-surface: 239 241 236;
-    --color-outline: 113 121 112;
-    --color-outline-variant: 192 201 190;
-    --color-surface-tint: 50 105 67;
-    --color-primary: 50 105 67;
-    --color-on-primary: 255 255 255;
-    --color-primary-container: 109 166 122;
-    --color-on-primary-container: 0 58 26;
-    --color-inverse-primary: 153 212 165;
-    --color-secondary: 106 92 78;
-    --color-on-secondary: 255 255 255;
-    --color-secondary-container: 243 223 206;
-    --color-on-secondary-container: 112 98 84;
-    --color-tertiary: 70 97 123;
-    --color-on-tertiary: 255 255 255;
-    --color-tertiary-container: 128 156 184;
-    --color-on-tertiary-container: 22 51 75;
-    --color-error: 186 26 26;
-    --color-on-error: 255 255 255;
-    --color-error-container: 255 218 214;
-    --color-on-error-container: 147 0 10;
-    --color-primary-fixed: 180 241 191;
-    --color-primary-fixed-dim: 153 212 165;
-    --color-on-primary-fixed: 0 33 12;
-    --color-on-primary-fixed-variant: 24 81 45;
-    --color-secondary-fixed: 243 223 206;
-    --color-secondary-fixed-dim: 214 195 179;
-    --color-on-secondary-fixed: 35 26 15;
-    --color-on-secondary-fixed-variant: 81 69 56;
-    --color-tertiary-fixed: 205 229 255;
-    --color-tertiary-fixed-dim: 173 201 231;
-    --color-on-tertiary-fixed: 0 29 50;
-    --color-on-tertiary-fixed-variant: 46 73 98;
-    --color-background: 248 250 244;
-    --color-on-background: 25 28 25;
-    --color-surface-variant: 225 227 221;
-    --color-growth-green: 79 119 88;
-    --color-journal-peach: 249 228 212;
-    --color-alert-soft-red: 230 165 165;
-    --color-surface-beige: 253 251 247;
-    --color-text-main: 45 49 46;
-    --color-category-school: 245 166 35;
-    --color-on-category-school: 146 84 12;
-    --color-category-activity: 142 68 173;
-    --color-on-category-activity: 108 38 140;
-
-    /* BottomNav shape/color, factored out of the generic surface tokens so a
-       skin can restyle the nav bar (e.g. an edge-to-edge bar vs a floating
-       pill) without any per-skin branching in BottomNav.tsx. */
-    --color-nav-surface: 237 239 233;
-    --color-nav-icon: 65 73 65;
-    --color-nav-icon-active: 50 105 67;
-    --color-nav-active-chip: 255 255 255;
-    --nav-active-chip-opacity: 0;
-    --nav-radius: 0px;
-    --nav-inset-x: 0px;
-    --nav-inset-bottom: 0px;
-    --nav-shadow: 0 -1px 8px rgba(0, 0, 0, 0.04);
-    --nav-label-opacity: 1;
-    --nav-label-max-height: 1rem;
-
-    --radius-sm: 0.25rem;
-    --radius-default: 0.5rem;
-    --radius-md: 0.75rem;
-    --radius-lg: 1rem;
-    --radius-xl: 1.5rem;
-
-    --space-base: 8px;
-    --space-container-padding: 24px;
-    --space-element-gap: 16px;
-    --space-section-margin: 32px;
-    --space-grid-gutter: 16px;
-
-    /* Per-skin type scale. Greenkeeper's numbers below are today's exact
-       values (zero visual change) — a skin overrides only what it wants to
-       change under `[data-skin="<id>"]`, same as colors/radii/spacing above.
-       headline-sm, title-md, and micro-meta are new roles introduced for
-       Aura; no component used them before, so their Greenkeeper defaults
-       just mirror Aura's own numbers rather than inventing an unrelated
-       Kindred Path value for a role nothing here ever rendered. */
-    --font-heading: "Plus Jakarta Sans";
-    --font-body: "Nunito Sans";
-
-    --text-display-lg: 40px;
-    --leading-display-lg: 48px;
-    --tracking-display-lg: -0.02em;
-    --weight-display-lg: 700;
-
-    --text-headline-lg: 32px;
-    --leading-headline-lg: 40px;
-    --tracking-headline-lg: normal;
-    --weight-headline-lg: 600;
-
-    --text-headline-lg-mobile: 24px;
-    --leading-headline-lg-mobile: 32px;
-    --tracking-headline-lg-mobile: normal;
-    --weight-headline-lg-mobile: 600;
-
-    --text-headline-md: 24px;
-    --leading-headline-md: 32px;
-    --tracking-headline-md: normal;
-    --weight-headline-md: 600;
-
-    --text-headline-sm: 20px;
-    --leading-headline-sm: 26px;
-    --tracking-headline-sm: -0.015em;
-    --weight-headline-sm: 600;
-
-    --text-title-md: 17px;
-    --leading-title-md: 22px;
-    --tracking-title-md: -0.01em;
-    --weight-title-md: 600;
-
-    --text-body-lg: 18px;
-    --leading-body-lg: 28px;
-    --tracking-body-lg: normal;
-    --weight-body-lg: 400;
-
-    --text-body-md: 16px;
-    --leading-body-md: 24px;
-    --tracking-body-md: normal;
-    --weight-body-md: 400;
-
-    --text-label-md: 14px;
-    --leading-label-md: 20px;
-    --tracking-label-md: 0.01em;
-    --weight-label-md: 600;
-
-    --text-label-sm: 12px;
-    --leading-label-sm: 16px;
-    --tracking-label-sm: normal;
-    --weight-label-sm: 500;
-
-    --text-micro-meta: 10px;
-    --leading-micro-meta: 12px;
-    --tracking-micro-meta: 0.08em;
-    --weight-micro-meta: 700;
-  }
-
-  /* Sky: light, airy, travel-inspired — pale mint/sage surfaces, near-black
-     text, a teal primary accent, and a floating black pill bottom nav. */
-  [data-skin="sky"] {
-    --color-surface: 246 248 245;
-    --color-surface-dim: 216 220 214;
-    --color-surface-bright: 246 248 245;
-    --color-surface-container-lowest: 255 255 255;
-    --color-surface-container-low: 238 244 239;
-    --color-surface-container: 230 239 232;
-    --color-surface-container-high: 220 232 223;
-    --color-surface-container-highest: 207 223 211;
-    --color-on-surface: 20 23 26;
-    --color-on-surface-variant: 107 114 128;
-    --color-inverse-surface: 22 24 26;
-    --color-inverse-on-surface: 245 247 245;
-    --color-outline: 138 148 140;
-    --color-outline-variant: 199 210 201;
-    --color-surface-tint: 46 140 130;
-    --color-primary: 46 140 130;
-    --color-on-primary: 255 255 255;
-    --color-primary-container: 227 239 230;
-    --color-on-primary-container: 30 58 44;
-    --color-inverse-primary: 143 217 205;
-    --color-secondary: 91 102 96;
-    --color-on-secondary: 255 255 255;
-    --color-secondary-container: 231 236 232;
-    --color-on-secondary-container: 72 82 76;
-    --color-tertiary: 62 127 166;
-    --color-on-tertiary: 255 255 255;
-    --color-tertiary-container: 220 234 242;
-    --color-on-tertiary-container: 27 58 77;
-    --color-primary-fixed: 191 234 227;
-    --color-primary-fixed-dim: 143 217 205;
-    --color-on-primary-fixed: 5 35 29;
-    --color-on-primary-fixed-variant: 20 80 72;
-    --color-secondary-fixed: 231 236 232;
-    --color-secondary-fixed-dim: 198 208 201;
-    --color-on-secondary-fixed: 42 50 45;
-    --color-on-secondary-fixed-variant: 72 82 76;
-    --color-tertiary-fixed: 220 234 242;
-    --color-tertiary-fixed-dim: 174 203 218;
-    --color-on-tertiary-fixed: 16 34 44;
-    --color-on-tertiary-fixed-variant: 27 58 77;
-    --color-background: 246 248 245;
-    --color-on-background: 20 23 26;
-    --color-surface-variant: 215 228 218;
-    --color-growth-green: 63 124 99;
-    --color-text-main: 20 23 26;
-
-    --color-nav-surface: 22 24 26;
-    --color-nav-icon: 214 222 217;
-    --color-nav-icon-active: 20 23 26;
-    --color-nav-active-chip: 255 255 255;
-    --nav-active-chip-opacity: 1;
-    --nav-radius: 9999px;
-    --nav-inset-x: 16px;
-    --nav-inset-bottom: 16px;
-    --nav-shadow: 0 10px 30px rgba(10, 15, 13, 0.35);
-    --nav-label-opacity: 0;
-    --nav-label-max-height: 0px;
-
-    --radius-sm: 0.375rem;
-    --radius-default: 0.75rem;
-    --radius-md: 1rem;
-    --radius-lg: 1.25rem;
-    --radius-xl: 2rem;
-  }
-
-  /* Quiet Architecture: the shadcn/ui-based skin (docs/Themes/Spring Morning/
-     DESIGN.md) — a Danish-functionalist palette of spruce green, clay
-     ochre, and chalk-sandstone neutrals, tighter radii, and an edge-to-edge
-     labeled bottom nav (not a floating pill like Sky). Values below are
-     converted 1:1 from DESIGN.md's hex palette. growth-green is its own
-     primary (spruce green) rather than left un-overridden — Sky already
-     gives it a real value; leaving it unset here meant every growth icon
-     (Growth chart, AppPreferencesPage, ChildProfilePage) silently rendered
-     in Greenkeeper's green regardless of the active skin. Tokens with no
-     visible per-skin difference to justify one yet (journal-peach,
-     category-*, alert-soft-red, surface-beige, text-main) are left
-     un-overridden, same as Sky — they inherit
-     Greenkeeper's :root values via the normal CSS cascade. */
-  [data-skin="architecture"] {
-    --color-surface: 250 249 246;
-    --color-surface-dim: 219 218 215;
-    --color-surface-bright: 250 249 246;
-    --color-surface-container-lowest: 255 255 255;
-    --color-surface-container-low: 244 243 240;
-    --color-surface-container: 239 238 235;
-    --color-surface-container-high: 233 232 229;
-    --color-surface-container-highest: 227 226 223;
-    --color-on-surface: 27 28 26;
-    --color-on-surface-variant: 66 72 67;
-    --color-inverse-surface: 47 49 47;
-    --color-inverse-on-surface: 242 241 238;
-    --color-outline: 114 121 115;
-    --color-outline-variant: 194 200 193;
-    --color-surface-tint: 69 102 81;
-    --color-primary: 50 83 63;
-    --color-on-primary: 255 255 255;
-    --color-primary-container: 74 107 86;
-    --color-on-primary-container: 197 234 208;
-    --color-inverse-primary: 171 207 182;
-    --color-secondary: 139 79 42;
-    --color-on-secondary: 255 255 255;
-    --color-secondary-container: 253 175 130;
-    --color-on-secondary-container: 120 64 28;
-    --color-tertiary: 81 76 60;
-    --color-on-tertiary: 255 255 255;
-    --color-tertiary-container: 105 100 82;
-    --color-on-tertiary-container: 233 225 203;
-    --color-error: 186 26 26;
-    --color-on-error: 255 255 255;
-    --color-error-container: 255 218 214;
-    --color-on-error-container: 147 0 10;
-    --color-primary-fixed: 198 235 209;
-    --color-primary-fixed-dim: 171 207 182;
-    --color-on-primary-fixed: 0 33 17;
-    --color-on-primary-fixed-variant: 45 77 58;
-    --color-secondary-fixed: 255 219 201;
-    --color-secondary-fixed-dim: 255 182 140;
-    --color-on-secondary-fixed: 50 18 0;
-    --color-on-secondary-fixed-variant: 110 56 21;
-    --color-tertiary-fixed: 234 226 204;
-    --color-tertiary-fixed-dim: 206 198 177;
-    --color-on-tertiary-fixed: 31 28 14;
-    --color-on-tertiary-fixed-variant: 75 71 54;
-    --color-background: 250 249 246;
-    --color-on-background: 27 28 26;
-    --color-surface-variant: 227 226 223;
-    --color-growth-green: 50 83 63;
-
-    --color-nav-surface: 255 255 255;
-    --color-nav-icon: 66 72 67;
-    --color-nav-icon-active: 50 83 63;
-    --color-nav-active-chip: 255 255 255;
-    --nav-active-chip-opacity: 0;
-    --nav-radius: 0px;
-    --nav-inset-x: 0px;
-    --nav-inset-bottom: 0px;
-    --nav-shadow: 0 -2px 8px -1px rgba(35, 43, 40, 0.04), 0 -6px 20px -2px rgba(35, 43, 40, 0.03);
-    --nav-label-opacity: 1;
-    --nav-label-max-height: 1rem;
-
-    --radius-sm: 0.25rem;
-    --radius-default: 0.5rem;
-    --radius-md: 0.75rem;
-    --radius-lg: 1rem;
-    --radius-xl: 1.5rem;
-  }
-
-  /* Aura: the "Haven Aura" design system (docs/Themes/Aura/haven_aura/
-     DESIGN.md) — porcelain canvas, sage-tinted mint cards, an obsidian
-     floating pill nav, and generous squircle radii. Near-monochrome:
-     primary/tertiary are true black, with sage used as the secondary
-     accent — growth-green uses that same sage (DESIGN.md's "Supportive
-     Accent Sage") rather than being left un-overridden, so the Growth
-     chart/icons don't silently render in Greenkeeper's green (see the
-     architecture block's comment above for the same fix there). Tokens
-     with no visible per-skin difference to justify one yet (journal-peach,
-     alert-soft-red, surface-beige, text-main, category-*) inherit
-     Greenkeeper's :root values, same as Sky and Architecture. */
-  [data-skin="aura"] {
     --color-surface: 248 250 249;
     --color-surface-dim: 216 218 218;
     --color-surface-bright: 248 250 249;
@@ -395,11 +88,17 @@
     --color-on-background: 25 28 28;
     --color-surface-variant: 225 227 226;
     --color-growth-green: 143 175 162;
+    --color-journal-peach: 249 228 212;
+    --color-alert-soft-red: 230 165 165;
+    --color-surface-beige: 253 251 247;
+    --color-text-main: 45 49 46;
+    --color-category-school: 245 166 35;
+    --color-on-category-school: 146 84 12;
+    --color-category-activity: 142 68 173;
+    --color-on-category-activity: 108 38 140;
 
-    /* Obsidian floating pill nav — same mechanism as Sky's, darker and with
-       a wider, softer shadow per the doc's "Tier 3" elevation spec. Active
-       items get a faint white chip (bg-on-primary/15) rather than Sky's
-       fully opaque one. */
+    /* Obsidian floating pill nav, per DESIGN.md's "Tier 3" elevation spec.
+       Active items get a faint white chip (bg-on-primary/15). */
     --color-nav-surface: 24 28 26;
     --color-nav-icon: 129 133 130;
     --color-nav-icon-active: 255 255 255;
@@ -418,9 +117,20 @@
     --radius-lg: 2rem;
     --radius-xl: 3rem;
 
-    /* Aura's brand rule is a single typeface everywhere, including body
-       copy — every other skin keeps Nunito Sans for body text. */
+    --space-base: 8px;
+    --space-container-padding: 24px;
+    --space-element-gap: 16px;
+    --space-section-margin: 32px;
+    --space-grid-gutter: 16px;
+
+    /* Aura's brand rule is a single typeface everywhere, heading and body. */
+    --font-heading: "Plus Jakarta Sans";
     --font-body: "Plus Jakarta Sans";
+
+    --text-display-lg: 40px;
+    --leading-display-lg: 48px;
+    --tracking-display-lg: -0.02em;
+    --weight-display-lg: 700;
 
     --text-headline-lg: 34px;
     --leading-headline-lg: 42px;
@@ -466,6 +176,11 @@
     --leading-label-sm: 14px;
     --tracking-label-sm: 0.04em;
     --weight-label-sm: 600;
+
+    --text-micro-meta: 10px;
+    --leading-micro-meta: 12px;
+    --tracking-micro-meta: 0.08em;
+    --weight-micro-meta: 700;
   }
 
   html,

@@ -9,6 +9,7 @@ import {
   type ChildFamilyMember,
   type ChildGender,
   type CustodyPlanDto,
+  type GrowthEntryDto,
   type RelationshipType,
   type UpdateChildRequest,
   type UpdateMemberRelationshipRequest,
@@ -17,17 +18,20 @@ import {
 import { Avatar } from "../components/Avatar";
 import { AvatarUpload } from "../components/AvatarUpload";
 import { CustodySetup } from "../components/CustodySetup";
+import { GrowthChart } from "../components/GrowthChart";
 import { Icon } from "../components/Icon";
 import { apiGet, apiPatch, ApiRequestError } from "../lib/api";
 import { useAuth } from "../lib/AuthContext";
+import { formatWeight, getUnitSystem } from "../lib/preferences";
 
-// Matches docs/stitch_splitkid/child_profile/code.html.
+// Aura's mockup: docs/Themes/Aura/kidcom_child_profile_1.
 export function ChildProfilePage() {
   const { childId } = useParams<{ childId: string }>();
   const { user } = useAuth();
   const [child, setChild] = useState<ChildDetail | null>(null);
   const [family, setFamily] = useState<ChildFamilyMember[]>([]);
   const [plan, setPlan] = useState<CustodyPlanDto | null>(null);
+  const [growthEntries, setGrowthEntries] = useState<GrowthEntryDto[]>([]);
   const [showEditPlan, setShowEditPlan] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -62,15 +66,17 @@ export function ChildProfilePage() {
     let cancelled = false;
     async function load() {
       try {
-        const [childRes, familyRes, planRes] = await Promise.all([
+        const [childRes, familyRes, planRes, growthRes] = await Promise.all([
           apiGet<ChildDetail>(`/children/${childId}`),
           apiGet<{ members: ChildFamilyMember[] }>(`/children/${childId}/family`),
           apiGet<{ plan: CustodyPlanDto | null }>(`/children/${childId}/custody-plan`),
+          apiGet<{ items: GrowthEntryDto[] }>(`/children/${childId}/growth-entries`),
         ]);
         if (cancelled) return;
         setChild(childRes);
         setFamily(familyRes.members);
         setPlan(planRes.plan);
+        setGrowthEntries(growthRes.items);
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof ApiRequestError ? err.message : "Couldn't load this child");
@@ -101,16 +107,24 @@ export function ChildProfilePage() {
     );
   }
 
-  const age = new Date(child.birthday).toLocaleDateString(undefined, {
+  const birthdayShort = new Date(child.birthday).toLocaleDateString(undefined, {
+    timeZone: "UTC",
+    day: "2-digit",
+    month: "2-digit",
     year: "numeric",
-    month: "long",
-    day: "numeric",
   });
+  const ageYears = Math.floor(
+    (Date.now() - new Date(child.birthday).getTime()) / (365.25 * 86400000)
+  );
 
   const parents = family.filter((m) => m.role === "PARENT");
   const myRole = family.find((m) => m.userId === user?.id)?.role;
   const isParent = myRole === "PARENT";
   const parentNamesById = Object.fromEntries(family.map((m) => [m.userId, m.firstName]));
+  const guardianNames = parents.map((p) => p.firstName).join(" • ");
+  const latestWeightKg = [...growthEntries]
+    .filter((e) => e.weightKg != null)
+    .sort((a, b) => new Date(b.measuredAt).getTime() - new Date(a.measuredAt).getTime())[0]?.weightKg;
 
   // Who may edit whose relationship label — mirrors the server's own
   // capability tiering (PATCH /children/:childId/family/:userId): always
@@ -125,8 +139,8 @@ export function ChildProfilePage() {
 
   return (
     <div className="flex flex-col w-full pb-8">
-      <div className="px-container-padding py-6 flex flex-col items-center justify-center relative bg-surface text-on-surface">
-        <div className="relative mb-4 rounded-full shadow-[0_4px_16px_rgba(0,0,0,0.15)] ring-4 ring-surface">
+      <div className="px-container-padding py-6 flex flex-col items-center justify-center relative bg-surface text-on-surface gap-1.5">
+        <div className="relative mb-2 rounded-full shadow-[0_4px_16px_rgba(0,0,0,0.15)] ring-4 ring-surface">
           <AvatarUpload
             currentAssetId={child.profileImageUrl}
             fallbackLetter={child.firstName.charAt(0)}
@@ -140,146 +154,48 @@ export function ChildProfilePage() {
             }}
           />
         </div>
-        <h2 className="font-headline-lg text-headline-lg text-primary mb-1">
+        <h2 className="font-headline-sm text-headline-sm text-on-surface">
           {child.firstName} {child.lastName}
         </h2>
-        <p className="font-body-md text-body-md text-on-surface-variant flex items-center gap-2">
-          <Icon name="cake" className="text-[16px]" /> {age}
-        </p>
-      </div>
-
-      {editing ? (
-        <div className="px-container-padding mt-2 mb-section-margin flex flex-col gap-element-gap">
-          <ChildEditForm
-            childId={childId!}
-            child={child}
-            onCancel={() => setEditing(false)}
-            onSaved={(updated) => {
-              setChild(updated);
-              setEditing(false);
-            }}
-          />
-        </div>
-      ) : (
-        <>
-          <div className="px-container-padding mt-2 mb-section-margin flex flex-col gap-element-gap">
-            <div className="flex justify-between items-end mb-2">
-              <h3 className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">
-                Current Sizes
-              </h3>
-              <button
-                onClick={() => setEditing(true)}
-                className="font-label-sm text-label-sm text-primary hover:text-primary-container transition-colors"
-              >
-                Edit
-              </button>
-            </div>
-            <div className="grid grid-cols-2 gap-grid-gutter">
-              <div className="bg-surface-container-lowest rounded-xl p-4 shadow-sm flex flex-col relative overflow-hidden">
-                <Icon name="checkroom" className="text-primary mb-2" />
-                <span className="font-label-sm text-label-sm text-on-surface-variant mb-1">Clothing</span>
-                <span className="font-headline-md text-headline-md text-on-surface">
-                  {child.clothingSize ?? "—"}
-                </span>
-              </div>
-              <div className="bg-surface-container-lowest rounded-xl p-4 shadow-sm flex flex-col relative overflow-hidden">
-                <Icon name="footprint" className="text-secondary mb-2" />
-                <span className="font-label-sm text-label-sm text-on-surface-variant mb-1">Shoe Size</span>
-                <span className="font-headline-md text-headline-md text-on-surface">
-                  {child.shoeSize ?? "—"}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="px-container-padding mb-section-margin flex flex-col gap-element-gap">
-            <h3 className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider mb-2">
-              Basic Info
-            </h3>
-            <div className="bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden">
-              <div className="flex items-center justify-between p-4">
-                <span className="font-body-md text-body-md text-on-surface">Gender</span>
-                <span className="font-label-md text-label-md text-on-surface-variant capitalize">
-                  {child.gender.toLowerCase()}
-                </span>
-              </div>
-              <div className="h-[1px] w-[calc(100%-2rem)] mx-auto bg-surface-container-highest" />
-              <div className="flex items-center justify-between p-4">
-                <span className="font-body-md text-body-md text-on-surface">Height</span>
-                <span className="font-label-md text-label-md text-on-surface-variant">
-                  {child.heightCm ? `${child.heightCm} cm` : "—"}
-                </span>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
-
-      <div className="px-container-padding mb-section-margin flex flex-col gap-element-gap">
-        <div className="grid grid-cols-2 gap-3">
-          <Link
-            to={`/children/${childId}/medical`}
-            className="bg-surface-container-lowest rounded-xl p-4 shadow-sm flex flex-col items-center gap-2 text-center"
-          >
-            <Icon name="medical_information" className="text-tertiary" />
-            <span className="font-label-md text-label-md text-on-surface">Medical Info</span>
-          </Link>
-          <Link
-            to={`/children/${childId}/contacts`}
-            className="bg-surface-container-lowest rounded-xl p-4 shadow-sm flex flex-col items-center gap-2 text-center"
-          >
-            <Icon name="contact_support" className="text-primary" />
-            <span className="font-label-md text-label-md text-on-surface">Contacts</span>
-          </Link>
-          <Link
-            to={`/children/${childId}/growth`}
-            className="bg-surface-container-lowest rounded-xl p-4 shadow-sm flex flex-col items-center gap-2 text-center"
-          >
-            <Icon name="monitoring" className="text-growth-green" />
-            <span className="font-label-md text-label-md text-on-surface">Growth</span>
-          </Link>
-          <Link
-            to={`/lists?child=${childId}`}
-            className="bg-surface-container-lowest rounded-xl p-4 shadow-sm flex flex-col items-center gap-2 text-center"
-          >
-            <Icon name="checkroom" className="text-secondary" />
-            <span className="font-label-md text-label-md text-on-surface">Shared List</span>
-          </Link>
-        </div>
-      </div>
-
-      <div className="px-container-padding mb-section-margin flex flex-col gap-element-gap">
-        <h3 className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider mb-2">
-          Custody Schedule
-        </h3>
-        {plan === null && (
-          <CustodySetup childId={childId!} parents={parents} onSaved={loadPlan} />
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-secondary-container text-on-secondary-container font-label-sm text-label-sm capitalize">
+          {child.gender.toLowerCase()} • {birthdayShort} • Age {ageYears}
+        </span>
+        {guardianNames && (
+          <p className="flex items-center gap-1.5 text-on-surface-variant font-label-sm text-label-sm mt-0.5">
+            <Icon name="supervisor_account" className="text-[15px]" /> {guardianNames}
+          </p>
         )}
+      </div>
+
+      <div className="px-container-padding mb-section-margin">
+        {plan === null && <CustodySetup childId={childId!} parents={parents} onSaved={loadPlan} />}
         {plan !== null && !showEditPlan && (
-          <div className="bg-surface-container-lowest rounded-xl p-4 shadow-sm flex items-start justify-between gap-3">
-            <div className="flex-1">
-              <p className="font-label-md text-label-md text-on-surface">{plan.label}</p>
-              <p className="font-body-sm text-body-sm text-on-surface-variant mt-1">
-                {describeCustodyPattern(plan.patternDays, parentNamesById)}
-              </p>
-              <p className="font-body-sm text-body-sm text-on-surface-variant mt-1">
-                Started{" "}
-                {new Date(plan.startDate).toLocaleDateString(undefined, {
-                  timeZone: "UTC",
-                  month: "short",
-                  day: "numeric",
-                  year: "numeric",
-                })}
-              </p>
+          <div className="flex flex-col gap-1 rounded-2xl px-3.5 py-2.5 bg-primary-container">
+            <div className="flex items-center justify-between">
+              <span className="font-label-md text-label-md font-bold text-on-primary">Custody Plan</span>
+              {isParent && (
+                <button
+                  type="button"
+                  aria-label="Edit Custody Plan"
+                  onClick={() => setShowEditPlan(true)}
+                  className="text-on-primary hover:opacity-80 transition-opacity inline-flex items-center justify-center"
+                >
+                  <Icon name="edit" className="text-[16px]" />
+                </button>
+              )}
             </div>
-            {isParent && (
-              <button
-                onClick={() => setShowEditPlan(true)}
-                className="shrink-0 py-2 px-4 rounded-full bg-surface-container text-primary font-label-sm text-label-sm"
-              >
-                Edit
-              </button>
-            )}
+            <p className="font-body-md text-body-md text-inverse-on-surface leading-snug">
+              {plan.label}. {describeCustodyPattern(plan.patternDays, parentNamesById)}
+            </p>
+            <p className="font-micro-meta text-micro-meta text-on-primary-container mt-0.5">
+              Since{" "}
+              {new Date(plan.startDate).toLocaleDateString(undefined, {
+                timeZone: "UTC",
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              })}
+            </p>
           </div>
         )}
         {plan !== null && showEditPlan && (
@@ -296,10 +212,112 @@ export function ChildProfilePage() {
         )}
       </div>
 
+      {editing ? (
+        <div className="px-container-padding mt-2 mb-section-margin flex flex-col gap-element-gap">
+          <ChildEditForm
+            childId={childId!}
+            child={child}
+            onCancel={() => setEditing(false)}
+            onSaved={(updated) => {
+              setChild(updated);
+              setEditing(false);
+            }}
+          />
+        </div>
+      ) : (
+        <div className="px-container-padding mt-2 mb-section-margin flex flex-col gap-element-gap">
+          <div className="flex justify-between items-end mb-2">
+            <h3 className="font-title-md text-title-md text-on-surface">Measurements</h3>
+            <button
+              onClick={() => setEditing(true)}
+              className="font-label-sm text-label-sm text-primary hover:text-primary-container transition-colors"
+            >
+              Edit
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-grid-gutter">
+            <div className="bg-surface-container-lowest rounded-xl p-4 shadow-sm flex flex-col relative overflow-hidden">
+              <Icon name="height" className="text-primary mb-2" />
+              <span className="font-label-sm text-label-sm text-on-surface-variant mb-1">Height</span>
+              <span className="font-headline-md text-headline-md text-on-surface">
+                {child.heightCm ? `${child.heightCm} cm` : "—"}
+              </span>
+            </div>
+            <div className="bg-surface-container-lowest rounded-xl p-4 shadow-sm flex flex-col relative overflow-hidden">
+              <Icon name="monitor_weight" className="text-secondary mb-2" />
+              <span className="font-label-sm text-label-sm text-on-surface-variant mb-1">Weight</span>
+              <span className="font-headline-md text-headline-md text-on-surface">
+                {latestWeightKg != null ? formatWeight(latestWeightKg, getUnitSystem()) : "—"}
+              </span>
+            </div>
+            <div className="bg-surface-container-lowest rounded-xl p-4 shadow-sm flex flex-col relative overflow-hidden">
+              <Icon name="checkroom" className="text-primary mb-2" />
+              <span className="font-label-sm text-label-sm text-on-surface-variant mb-1">Clothing</span>
+              <span className="font-headline-md text-headline-md text-on-surface">
+                {child.clothingSize ?? "—"}
+              </span>
+            </div>
+            <div className="bg-surface-container-lowest rounded-xl p-4 shadow-sm flex flex-col relative overflow-hidden">
+              <Icon name="footprint" className="text-secondary mb-2" />
+              <span className="font-label-sm text-label-sm text-on-surface-variant mb-1">Shoe Size</span>
+              <span className="font-headline-md text-headline-md text-on-surface">
+                {child.shoeSize ?? "—"}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="px-container-padding mb-section-margin flex flex-col gap-element-gap">
-        <h3 className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider mb-2">
-          Family &amp; Connections
-        </h3>
+        <div className="flex items-center justify-between">
+          <h3 className="font-title-md text-title-md text-on-surface">Growth Trajectory</h3>
+          <Link to={`/children/${childId}/growth`} className="font-label-sm text-label-sm text-primary">
+            View details
+          </Link>
+        </div>
+        <div className="rounded-2xl bg-secondary-container/40 overflow-hidden">
+          <GrowthChart entries={growthEntries} metric="height" child={child} />
+        </div>
+      </div>
+
+      <div className="px-container-padding mb-section-margin flex flex-col gap-element-gap">
+        <h3 className="font-title-md text-title-md text-on-surface">Care &amp; Essentials</h3>
+        <div className="grid grid-cols-2 gap-3">
+          <Link
+            to={`/children/${childId}/medical`}
+            className="bg-surface-container-lowest rounded-2xl p-3.5 border border-outline-variant/30 shadow-sm flex flex-col gap-3 hover:bg-surface-container/50 transition-colors"
+          >
+            <div className="flex items-center justify-between">
+              <span className="w-10 h-10 rounded-full bg-secondary-container flex items-center justify-center text-on-secondary-container">
+                <Icon name="medical_services" className="text-[20px]" />
+              </span>
+              <Icon name="chevron_right" className="text-on-surface-variant text-[18px]" />
+            </div>
+            <div>
+              <p className="font-label-md text-label-md text-on-surface font-bold">Medical Info</p>
+              <p className="font-micro-meta text-micro-meta text-on-surface-variant mt-0.5">Conditions &amp; allergies</p>
+            </div>
+          </Link>
+          <Link
+            to={`/children/${childId}/contacts`}
+            className="bg-surface-container-lowest rounded-2xl p-3.5 border border-outline-variant/30 shadow-sm flex flex-col gap-3 hover:bg-surface-container/50 transition-colors"
+          >
+            <div className="flex items-center justify-between">
+              <span className="w-10 h-10 rounded-full bg-secondary-container flex items-center justify-center text-on-secondary-container">
+                <Icon name="call" className="text-[20px]" />
+              </span>
+              <Icon name="chevron_right" className="text-on-surface-variant text-[18px]" />
+            </div>
+            <div>
+              <p className="font-label-md text-label-md text-on-surface font-bold">Contacts</p>
+              <p className="font-micro-meta text-micro-meta text-on-surface-variant mt-0.5">Pediatrician, school &amp; more</p>
+            </div>
+          </Link>
+        </div>
+      </div>
+
+      <div className="px-container-padding mb-section-margin flex flex-col gap-element-gap">
+        <h3 className="font-title-md text-title-md text-on-surface">Family</h3>
         <div className="flex flex-col gap-3">
           {family.map((member) => {
             const options = ALL_RELATIONSHIP_TYPES.filter(

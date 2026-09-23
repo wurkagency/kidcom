@@ -6,12 +6,12 @@ import { googleMapsUrl } from "../../lib/calendarDates";
 import { resolveParentShortLabel } from "../../lib/parentLabel";
 import type { CalendarEventWithChild } from "../../lib/mergeCalendarRanges";
 
-// Renders one event as a card. "full" matches
-// docs/stitch_splitkid/calendar_week_view's timeline-event card exactly
-// (category badge + time, title, "Assigned:" pill, location row, an
-// optional note box / contact card / checklist / confirmations strip) and
-// is used by Week/Month/List alike per the redesign correction to make
-// every view's cards match the week view. "compact" matches Month's Day
+// Renders one event as a card. "full" matches docs/Themes/Aura/
+// kidcom_calendar_2's timeline-event card (category badge + time, title,
+// "Assigned:" pill, location row, an optional note box / contact card /
+// checklist / confirmations strip) and is used by Week/Month/List alike
+// per the redesign correction to make every view's cards match the week
+// view. "compact" matches Month's Day
 // Quick Preview card instead (a colored left bar + title/time/category
 // row, no expanded detail).
 export function EventCard({

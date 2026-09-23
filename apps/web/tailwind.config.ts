@@ -1,10 +1,10 @@
 import type { Config } from "tailwindcss";
 
-// Design tokens sourced verbatim from docs/stitch_splitkid/kindred_path/DESIGN.md
-// (the "Kindred Path" design system behind the Stitch mockups). Values below
-// resolve through CSS custom properties defined in src/index.css so a skin
-// can override them at runtime — keep the property names in sync with that
-// file when adding or renaming a token.
+// Design tokens sourced from docs/Themes/Aura/haven_aura/DESIGN.md (the
+// "Haven Aura" design system — Aura is the app's single theme, see
+// packages/shared/src/skins.ts). Values below resolve through CSS custom
+// properties defined in src/index.css's :root block — keep the property
+// names in sync with that file when adding or renaming a token.
 function withOpacity(variable: string) {
   return `rgb(var(${variable}) / <alpha-value>)`;
 }
@@ -76,14 +76,13 @@ export default {
         "nav-icon-active": withOpacity("--color-nav-icon-active"),
         "nav-active-chip": withOpacity("--color-nav-active-chip"),
 
-        // shadcn/ui bridge — the "Quiet Architecture" skin (packages/shared/src/skins.ts)
-        // is the first to pull in shadcn/ui components. Rather than let shadcn's own
-        // HSL --background/--foreground/etc. variable convention exist alongside this
-        // project's RGB-triplet --color-* system, these are the exact key names shadcn's
-        // generated component source expects, pointed at the closest existing token via
-        // the same withOpacity() bridge every other color already uses. No new CSS
-        // variables — every skin (including Greenkeeper/Sky) themes these identically to
-        // the token they're aliased to.
+        // shadcn/ui bridge — several components (Card, Toggle, SegmentedControl,
+        // FormInput, Banner, Avatar, AssignSheet, and others) are built on shadcn/ui
+        // primitives. Rather than let shadcn's own HSL --background/--foreground/etc.
+        // variable convention exist alongside this project's RGB-triplet --color-*
+        // system, these are the exact key names shadcn's generated component source
+        // expects, pointed at the closest existing token via the same withOpacity()
+        // bridge every other color already uses. No new CSS variables.
         // "background"/"on-background" already exist above — reused as-is, not
         // redefined, to avoid a duplicate key. "foreground" is new.
         foreground: withOpacity("--color-on-background"),

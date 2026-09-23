@@ -5,10 +5,11 @@ import { createApp } from "../../app";
 import { resetDb } from "../../testUtils/db";
 import { signupTestUser } from "../../testUtils/auth";
 
-// v2.0 theming (Phase 1) — PATCH /auth/me's new skinId field. A brand-new
-// account has no skinId (resolves client-side to DEFAULT_SKIN); setting one
-// persists on the account, not just the device, and survives across
-// sessions (a second login sees it too, not just the one that set it).
+// PATCH /auth/me's skinId field. A brand-new account has no skinId (resolves
+// client-side to DEFAULT_SKIN); setting one persists on the account, not
+// just the device, and survives across sessions (a second login sees it too,
+// not just the one that set it). "aura" is the only valid value since the
+// v3.0 single-theme consolidation (2026-09-22).
 describe("PATCH /auth/me — skinId (v2.0 theming)", () => {
   beforeEach(async () => {
     await resetDb();
@@ -26,12 +27,12 @@ describe("PATCH /auth/me — skinId (v2.0 theming)", () => {
     const app = createApp();
     const { agent, email } = await signupTestUser(app);
 
-    const patchRes = await agent.patch("/auth/me").send({ skinId: "sky" });
+    const patchRes = await agent.patch("/auth/me").send({ skinId: "aura" });
     expect(patchRes.status).toBe(200);
-    expect(patchRes.body.user.skinId).toBe("sky");
+    expect(patchRes.body.user.skinId).toBe("aura");
 
     const meRes = await agent.get("/auth/me");
-    expect(meRes.body.user.skinId).toBe("sky");
+    expect(meRes.body.user.skinId).toBe("aura");
 
     // A separate session (e.g. a second device) sees the same persisted
     // choice — this is the actual behavior change from the pre-v2.0

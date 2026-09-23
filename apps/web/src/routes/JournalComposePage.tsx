@@ -2,6 +2,7 @@ import { useRef, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import type { CreateJournalPostRequest, JournalPostDto, MediaUploadResponse } from "@kidcom/shared";
 
+import { Avatar } from "../components/Avatar";
 import { Icon } from "../components/Icon";
 import { apiPost, apiUpload, ApiRequestError } from "../lib/api";
 import { useAuth } from "../lib/AuthContext";
@@ -13,7 +14,7 @@ import { useHeaderConfig } from "../lib/HeaderContext";
 const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
 const MAX_UPLOAD_MB = MAX_UPLOAD_BYTES / (1024 * 1024);
 
-type UploadedAsset = MediaUploadResponse & { fileName: string };
+type UploadedAsset = MediaUploadResponse & { fileName: string; previewUrl: string };
 
 // Full-page replacement for the old JournalComposer modal, opened from the
 // Journal FAB at /journal/new. Supports tagging the post to more than one
@@ -61,7 +62,7 @@ export function JournalComposePage() {
           const formData = new FormData();
           formData.append("file", file);
           const asset = await apiUpload<MediaUploadResponse>("/media/upload", formData);
-          setAssets((prev) => [...prev, { ...asset, fileName: file.name }]);
+          setAssets((prev) => [...prev, { ...asset, fileName: file.name, previewUrl: URL.createObjectURL(file) }]);
         } catch (err) {
           setError(err instanceof ApiRequestError ? err.message : `Couldn't upload "${file.name}"`);
         }
@@ -72,7 +73,11 @@ export function JournalComposePage() {
   }
 
   function removeAsset(id: string) {
-    setAssets((prev) => prev.filter((a) => a.id !== id));
+    setAssets((prev) => {
+      const removed = prev.find((a) => a.id === id);
+      if (removed) URL.revokeObjectURL(removed.previewUrl);
+      return prev.filter((a) => a.id !== id);
+    });
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -106,46 +111,7 @@ export function JournalComposePage() {
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col w-full min-h-screen">
-      <div className="flex-1 overflow-y-auto px-container-padding py-section-margin flex flex-col gap-4">
-        <input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="Title, e.g. Building the tallest tower!"
-          className="w-full bg-surface-container-lowest rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary font-body-md text-body-md"
-          required
-        />
-        <textarea
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="What happened? (optional)"
-          rows={4}
-          className="w-full bg-surface-container-lowest rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary font-body-md text-body-md"
-        />
-
-        <div className="flex flex-col gap-2">
-          <span className="font-label-md text-label-md text-on-surface-variant">Who is this about?</span>
-          <div className="flex flex-wrap gap-2">
-            {children.map((c) => {
-              const selected = selectedChildIds.includes(c.id);
-              return (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => toggleChild(c.id)}
-                  className={`px-4 py-2 rounded-full font-label-sm text-label-sm border transition-colors ${
-                    selected
-                      ? "bg-primary text-on-primary border-primary"
-                      : "bg-surface-container-lowest text-on-surface-variant border-transparent"
-                  }`}
-                >
-                  {c.firstName}
-                </button>
-              );
-            })}
-          </div>
-          {childError && <p className="font-label-sm text-label-sm text-error">{childError}</p>}
-        </div>
-
+      <div className="flex-1 overflow-y-auto px-container-padding py-section-margin flex flex-col gap-5">
         <input
           ref={fileInputRef}
           type="file"
@@ -154,38 +120,113 @@ export function JournalComposePage() {
           className="hidden"
           onChange={handleFilesPick}
         />
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={uploading}
-          className="w-full py-3 rounded-xl bg-surface-container text-primary font-label-md text-label-md flex items-center justify-center gap-2 disabled:opacity-60"
-        >
-          <Icon name={uploading ? "hourglass_top" : "add_photo_alternate"} />
-          {uploading ? "Uploading…" : "Add photos or videos"}
-        </button>
-
-        {assets.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {assets.map((a) => (
-              <div
-                key={a.id}
-                className="flex items-center gap-2 bg-surface-container-lowest rounded-full pl-3 pr-1 py-1"
-              >
-                <span className="font-label-sm text-label-sm text-on-surface-variant truncate max-w-[8rem]">
-                  {a.fileName}
-                </span>
+        {assets.length > 0 ? (
+          <div className="grid grid-cols-3 gap-2">
+            {assets.map((a, i) => (
+              <div key={a.id} className="relative aspect-[4/3] rounded-xl overflow-hidden bg-surface-container">
+                <img src={a.previewUrl} alt="" className="w-full h-full object-cover" />
+                {i === 0 && (
+                  <span className="absolute top-1.5 left-1.5 px-2 py-0.5 rounded-full bg-black/50 text-white font-micro-meta text-micro-meta uppercase tracking-wider">
+                    Cover
+                  </span>
+                )}
                 <button
                   type="button"
                   onClick={() => removeAsset(a.id)}
                   aria-label={`Remove ${a.fileName}`}
-                  className="w-6 h-6 flex items-center justify-center rounded-full text-on-surface-variant hover:text-error"
+                  className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/50 text-white flex items-center justify-center"
                 >
-                  <Icon name="close" className="text-sm" />
+                  <Icon name="close" className="text-[14px]" />
                 </button>
               </div>
             ))}
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="aspect-[4/3] rounded-xl bg-surface-container-lowest border border-dashed border-outline-variant flex flex-col items-center justify-center gap-1 text-on-surface-variant disabled:opacity-60"
+            >
+              <Icon name={uploading ? "hourglass_top" : "add_photo_alternate"} />
+              <span className="font-label-sm text-label-sm">{uploading ? "Uploading…" : "Add more"}</span>
+            </button>
           </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="w-full py-3 rounded-xl bg-surface-container text-primary font-label-md text-label-md flex items-center justify-center gap-2 disabled:opacity-60"
+          >
+            <Icon name={uploading ? "hourglass_top" : "add_photo_alternate"} />
+            {uploading ? "Uploading…" : "Add photos or videos"}
+          </button>
         )}
+
+        <div className="flex flex-col gap-2">
+          <span className="flex items-center gap-1.5 font-label-md text-label-md text-on-surface-variant">
+            <Icon name="stylus_note" className="text-[16px]" /> Describe your moment
+          </span>
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Title, e.g. Building the tallest tower!"
+            className="w-full bg-surface-container-lowest rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary font-body-md text-body-md"
+            required
+          />
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="What happened? (optional)"
+            rows={4}
+            className="w-full bg-surface-container-lowest rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary font-body-md text-body-md"
+          />
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <span className="font-label-md text-label-md text-on-surface-variant">Who is this about?</span>
+            {children.length > 1 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setChildError(null);
+                  setSelectedChildIds((prev) =>
+                    prev.length === children.length ? [] : children.map((c) => c.id)
+                  );
+                }}
+                className="font-label-sm text-label-sm text-primary"
+              >
+                {selectedChildIds.length === children.length ? "Deselect all" : "Select all"}
+              </button>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {children.map((c) => {
+              const selected = selectedChildIds.includes(c.id);
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => toggleChild(c.id)}
+                  className={`pl-1.5 pr-3.5 py-1.5 rounded-full flex items-center gap-2 font-label-sm text-label-sm border transition-colors ${
+                    selected
+                      ? "bg-primary text-on-primary border-primary"
+                      : "bg-surface-container-lowest text-on-surface-variant border-transparent"
+                  }`}
+                >
+                  <Avatar name={c.firstName} avatarAssetId={c.profileImageUrl} kind="child" size="xs" />
+                  {c.firstName}
+                </button>
+              );
+            })}
+          </div>
+          {selectedChildIds.length > 0 && (
+            <span className="font-micro-meta text-micro-meta text-on-surface-variant">
+              {selectedChildIds.length} of {children.length} included
+            </span>
+          )}
+          {childError && <p className="font-label-sm text-label-sm text-error">{childError}</p>}
+        </div>
 
         {error && (
           <p className="font-body-md text-body-md text-error bg-error-container rounded-lg px-4 py-3">
@@ -200,7 +241,7 @@ export function JournalComposePage() {
           disabled={!canSubmit}
           className="w-full py-4 bg-primary text-on-primary rounded-full font-label-md text-label-md shadow-lg disabled:opacity-60"
         >
-          {submitting ? "Posting…" : "Post"}
+          {submitting ? "Posting…" : "Publish to Family Journal"}
         </button>
       </div>
     </form>

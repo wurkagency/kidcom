@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import type {
+  CalendarEventDto,
   CalendarRangeResponse,
   ChildFamilyMember,
   CustodyPlanDto,
@@ -12,6 +13,8 @@ import type {
 import { Icon } from "../components/Icon";
 import { SwapRequestCard } from "../components/SwapRequestCard";
 import { apiGet, apiPatch, ApiRequestError } from "../lib/api";
+import { eventSpansDate } from "../lib/calendarDates";
+import { CALENDAR_CATEGORY_META } from "../lib/calendarCategories";
 import { fetchMediaUrl } from "../lib/media";
 import { useAuth } from "../lib/AuthContext";
 
@@ -58,24 +61,42 @@ type DashboardData = {
   latestPost: JournalPostDto | null;
   reminders: Reminder[];
   notes: PersonalNoteDto[];
+  todaysEvents: CalendarEventDto[];
+  // A CUSTODY-category event today with its own checklist (e.g. "pack
+  // backpack") — real data (CalendarEventChecklistItem), not the generic
+  // class-timetable/"sync verified" content the mockup shows with no
+  // backing data model; see the top-of-file note.
+  handoverEvent: CalendarEventDto | null;
 };
 
 // Layout follows docs/Themes/Aura/kidcom_today_screen_updated_note/code.html:
 // greeting, a mint custody card with a handover link, Next Appointment/
-// Latest Journal cards, Reminders & Tasks, Notes, a Swap Request card, then
-// quick actions.
+// Latest Journal cards, a Today's Schedule list, Reminders & Tasks, Notes,
+// a Swap Request card, then quick actions.
 //
-// Reminders & Tasks and Notes both looked like they'd need new backend
-// features at first read — they don't. "Reminders & Tasks" is every
-// unchecked CalendarEventChecklistItem across the next 7 days' events,
-// aggregated here rather than left buried per-event (checklist items
-// already exist — see EventCard.tsx). "Notes" is deliberately scoped to
-// PersonalNote — GET /notes is explicitly documented server-side as "a
-// private per-user scratchpad... there's no sharing here" (see
-// apps/api/src/routes/notes/index.ts), not the shared, co-parent-attributed
-// notes the mockup shows. Surfacing it as "Written by Mom"/"Shared by Dad"
-// would misrepresent private data as shared, so this shows only the
-// signed-in user's own notes, honestly labeled "Your Notes" instead.
+// Reminders & Tasks, Today's Schedule, and Notes all looked like they'd
+// need new backend features at first read — they don't. "Reminders & Tasks"
+// is every unchecked CalendarEventChecklistItem across the next 7 days'
+// events, aggregated here rather than left buried per-event (checklist
+// items already exist — see EventCard.tsx). "Today's Schedule" is today's
+// real CalendarEvent rows (excluding CUSTODY, which the handover card above
+// already covers) — the mockup's version of this is a fixed daily
+// class-period timetable (09:00 Math & Logic, 10:15 Reading, ...) with no
+// corresponding data model anywhere in this app (no school-timetable
+// feature exists), so that specific fabricated content isn't reproduced;
+// what's shown instead is the same real event data every other calendar
+// view already renders, just scoped to today. Likewise the mockup's
+// "Handover Packing: 3 of 4 items packed" line is real when a CUSTODY event
+// exists for today with its own checklist — not a generic completion
+// number. "Notes" is deliberately scoped to PersonalNote — GET /notes is
+// explicitly documented server-side as "a private per-user scratchpad...
+// there's no sharing here" (see apps/api/src/routes/notes/index.ts), not
+// the shared, co-parent-attributed notes the mockup shows. Surfacing it as
+// "Written by Mom"/"Shared by Dad" would misrepresent private data as
+// shared, so this shows only the signed-in user's own notes, honestly
+// labeled "Your Notes" instead. The mockup's "Both parents in sync for this
+// week / Haven Verified" banner is left out entirely — there's no real
+// computation behind that claim, in the mockup or in this app's data model.
 export function HomePage() {
   const { user, children } = useAuth();
   const navigate = useNavigate();
@@ -173,6 +194,13 @@ export function HomePage() {
 
       const latestPost = journalRes.items[0] ?? null;
 
+      const todaysEvents = rangeRes.events
+        .filter((e) => e.category !== "CUSTODY" && eventSpansDate(e, start))
+        .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
+      const handoverEvent =
+        rangeRes.events.find((e) => e.category === "CUSTODY" && eventSpansDate(e, start) && e.checklist.length > 0) ??
+        null;
+
       return {
         plan: planRes.plan,
         todaysOwnerName,
@@ -183,6 +211,8 @@ export function HomePage() {
         latestPost,
         reminders,
         notes: notesRes.items.slice(0, 2),
+        todaysEvents,
+        handoverEvent,
       } satisfies DashboardData;
     })()
       .then((result) => {
@@ -230,6 +260,36 @@ export function HomePage() {
     }
   }
 
+  // Shared by Today's Schedule cards and the handover-packing checklist —
+  // both toggle a real CalendarEventChecklistItem, just rendered in two
+  // different spots on this page.
+  async function toggleEventChecklistItem(eventId: string, itemId: string, isChecked: boolean) {
+    if (!childId) return;
+    setTogglingItemId(itemId);
+    try {
+      await apiPatch(
+        `/children/${childId}/calendar-events/${eventId}/checklist/${itemId}`,
+        { isChecked } satisfies ToggleChecklistItemRequest
+      );
+      setData((prev) => {
+        if (!prev) return prev;
+        const patchEvent = (e: CalendarEventDto) =>
+          e.id === eventId
+            ? { ...e, checklist: e.checklist.map((item) => (item.id === itemId ? { ...item, isChecked } : item)) }
+            : e;
+        return {
+          ...prev,
+          todaysEvents: prev.todaysEvents.map(patchEvent),
+          handoverEvent: prev.handoverEvent ? patchEvent(prev.handoverEvent) : prev.handoverEvent,
+        };
+      });
+    } catch {
+      setError("Couldn't update that item — try again.");
+    } finally {
+      setTogglingItemId(null);
+    }
+  }
+
   if (children.length === 0) {
     return (
       <section className="px-container-padding pt-6 flex flex-col gap-section-margin">
@@ -257,7 +317,24 @@ export function HomePage() {
   }
 
   return (
-    <div className="flex flex-col w-full gap-section-margin">
+    <div className="relative flex flex-col w-full gap-section-margin">
+      {/* Purely decorative atmosphere wash from docs/Themes/Aura/
+          kidcom_today_screen_updated_note — CSS only, no data. */}
+      <div
+        className="absolute top-0 left-0 right-0 h-[480px] pointer-events-none overflow-hidden select-none -z-10"
+        style={{
+          background:
+            "radial-gradient(circle at 20% 12%, rgba(247, 236, 213, 0.65) 0%, transparent 45%), " +
+            "radial-gradient(circle at 80% 15%, rgba(188, 201, 197, 0.55) 0%, transparent 50%), " +
+            "radial-gradient(circle at 45% 30%, rgba(201, 234, 220, 0.5) 0%, transparent 45%), " +
+            "radial-gradient(circle at 85% 50%, rgba(216, 229, 224, 0.45) 0%, transparent 45%), " +
+            "linear-gradient(rgba(255, 255, 255, 0.5) 0%, rgba(248, 250, 249, 0.1) 60%, rgb(248, 250, 249) 100%)",
+          maskImage: "linear-gradient(rgb(0, 0, 0) 0%, rgb(0, 0, 0) 60%, transparent 95%)",
+        }}
+      >
+        <div className="w-full h-full backdrop-blur-[40px]" />
+      </div>
+
       <section className="px-container-padding flex flex-col gap-2">
         <h1 className="font-display-lg text-display-lg text-on-surface">
           Hi {user?.firstName ?? ""},
@@ -298,11 +375,8 @@ export function HomePage() {
               the old bento-grid tile used, just laid out as a handover
               rather than a single "With <name>" line. */}
           <section className="px-container-padding">
-            <Link
-              to="/calendar"
-              className="block bg-secondary-container rounded-[28px] p-5 shadow-sm"
-            >
-              <div className="flex items-center justify-between gap-2">
+            <div className="bg-secondary-container rounded-[28px] p-5 shadow-sm flex flex-col gap-4">
+              <Link to="/calendar" className="flex items-center justify-between gap-2">
                 <div className="flex flex-col">
                   <span className="font-label-sm text-label-sm text-on-secondary-container/70 uppercase tracking-wider">
                     {data?.todaysOwnerName ? `${data.todaysOwnerName}'s` : "Today"}
@@ -322,8 +396,11 @@ export function HomePage() {
                       : "—"}
                   </span>
                 </div>
-              </div>
-              <div className="mt-4 bg-surface-container-lowest rounded-2xl px-4 py-3 flex items-center justify-between shadow-sm">
+              </Link>
+              <Link
+                to="/calendar"
+                className="bg-surface-container-lowest rounded-2xl px-4 py-3 flex items-center justify-between shadow-sm"
+              >
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-full bg-surface-container-low flex items-center justify-center shrink-0">
                     <Icon name="calendar_month" className="text-on-surface-variant text-base" />
@@ -342,8 +419,41 @@ export function HomePage() {
                 <div className="w-8 h-8 rounded-full bg-primary text-on-primary flex items-center justify-center shrink-0">
                   <Icon name="arrow_forward" className="text-sm" />
                 </div>
-              </div>
-            </Link>
+              </Link>
+
+              {/* Real when a CUSTODY-category event today has its own
+                  checklist (e.g. "pack backpack") — not a generic completion
+                  count, see the top-of-file note. */}
+              {data?.handoverEvent && (
+                <div className="bg-surface-container-lowest rounded-2xl px-4 py-3 flex items-center justify-between shadow-sm">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-9 h-9 rounded-full bg-secondary-container flex items-center justify-center shrink-0">
+                      <Icon name="backpack" className="text-on-secondary-container text-base" />
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                      <span className="font-label-md text-label-md text-on-surface font-semibold truncate">
+                        Handover Packing
+                      </span>
+                      <span className="font-label-sm text-label-sm text-on-surface-variant">
+                        {data.handoverEvent.checklist.filter((i) => i.isChecked).length} of{" "}
+                        {data.handoverEvent.checklist.length} items packed
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      const next = data.handoverEvent!.checklist.find((i) => !i.isChecked);
+                      if (next) toggleEventChecklistItem(data.handoverEvent!.id, next.id, true);
+                    }}
+                    disabled={data.handoverEvent.checklist.every((i) => i.isChecked) || togglingItemId !== null}
+                    aria-label="Mark next packing item done"
+                    className="w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center shadow-sm active:scale-95 transition-transform disabled:opacity-40 shrink-0"
+                  >
+                    <Icon name="arrow_forward" className="text-[18px]" />
+                  </button>
+                </div>
+              )}
+            </div>
           </section>
 
           <section className="px-container-padding grid grid-cols-2 gap-grid-gutter">
@@ -432,6 +542,64 @@ export function HomePage() {
               </div>
             </Link>
           </section>
+
+          {data && data.todaysEvents.length > 0 && (
+            <section className="px-container-padding flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <h2 className="font-title-md text-title-md text-on-surface">Today</h2>
+                <span className="font-label-sm text-label-sm px-2.5 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant">
+                  {data.todaysEvents.length} scheduled
+                </span>
+              </div>
+              <div className="flex flex-col gap-3">
+                {data.todaysEvents.map((event) => {
+                  const meta = CALENDAR_CATEGORY_META[event.category];
+                  return (
+                    <div
+                      key={event.id}
+                      className="flex flex-col gap-2 p-4 rounded-2xl bg-surface-container-lowest border border-outline-variant/30 shadow-sm"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full ${meta.badgeClass}`}>
+                          <Icon name={meta.icon} className="text-[15px]" />
+                          {meta.label}
+                        </span>
+                        <span className="font-label-md text-label-md text-on-surface-variant shrink-0">
+                          {event.allDay
+                            ? "All day"
+                            : new Date(event.startsAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}
+                        </span>
+                      </div>
+                      <h3 className="font-headline-sm text-headline-sm text-on-surface">{event.title}</h3>
+                      {event.location && (
+                        <p className="font-label-sm text-label-sm text-on-surface-variant">{event.location}</p>
+                      )}
+                      {event.checklist.length > 0 && (
+                        <div className="flex flex-col gap-1.5 mt-1 pt-2 border-t border-outline-variant/20">
+                          {event.checklist.map((item) => (
+                            <label key={item.id} className="flex items-center gap-2.5 cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={item.isChecked}
+                                onChange={(e) => toggleEventChecklistItem(event.id, item.id, e.target.checked)}
+                                disabled={togglingItemId === item.id}
+                                className="w-4 h-4 rounded accent-primary shrink-0"
+                              />
+                              <span
+                                className={`font-body-md text-body-md ${item.isChecked ? "line-through text-on-surface-variant" : "text-on-surface"}`}
+                              >
+                                {item.label}
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
 
           {data && data.reminders.length > 0 && (
             <section className="px-container-padding flex flex-col gap-2">

@@ -4,11 +4,16 @@ import type { LoginRequest, TwoFactorRequiredResponse } from "@kidcom/shared";
 
 import { AuthHero } from "../components/AuthHero";
 import { FormInput } from "../components/FormInput";
+import { Icon } from "../components/Icon";
 import { apiPost, ApiRequestError } from "../lib/api";
 import { safeRedirectPath } from "../lib/safeRedirect";
 
-// No Stitch mockup exists for a plain login screen (only the signup flow was
-// designed) — built in the same visual language as SignupPage/FormInput.
+// Aura's mockup (docs/Themes/Aura/kidcom_login) shows a social sign-in row
+// (Google/Microsoft) this app can't build honestly — there's no OAuth
+// integration on the backend (no client ID/secret, no callback route), so
+// wiring those buttons would either do nothing or lie about what they do.
+// Left out rather than faked; see the audit notes for what real OAuth
+// support would need.
 //
 // Logins always require 2FA (see apps/api/src/routes/auth/index.ts) — a
 // correct password never grants a session by itself. On success this
@@ -20,6 +25,7 @@ export function LoginPage() {
   const [searchParams] = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -34,7 +40,11 @@ export function LoginPage() {
     setError(null);
     setSubmitting(true);
     try {
-      await apiPost<TwoFactorRequiredResponse>("/auth/login", { email, password } satisfies LoginRequest);
+      await apiPost<TwoFactorRequiredResponse>("/auth/login", {
+        email,
+        password,
+        rememberMe,
+      } satisfies LoginRequest);
       navigate(redirect ? `/login/verify?redirect=${encodeURIComponent(redirect)}` : "/login/verify");
     } catch (err) {
       setError(err instanceof ApiRequestError ? err.message : "Something went wrong");
@@ -48,11 +58,8 @@ export function LoginPage() {
       <AuthHero />
       <header className="px-container-padding py-6">
         <h1 className="font-headline-lg-mobile text-headline-lg-mobile text-on-surface">
-          Welcome back
+          Log in
         </h1>
-        <p className="font-body-md text-body-md text-on-surface-variant mt-1">
-          Log in to continue.
-        </p>
       </header>
       <form
         onSubmit={handleSubmit}
@@ -78,23 +85,38 @@ export function LoginPage() {
           onChange={(e) => setPassword(e.target.value)}
           required
         />
-        <Link to="/forgot-password" className="self-end font-label-sm text-label-sm text-primary -mt-4">
-          Forgot password?
-        </Link>
+        <div className="flex items-center justify-between -mt-4">
+          <label className="flex items-center gap-2 font-label-sm text-label-sm text-on-surface-variant">
+            <input
+              type="checkbox"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+              className="w-4 h-4 rounded accent-primary"
+            />
+            Remember me
+          </label>
+          <Link to="/forgot-password" className="font-label-sm text-label-sm text-primary">
+            Forgot password?
+          </Link>
+        </div>
         {error && (
           <p className="font-body-md text-body-md text-error bg-error-container rounded-lg px-4 py-3">
             {error}
           </p>
         )}
-        <div className="mt-auto pt-6">
+        <div className="mt-auto pt-6 flex flex-col gap-4">
           <button
             type="submit"
             disabled={submitting}
-            className="w-full bg-primary text-on-primary font-label-md text-label-md py-4 rounded-full shadow-md active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+            className="w-full bg-primary text-on-primary font-title-md text-title-md py-4 rounded-full shadow-md active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-60"
           >
-            <span>{submitting ? "Logging in…" : "Log In"}</span>
+            <span>{submitting ? "Signing in…" : "Sign In"}</span>
+            {!submitting && <Icon name="arrow_forward" className="text-[18px]" />}
           </button>
-          <p className="text-center font-body-md text-body-md text-on-surface-variant mt-6">
+          <p className="flex items-center justify-center gap-1.5 text-on-surface-variant font-label-sm text-label-sm">
+            <Icon name="lock" className="text-[14px]" /> Secured &amp; encrypted
+          </p>
+          <p className="text-center font-body-md text-body-md text-on-surface-variant">
             New to KidCom?{" "}
             <Link className="text-primary font-label-md" to="/signup">
               Create an account

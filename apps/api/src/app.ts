@@ -14,6 +14,7 @@ import { notesRouter } from "./routes/notes";
 import { billingRouter } from "./routes/billing";
 import { pushRouter } from "./routes/push";
 import { notificationPreferencesRouter } from "./routes/notificationPreferences";
+import { searchRouter } from "./routes/search";
 import { sessionMiddleware } from "./middleware/session";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler";
 
@@ -85,6 +86,7 @@ export function createApp() {
   app.use("/billing", billingRouter);
   app.use("/push", pushRouter);
   app.use("/notification-preferences", notificationPreferencesRouter);
+  app.use("/search", searchRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

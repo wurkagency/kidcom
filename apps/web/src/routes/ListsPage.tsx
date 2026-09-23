@@ -181,6 +181,10 @@ export function ListsPage() {
           </span>
         </div>
 
+        {tab === "NECESSITY" && tabItems.length > 0 && (
+          <NecessityProgressCard items={tabItems} />
+        )}
+
         {tabItems.length === 0 && (
           <p className="font-body-md text-body-md text-on-surface-variant">Nothing here yet.</p>
         )}
@@ -222,6 +226,33 @@ export function ListsPage() {
           onPick={(assignedToId) => handleAssign(assigningItem, assignedToId)}
         />
       )}
+    </div>
+  );
+}
+
+// Real data, not decoration — "assigned" (someone's handling it) stands in
+// for the mockup's "claimed" state, since Necessities delegates rather than
+// self-claims (see the top-of-file note). Only shown on Necessities: the
+// mockup export only covers that tab, and Wishlist's "reserved" concept
+// isn't the same kind of completion signal.
+function NecessityProgressCard({ items }: { items: ListItemDto[] }) {
+  const handled = items.filter((it) => it.assignedToId).length;
+  const total = items.length;
+  const pct = total === 0 ? 0 : Math.round((handled / total) * 100);
+  return (
+    <div className="bg-secondary-container/40 rounded-2xl p-4 flex flex-col gap-2">
+      <div className="flex items-center justify-between">
+        <span className="font-label-md text-label-md text-on-surface">
+          {handled} of {total} necessities handled
+        </span>
+        <span className="font-label-sm text-label-sm text-on-surface-variant">{pct}%</span>
+      </div>
+      <div className="h-1.5 rounded-full bg-surface-container-lowest overflow-hidden">
+        <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${pct}%` }} />
+      </div>
+      <p className="font-body-sm text-body-sm text-on-surface-variant">
+        Keeps both homes synchronized on what's still needed.
+      </p>
     </div>
   );
 }
