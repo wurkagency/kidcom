@@ -23,7 +23,7 @@ export const config = {
   // The API's own publicly reachable base URL — used to build the QuickPay
   // webhook callback URL. In local dev this is localhost, which QuickPay
   // can't reach directly (needs a tunnel like ngrok — see chunk 7 plan
-  // notes); in production it's api.kidcom.org per DEPLOYMENT.md.
+  // notes); in production it's api.kidcom.org per docs/plesk_deployment.md.
   apiBaseUrl: process.env.API_BASE_URL ?? `http://localhost:${port}`,
   databaseUrl: required("DATABASE_URL"),
   redisUrl: process.env.REDIS_URL ?? "redis://localhost:6379",
@@ -62,7 +62,7 @@ export const config = {
   vapidSubject: process.env.VAPID_SUBJECT ?? "mailto:charlie@wurk.dk",
   // SMTP — optional. Unset in local dev (mailSender.ts falls back to
   // logging emails to the console instead of sending them); set for real
-  // delivery in production, per DEPLOYMENT.md.
+  // delivery in production, per docs/plesk_deployment.md.
   smtpHost: process.env.SMTP_HOST,
   smtpPort: Number(process.env.SMTP_PORT ?? 587),
   smtpUser: process.env.SMTP_USER,

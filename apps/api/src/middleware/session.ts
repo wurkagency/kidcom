@@ -25,7 +25,7 @@ declare module "express-session" {
 // the jobs chunk will use for BullMQ. httpOnly always; `secure` only in
 // production (local dev is plain HTTP on localhost, so requiring `secure`
 // there would silently drop the cookie on every request); domain is unset
-// locally and `.kidcom.org` in production (see DEPLOYMENT.md) so the
+// locally and `.kidcom.org` in production (see docs/plesk_deployment.md) so the
 // session cookie is shared between the `kidcom.org` and `api.kidcom.org`
 // origins.
 export const sessionMiddleware = session({

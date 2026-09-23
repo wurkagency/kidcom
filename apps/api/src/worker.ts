@@ -1,5 +1,5 @@
 // Standalone BullMQ worker process — matches the `dist/worker.js` entrypoint
-// DEPLOYMENT.md already documents (systemd service on the Plesk VM, not
+// docs/plesk_deployment.md already documents (systemd service on the Plesk VM, not
 // Passenger-managed since it's long-running rather than request-driven).
 // Run locally with `npm run worker` (or as part of `npm run dev` via the
 // root concurrently script).

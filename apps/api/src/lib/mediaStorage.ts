@@ -1,4 +1,4 @@
-// Storage interface for media originals/derivatives — see DEPLOYMENT.md's
+// Storage interface for media originals/derivatives — see docs/plesk_deployment.md's
 // "Media storage" note: local disk for now, swappable for S3-compatible
 // object storage later without touching calling code (routes/worker only
 // ever go through this interface, never `fs` directly).

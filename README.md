@@ -1,13 +1,13 @@
 # KidCom
 
 A well-being and communication app for separated parents and families,
-built child-first. See `docs/stitch_splitkid/splitkid_prd.md` (kept outside
-this repo, alongside it in `../Docs`) for the full product spec, and
-`DEPLOYMENT.md` for how this maps onto the production Plesk VM.
+built child-first. Product docs live alongside this repo in `../docs`; the
+Aura design exports (source of truth for the UI) are in `docs/design/aura/`,
+and `docs/plesk_deployment.md` describes the production Plesk VM.
 
 ## Stack
 
-- **Web**: Vite + React + TypeScript, Tailwind (Kindred Path design tokens), PWA via `vite-plugin-pwa`
+- **Web**: Vite + React + TypeScript, Tailwind + shadcn/ui (Aura theme), PWA via `vite-plugin-pwa`
 - **API**: Express + TypeScript
 - **DB**: PostgreSQL via Prisma
 - **Jobs**: BullMQ + Redis
@@ -67,11 +67,11 @@ apps/web/      Vite + React PWA
 apps/api/      Express API
 packages/db/   Prisma schema + generated client
 packages/shared/  Shared TS types between web and api
-tasks/todo.md  Chunked build plan / progress tracker
-DEPLOYMENT.md  Production (Plesk) deployment notes
+tasks/todo.md  v3.0 build plan / progress tracker
+docs/          Deployment, retention policy, Aura design exports
 ```
 
 ## Build order
 
-See `tasks/todo.md` for the full chunked plan. We're building and validating
+See `tasks/todo.md` for the v3.0 phase plan. We're building and validating
 one feature area at a time rather than everything in parallel.

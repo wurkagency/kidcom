@@ -1,0 +1,266 @@
+<!DOCTYPE html><html lang="en" style=""><head><meta charset="utf-8"><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"><meta content="mobile_stack" name="shell-type"><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { "colors": { "primary-fixed-dim": "#c4c7c4", "surface-container": "#eceeed", "inverse-on-surface": "#eff1f0", "tertiary-container": "#022018", "surface-container-low": "#f2f4f3", "on-primary-fixed": "#181c1a", "surface-dim": "#d8dada", "on-error": "#ffffff", "surface-tint": "#5b5f5d", "on-secondary-fixed-variant": "#3d4946", "primary": "#000000", "on-tertiary": "#ffffff", "on-tertiary-fixed-variant": "#2f4c42", "on-tertiary-container": "#6b8a7e", "on-surface": "#191c1c", "inverse-primary": "#c4c7c4", "primary-container": "#181c1a", "surface-container-highest": "#e1e3e2", "on-primary-fixed-variant": "#444845", "surface-container-high": "#e6e9e8", "outline-variant": "#c4c7c4", "surface-bright": "#f8faf9", "on-primary": "#ffffff", "on-tertiary-fixed": "#022018", "error": "#ba1a1a", "outline": "#747875", "on-error-container": "#93000a", "error-container": "#ffdad6", "on-secondary-fixed": "#121e1b", "tertiary-fixed": "#c9eadc", "background": "#f8faf9", "secondary-fixed-dim": "#bcc9c5", "on-secondary": "#ffffff", "secondary-container": "#d8e5e0", "on-surface-variant": "#434845", "surface-container-lowest": "#ffffff", "surface-variant": "#e1e3e2", "primary-fixed": "#e0e3e0", "on-secondary-container": "#5b6763", "secondary": "#55615d", "tertiary": "#000000", "on-background": "#191c1c", "inverse-surface": "#2e3131", "tertiary-fixed-dim": "#adcec0", "secondary-fixed": "#d8e5e0", "on-primary-container": "#818582", "surface": "#f8faf9" }, "borderRadius": { "DEFAULT": "1rem", "lg": "2rem", "xl": "3rem", "full": "9999px" }, "spacing": { "space-md": "1rem", "space-sm": "0.75rem", "space-xl": "2.25rem", "gutter": "1rem", "space-lg": "1.5rem", "margin": "1.25rem", "space-xs": "0.375rem" }, "fontFamily": { "body-md": ["Plus Jakarta Sans"], "body-lg": ["Plus Jakarta Sans"], "label-md": ["Plus Jakarta Sans"], "title-md": ["Plus Jakarta Sans"], "micro-meta": ["Plus Jakarta Sans"], "label-sm": ["Plus Jakarta Sans"], "headline-lg-mobile": ["Plus Jakarta Sans"], "headline-sm": ["Plus Jakarta Sans"], "headline-md": ["Plus Jakarta Sans"], "headline-lg": ["Plus Jakarta Sans"] }, "fontSize": { "body-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0em", "fontWeight": "400"}], "body-lg": ["16px", {"lineHeight": "24px", "letterSpacing": "0em", "fontWeight": "400"}], "label-md": ["13px", {"lineHeight": "18px", "letterSpacing": "0.01em", "fontWeight": "600"}], "title-md": ["17px", {"lineHeight": "22px", "letterSpacing": "-0.01em", "fontWeight": "600"}], "micro-meta": ["10px", {"lineHeight": "12px", "letterSpacing": "0.08em", "fontWeight": "700"}], "label-sm": ["11px", {"lineHeight": "14px", "letterSpacing": "0.04em", "fontWeight": "600"}], "headline-lg-mobile": ["28px", {"lineHeight": "34px", "letterSpacing": "-0.025em", "fontWeight": "700"}], "headline-sm": ["20px", {"lineHeight": "26px", "letterSpacing": "-0.015em", "fontWeight": "600"}], "headline-md": ["24px", {"lineHeight": "30px", "letterSpacing": "-0.02em", "fontWeight": "700"}], "headline-lg": ["34px", {"lineHeight": "42px", "letterSpacing": "-0.03em", "fontWeight": "700"}] } } } };</script><style>@layer base{html,body{width:100vw;margin:0;padding:0;}body{overscroll-behavior:none;}.pb-safe{padding-bottom:env(safe-area-inset-bottom,0px);}.pt-safe{padding-top:env(safe-area-inset-top,0px);}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style></head><body class="bg-surface font-body-md text-body-md text-on-surface flex flex-col min-h-screen selection:bg-secondary-container"><header class="fixed top-0 inset-x-0 z-50 bg-surface/85 backdrop-blur-xl pt-safe shadow-[0_1px_8px_rgba(22,26,24,0.03)]">
+<div class="h-16 px-margin flex items-center justify-between gap-2">
+<!-- User profile avatar with active indicator -->
+<div class="relative shrink-0">
+<a class="w-10 h-10 rounded-full p-0.5 bg-surface-container-lowest shadow-[0_2px_8px_rgba(22,26,24,0.04)] flex items-center justify-center active:scale-95 transition-transform inline-block" data-path="profile-settings" href="#">
+<img alt="Profile" class="w-9 h-9 rounded-full object-cover" src="https://lh3.googleusercontent.com/aida/AEtjO1UGKRm6ALswXHuhSvgk4BCJEMnA8Gxr1qSHLO4dygeo2Av73ZRXx3N4f7wNGB4qkroE_C88TmEZXQogYgc_fqNi1PGpBf_Fs3zW0USw3Gm79YuzZE_ISP9p1bDw61j1hG2IPfuN-IMs57CzXaQTx452IOEciiur3Nk4NTjkmi0bSUmVEu2q-ZiMpZD7Av_-rQPCEJOgEiUs0lDExHKsjNwC2c3kyKlF8Qutv-UPA-7R3ZZ_msUIG7h9-Ak">
+</a>
+<span class="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-secondary-container ring-2 ring-surface"></span>
+</div>
+<!-- Center Pill Search Bar -->
+<div class="flex-1 max-w-xs mx-1 relative flex items-center">
+<span class="absolute left-3 material-symbols-outlined text-[18px] text-secondary pointer-events-none">search</span>
+<input class="w-full h-10 pl-9 pr-3 py-2 bg-surface-container-lowest rounded-full font-body-md text-[14px] text-on-surface placeholder:text-outline shadow-[0_1px_8px_rgba(22,26,24,0.03)] focus:outline-none focus:ring-2 focus:ring-secondary-container transition-all" placeholder="Search..." type="text">
+</div>
+<!-- Right Group: Notifications & Kid Selector Cluster -->
+<div class="flex items-center gap-1.5 shrink-0">
+<!-- Notification Bell -->
+<button aria-label="Notifications" class="relative w-10 h-10 rounded-full bg-surface-container-lowest flex items-center justify-center text-on-surface shadow-[0_2px_8px_rgba(22,26,24,0.04)] active:scale-95 transition-transform" type="button">
+<span class="material-symbols-outlined text-[20px]">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 rounded-full bg-error ring-1 ring-surface"></span>
+</button>
+<!-- Sibling / Child Selector Cluster -->
+<button class="h-10 pl-1.5 pr-2.5 rounded-full bg-surface-container-lowest shadow-[0_2px_8px_rgba(22,26,24,0.04)] flex items-center gap-1.5 active:scale-95 transition-transform text-on-surface" type="button">
+<div class="flex items-center -space-x-2">
+<img alt="Leo" class="w-6 h-6 rounded-full object-cover ring-2 ring-surface-container-lowest" src="https://lh3.googleusercontent.com/aida/AEtjO1XG67izYnV0wi9b66Lape-olfn8F3J0EoyNWLcCUL8rcE09CzwBq2Uhzb50K1wCk6vXsjCwLeWkXsmOzfUOpwHky4Cq8FwW0hDEQKREaDKQEProXK0Lc-V1CDCqdS0W40MUlwSAFDVfGZEyQXCV9J_iNUGwREbCCyWl8jWn8YzznAGhGzkD8YQeJdb9_PKww8e4ZqyDaqNQyrKx2IZ0JD3vn_IkaelDJhojQBkqUIH84doTzeqUWEY7TYs">
+<img alt="Maya" class="w-6 h-6 rounded-full object-cover ring-2 ring-surface-container-lowest" src="https://lh3.googleusercontent.com/aida/AEtjO1Xiu9kxeQsTsVMmbHnIyuut5B-6tNGoVYML-WS3HpG6A0knhSOW-mHdxC39-px7gq9ECPYQu0aT3YW9Wp1Kmw3xlSuxHFPinQP1uxuoBz-kP6ywIJQBaaN3hHvJ3OMcZGLA8D4UKUsL5f3Hm-zdybEDQ8SNfVTF8iDiQHvt9RgxxC5FItCmXWZPY9ItK8WWgWYN0M5hHqGn9cimKHqja_LNMloquTrYmjFKYNR47MdjI08yvWzgcTzEPjZJ">
+</div>
+<span class="font-label-sm text-label-sm font-semibold ml-0.5">All</span>
+<span class="material-symbols-outlined text-[18px] text-secondary">expand_more</span>
+</button>
+</div>
+</div>
+</header><main class="flex flex-col relative w-full px-margin pt-16 pb-32 bg-surface min-h-screen pb-28"><div class="flex flex-col w-full pb-10 space-y-6 space-y-2">
+<!-- Media Upload Area (4:3 ratio with rich preview state) -->
+<div class="flex items-center justify-between mt-2 pt-2 pb-1"><h1 class="text-3xl font-extrabold tracking-tight text-on-surface font-['Plus_Jakarta_Sans']">Create moment</h1></div><div class="flex flex-col space-y-3"><div class="flex items-center justify-between px-1"><span class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Selected Files (4/6)</span></div><div class="grid grid-cols-3 gap-2.5"><div class="relative aspect-[4/3] rounded-2xl overflow-hidden bg-surface-container shadow-sm group"><img alt="Family hug" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida/AEtjO1WU_MIX06VOiZN666hUlUdB010vg_Kmm46hL8UgV0YRTfzqjoOLNbDo2pSsH00_tGL70g4xLswFvlHkYL19TiL9IRpx61TRQ5FLzCj8QDQCr02We2Cf1koTN3oSNnBDps6LlgzPMrrudXiePoujlGOFydAJUXW6-4-bMkM5ECEnjgVdnGhCXshePq8pCcnnJa57wU2beB4yOoV7wLWG8srEa41k5PAKQbo1LmZq5FxRUVVWBPtRJjntusn5"><div class="absolute inset-0 bg-gradient-to-t from-primary/60 via-transparent to-transparent pointer-events-none"></div><span class="absolute top-1.5 left-1.5 px-2 py-0.5 rounded-full bg-primary/40 backdrop-blur-md font-medium text-[10px] text-white/90 shadow-sm">Cover</span><button aria-label="Remove" class="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-primary/40 backdrop-blur-md flex items-center justify-center text-white/90 hover:text-white hover:bg-primary/60 active:scale-95 transition-all" type="button"><span class="material-symbols-outlined text-[11px]">close</span></button></div><div class="relative aspect-[4/3] rounded-2xl overflow-hidden bg-surface-container shadow-sm group"><img alt="Outdoor bench" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida/AEtjO1XNwF7JRQyJL73o5Qv9D82CktLuvdoxtzvP0LDlfNMqTDHa7MSRtQN5ZraaOXmADnx6dkWMEUk_3g1o5auYUXuhCsrxbvnN5mo-sRdL6h9RQAqJVDxCztt5Kl9Capy5jfNQp3vXqvrAMy16GaZccx-SlGV4uRNFxoThUTqMy_c_uaxJ5paMS0T-rvCMWEdENvMglU1hVKY7m6GfF3S1updsoYTnoYbRuvr3lVrYgFqWJV4qkoOxh9lXRr4"><div class="absolute inset-0 bg-gradient-to-t from-primary/60 via-transparent to-transparent pointer-events-none"></div><button aria-label="Remove" class="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-primary/40 backdrop-blur-md flex items-center justify-center text-white/90 hover:text-white hover:bg-primary/60 active:scale-95 transition-all" type="button"><span class="material-symbols-outlined text-[11px]">close</span></button></div><div class="relative aspect-[4/3] rounded-2xl overflow-hidden bg-surface-container shadow-sm group"><img alt="Leo smiling" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida/AEtjO1XsGhU8tg2XhrCBO-v44dAnRAUbq-T3YCeqNmVBeqfZYgsWqrKbHtzh1gLZZ_BLpsImqeRUbBrW2pqtIyHVBTsiw_HkpqpUvdnE7Biz_3_OpBT1-M2TeW0CzksR4IIV0LJXoCrX6Z9fn2_RGUJ0j4567hnmDbXWmGgZFAgNrZWutTqQe4Cs5jgbwv4nLi5GjRtBpvPfgmaJhiq3eEmPXPvvf2IheRlzE9J7eTv2i_z54Vp4VtrrmUOmpNo"><div class="absolute inset-0 bg-gradient-to-t from-primary/60 via-transparent to-transparent pointer-events-none"></div><button aria-label="Remove" class="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-primary/40 backdrop-blur-md flex items-center justify-center text-white/90 hover:text-white hover:bg-primary/60 active:scale-95 transition-all" type="button"><span class="material-symbols-outlined text-[11px]">close</span></button></div><div class="relative aspect-[4/3] rounded-2xl overflow-hidden bg-surface-container shadow-sm group"><img alt="Family moment" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida/AEtjO1XDDU21jQe9FprPRmNBUurqG2QnjAa89SkKZmseAzZxPtn8Kx7f4w71Z6yPls8wJEZ2rEOt0iQl1I8u7BFYzJln9HrT1ub4ZOpNNdqbmswN8wOSqF23JAHLucqyaYkRfLMycq9uLTfMVLXtu9lZj4ufDLSVpLRC7SZ-vH_bruyQ0pFX2tiBPNrhqky7EDgZ7UwzsmAYqlIEDMbPkcfmzJ44W4JRVCO7GaJ40J_suRA5eJsHN_GzKETlNGVV"><div class="absolute inset-0 bg-gradient-to-t from-primary/60 via-transparent to-transparent pointer-events-none"></div><button aria-label="Remove" class="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-primary/40 backdrop-blur-md flex items-center justify-center text-white/90 hover:text-white hover:bg-primary/60 active:scale-95 transition-all" type="button"><span class="material-symbols-outlined text-[11px]">close</span></button></div><button class="relative aspect-[4/3] rounded-2xl hover:bg-surface-container-high active:scale-95 transition-all flex flex-col items-center justify-center gap-1 text-secondary hover:text-on-surface border border-dashed border-outline-variant" style="background-color: #E2EFEA;" type="button"><span class="material-symbols-outlined text-[24px] text-on-surface">add</span><span class="font-label-sm text-[11px] font-semibold">Add media</span></button></div></div>
+<!-- Form Fields Container -->
+<div class="flex flex-col space-y-5 space-y-2">
+<!-- Title Input -->
+<div class="flex flex-col space-y-1 px-1 pt-2 pb-1"><h2 class="text-[18px] font-bold text-on-surface tracking-tight">Describe your moment</h2><p class="text-label-sm text-on-surface-variant leading-relaxed">Make a catchy headline and write a few words about your moment with the children.</p></div><div class="flex flex-col space-y-2">
+<div class="flex items-center justify-between px-1 pb-1 pt-1"><label class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider" for="moment-title">headline</label></div>
+<div class="relative flex items-center">
+<input class="w-full h-13 px-4 py-3 bg-surface-container-lowest rounded-2xl font-body-lg text-body-lg text-on-surface placeholder:text-outline shadow-[0_2px_12px_rgba(22,26,24,0.03)] focus:outline-none focus:ring-2 focus:ring-secondary-container transition-all" id="moment-title" placeholder="Give this moment a name..." type="text" value="Spring Walk in Dyrehaven">
+<span class="absolute right-3.5 material-symbols-outlined text-[20px] text-secondary">stylus_note</span>
+</div>
+</div><div class="flex flex-col space-y-1.5" id="story-section-block"><div class="flex items-center justify-between px-1 pt-2 pb-1"><label class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider" for="moment-story">Story</label></div><div class="relative"><textarea class="w-full p-4 bg-surface-container-lowest rounded-2xl font-body-md text-body-md text-on-surface leading-relaxed placeholder:text-outline shadow-[0_2px_12px_rgba(22,26,24,0.03)] focus:outline-none focus:ring-2 focus:ring-secondary-container resize-none transition-all" id="moment-story" placeholder="What made this moment special? Add sweet quotes or little milestones..." rows="4">We spent the afternoon watching the deer and collecting acorns under the giant oak trees. Maya rode on my shoulders on the way back to the station.</textarea></div></div>
+<!-- Tag Children Selector -->
+<div class="flex flex-col space-y-2">
+<div class="flex items-center justify-between px-1">
+<label class="font-label-md text-label-md text-on-surface font-semibold">Tag Children</label>
+<span class="font-micro-meta text-micro-meta text-secondary">2 Included</span>
+</div>
+<div class="flex flex-wrap items-center gap-2">
+<button class="child-pill inline-flex items-center gap-2.5 pl-1.5 pr-4 py-1.5 rounded-full bg-primary text-on-primary shadow-sm active:scale-95 transition-all" data-selected="true" type="button">
+<img alt="Leo" class="w-8 h-8 rounded-full object-cover" src="https://lh3.googleusercontent.com/aida/AEtjO1XG67izYnV0wi9b66Lape-olfn8F3J0EoyNWLcCUL8rcE09CzwBq2Uhzb50K1wCk6vXsjCwLeWkXsmOzfUOpwHky4Cq8FwW0hDEQKREaDKQEProXK0Lc-V1CDCqdS0W40MUlwSAFDVfGZEyQXCV9J_iNUGwREbCCyWl8jWn8YzznAGhGzkD8YQeJdb9_PKww8e4ZqyDaqNQyrKx2IZ0JD3vn_IkaelDJhojQBkqUIH84doTzeqUWEY7TYs">
+<span class="font-label-md text-label-md font-semibold">Leo</span>
+<span class="material-symbols-outlined text-[16px] text-secondary-container">check_circle</span>
+</button>
+<button class="child-pill inline-flex items-center gap-2.5 pl-1.5 pr-4 py-1.5 rounded-full bg-primary text-on-primary shadow-sm active:scale-95 transition-all" data-selected="true" type="button">
+<img alt="Maya" class="w-8 h-8 rounded-full object-cover" src="https://lh3.googleusercontent.com/aida/AEtjO1Xiu9kxeQsTsVMmbHnIyuut5B-6tNGoVYML-WS3HpG6A0knhSOW-mHdxC39-px7gq9ECPYQu0aT3YW9Wp1Kmw3xlSuxHFPinQP1uxuoBz-kP6ywIJQBaaN3hHvJ3OMcZGLA8D4UKUsL5f3Hm-zdybEDQ8SNfVTF8iDiQHvt9RgxxC5FItCmXWZPY9ItK8WWgWYN0M5hHqGn9cimKHqja_LNMloquTrYmjFKYNR47MdjI08yvWzgcTzEPjZJ">
+<span class="font-label-md text-label-md font-semibold">Maya</span>
+<span class="material-symbols-outlined text-[16px] text-secondary-container">check_circle</span>
+</button>
+<button class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-surface-container-lowest text-on-surface-variant shadow-[0_2px_8px_rgba(22,26,24,0.04)] active:scale-95 transition-transform" id="select-all-btn" type="button">
+<span class="material-symbols-outlined text-[18px] text-secondary">select_all</span>
+<span class="font-label-md text-label-md">Select All</span>
+</button>
+</div>
+</div>
+<!-- Category Dropdown Selector -->
+<div class="flex flex-col space-y-2">
+<div class="flex items-center justify-between px-1 pt-2 pb-1"><label class="text-[18px] font-bold text-on-surface tracking-tight" for="category-select">Settings</label></div>
+<div class="relative">
+<button class="w-full h-13 px-4 py-3 bg-surface-container-lowest rounded-2xl flex items-center justify-between text-left shadow-[0_2px_12px_rgba(22,26,24,0.03)] active:scale-[0.99] transition-transform" id="category-menu-button" type="button">
+<div class="flex items-center gap-2.5 min-w-0">
+<span class="w-8 h-8 rounded-xl bg-secondary-container flex items-center justify-center text-on-secondary-container">
+<span class="material-symbols-outlined text-[18px]">forest</span>
+</span>
+<span class="font-body-lg text-body-lg text-on-surface font-medium truncate" id="category-value-text">Weekend &amp; Outdoor Adventure</span>
+</div>
+<span class="material-symbols-outlined text-[22px] text-secondary">expand_more</span>
+</button>
+<div class="absolute top-full left-0 right-0 mt-2 p-2 bg-surface-container-lowest rounded-2xl shadow-[0_12px_32px_rgba(22,26,24,0.12)] z-30 flex flex-col gap-1 hidden" id="category-dropdown">
+<button class="category-option w-full text-left px-3 py-2 rounded-xl text-on-surface hover:bg-surface-container flex items-center gap-2.5 font-label-md text-label-md" type="button">
+<span class="material-symbols-outlined text-[18px] text-secondary">stars</span> Milestones
+</button>
+<button class="category-option w-full text-left px-3 py-2 rounded-xl text-on-surface hover:bg-surface-container flex items-center gap-2.5 font-label-md text-label-md" type="button">
+<span class="material-symbols-outlined text-[18px] text-secondary">school</span> School
+</button>
+<button class="category-option w-full text-left px-3 py-2 rounded-xl bg-secondary-container/40 text-on-surface flex items-center justify-between font-label-md text-label-md" type="button">
+<span class="flex items-center gap-2.5"><span class="material-symbols-outlined text-[18px] text-secondary">forest</span> Weekend &amp; Outdoor Adventure</span>
+<span class="material-symbols-outlined text-[16px] text-secondary">check</span>
+</button>
+<button class="category-option w-full text-left px-3 py-2 rounded-xl text-on-surface hover:bg-surface-container flex items-center gap-2.5 font-label-md text-label-md" type="button">
+<span class="material-symbols-outlined text-[18px] text-secondary">beach_access</span> Holidays
+</button>
+<button class="category-option w-full text-left px-3 py-2 rounded-xl text-on-surface hover:bg-surface-container flex items-center gap-2.5 font-label-md text-label-md" type="button">
+<span class="material-symbols-outlined text-[18px] text-secondary">sports_soccer</span> Sports
+</button>
+<button class="category-option w-full text-left px-3 py-2 rounded-xl text-on-surface hover:bg-surface-container flex items-center gap-2.5 font-label-md text-label-md" type="button">
+<span class="material-symbols-outlined text-[18px] text-secondary">palette</span> Creative
+</button>
+</div>
+</div>
+</div>
+<!-- Date & Location Metadata Dual Row -->
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+<div class="bg-surface-container-lowest p-3 rounded-2xl shadow-[0_2px_12px_rgba(22,26,24,0.03)] flex items-center gap-3">
+<div class="w-10 h-10 rounded-xl bg-surface-container flex items-center justify-center text-on-surface shrink-0">
+<span class="material-symbols-outlined text-[20px]">calendar_today</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-micro-meta text-micro-meta text-secondary uppercase tracking-wider">Date Recorded</span>
+<span class="font-label-md text-label-md text-on-surface font-semibold truncate">Today, May 12, 2025</span>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-3 rounded-2xl shadow-[0_2px_12px_rgba(22,26,24,0.03)] flex items-center gap-3">
+<div class="w-10 h-10 rounded-xl bg-surface-container flex items-center justify-center text-on-surface shrink-0">
+<span class="material-symbols-outlined text-[20px]">location_on</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-micro-meta text-micro-meta text-secondary uppercase tracking-wider">Location</span>
+<span class="font-label-md text-label-md text-on-surface font-semibold truncate">Klampenborg, Denmark</span>
+</div>
+</div>
+</div>
+<!-- Story / Textarea -->
+<!-- Privacy & Sharing Section -->
+<div class="flex flex-col space-y-2.5 pt-2">
+<div class="flex items-center gap-2 px-1"><span class="material-symbols-outlined text-[20px] text-secondary">security</span><h2 class="text-[18px] font-bold text-on-surface tracking-tight">Audience &amp; Notifications</h2></div>
+<div class="bg-surface-container-lowest rounded-2xl p-4 shadow-[0_2px_12px_rgba(22,26,24,0.03)] flex flex-col space-y-4">
+<div class="flex items-center justify-between gap-3">
+<div class="flex flex-col pr-2">
+<span class="font-body-md text-body-md font-semibold text-on-surface">Visible to family</span>
+<span class="font-label-sm text-label-sm text-secondary">Extended family can see the moment</span>
+</div>
+<button aria-checked="true" class="toggle-switch relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full bg-primary transition-colors duration-200 ease-in-out focus:outline-none" role="switch" type="button">
+<span class="pointer-events-none inline-block h-5 w-5 translate-x-6 mt-1 rounded-full bg-on-primary shadow-md transform ring-0 transition duration-200 ease-in-out"></span>
+</button>
+</div>
+<div class="h-px w-full bg-surface-container"></div>
+<div class="flex items-center justify-between gap-3">
+<div class="flex items-center gap-3 pr-2 min-w-0">
+
+<div class="flex flex-col min-w-0">
+<span class="font-body-md text-body-md font-semibold text-on-surface truncate">Notify co-parent or family</span>
+<span class="font-label-sm text-label-sm text-secondary">Create a&nbsp;friendly notification</span>
+</div>
+</div>
+<button aria-checked="false" class="toggle-switch relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-none bg-surface-container-highest" role="switch" type="button">
+<span class="pointer-events-none inline-block h-5 w-5 mt-1 rounded-full bg-on-primary shadow-md transform ring-0 transition duration-200 ease-in-out translate-x-1"></span>
+</button>
+</div>
+</div>
+</div>
+<!-- Primary Action Button -->
+<div class="pt-3">
+<button class="w-full py-4 px-6 rounded-2xl bg-primary text-on-primary shadow-[0_12px_28px_rgba(22,26,24,0.2)] flex items-center justify-center gap-2.5 active:scale-[0.98] transition-all hover:bg-inverse-surface" id="btn-publish-bottom" type="button">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">auto_awesome</span>
+<span class="font-title-md text-title-md font-bold">Publish to Family Journal</span>
+</button>
+
+</div>
+</div>
+</div>
+<script>
+  (function () {
+    const catBtn = document.getElementById('category-menu-button');
+    const catMenu = document.getElementById('category-dropdown');
+    const catText = document.getElementById('category-value-text');
+
+    if (catBtn && catMenu) {
+      catBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        catMenu.classList.toggle('hidden');
+      });
+
+      document.querySelectorAll('.category-option').forEach(opt => {
+        opt.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const cleanText = opt.textContent.trim();
+          catText.textContent = cleanText;
+          catMenu.classList.add('hidden');
+        });
+      });
+
+      document.addEventListener('click', () => {
+        if (!catMenu.classList.contains('hidden')) {
+          catMenu.classList.add('hidden');
+        }
+      });
+    }
+
+    document.querySelectorAll('.toggle-switch').forEach(sw => {
+      sw.addEventListener('click', () => {
+        const isChecked = sw.getAttribute('aria-checked') === 'true';
+        const thumb = sw.querySelector('span');
+        if (isChecked) {
+          sw.setAttribute('aria-checked', 'false');
+          sw.classList.remove('bg-primary');
+          sw.classList.add('bg-surface-container-highest');
+          thumb.classList.remove('translate-x-6');
+          thumb.classList.add('translate-x-1');
+        } else {
+          sw.setAttribute('aria-checked', 'true');
+          sw.classList.remove('bg-surface-container-highest');
+          sw.classList.add('bg-primary');
+          thumb.classList.remove('translate-x-1');
+          thumb.classList.add('translate-x-6');
+        }
+      });
+    });
+
+    document.querySelectorAll('.child-pill').forEach(pill => {
+      pill.addEventListener('click', () => {
+        const active = pill.getAttribute('data-selected') === 'true';
+        const icon = pill.querySelector('.material-symbols-outlined');
+        if (active) {
+          pill.setAttribute('data-selected', 'false');
+          pill.classList.remove('bg-primary', 'text-on-primary');
+          pill.classList.add('bg-surface-container-lowest', 'text-on-surface-variant');
+          if (icon) icon.textContent = 'radio_button_unchecked';
+        } else {
+          pill.setAttribute('data-selected', 'true');
+          pill.classList.remove('bg-surface-container-lowest', 'text-on-surface-variant');
+          pill.classList.add('bg-primary', 'text-on-primary');
+          if (icon) icon.textContent = 'check_circle';
+        }
+      });
+    });
+
+    const storyArea = document.getElementById('moment-story');
+    const counter = document.getElementById('char-counter');
+    if (storyArea && counter) {
+      storyArea.addEventListener('input', (e) => {
+        counter.textContent = `${e.target.value.length} chars`;
+      });
+    }
+
+    const pubBtn = document.getElementById('btn-publish-bottom');
+    if (pubBtn) {
+      pubBtn.addEventListener('click', () => {
+        const originalText = pubBtn.innerHTML;
+        pubBtn.innerHTML = `
+          <span class="material-symbols-outlined animate-spin text-[20px]">progress_activity</span>
+          <span class="font-title-md text-title-md font-bold">Publishing Moment...</span>
+        `;
+        pubBtn.disabled = true;
+        setTimeout(() => {
+          pubBtn.innerHTML = `
+            <span class="material-symbols-outlined text-[20px]">check_circle</span>
+            <span class="font-title-md text-title-md font-bold">Published to Journal!</span>
+          `;
+          setTimeout(() => {
+            pubBtn.innerHTML = originalText;
+            pubBtn.disabled = false;
+          }, 1800);
+        }, 1000);
+      });
+    }
+  })();
+</script></main>
+<div class="fixed bottom-0 w-full z-50 pb-safe pointer-events-none"><div class="px-margin pb-space-md flex items-center justify-center gap-space-sm"><nav class="pointer-events-auto flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary-container shadow-[0_12px_32px_-6px_rgba(22,26,24,0.22)] backdrop-blur-xl" data-active-classes="text-on-primary bg-on-primary/15 font-label-md"><a class="flex flex-col items-center justify-center min-w-[58px] h-10 px-2 rounded-full text-on-primary-container hover:text-on-primary transition-all" data-path="today" href="#"><span class="material-symbols-outlined text-[18px]">sunny</span><span class="font-micro-meta text-micro-meta uppercase tracking-wider mt-0.5">Today</span></a><a class="flex flex-col items-center justify-center min-w-[58px] h-10 px-2 rounded-full text-on-primary-container hover:text-on-primary transition-all" data-path="calendar" href="#"><span class="material-symbols-outlined text-[18px]">calendar_today</span><span class="font-micro-meta text-micro-meta uppercase tracking-wider mt-0.5">Calendar</span></a><a class="flex flex-col items-center justify-center min-w-[58px] h-10 px-2 rounded-full text-on-primary bg-on-primary/15 font-label-md transition-all" data-path="moments" href="#"><span class="material-symbols-outlined text-[18px]">photo_library</span><span class="font-micro-meta text-micro-meta uppercase tracking-wider mt-0.5">Moments</span></a><a class="flex flex-col items-center justify-center min-w-[58px] h-10 px-2 rounded-full text-on-primary-container hover:text-on-primary transition-all" data-path="lists" href="#"><span class="material-symbols-outlined text-[18px]">checklist</span><span class="font-micro-meta text-micro-meta uppercase tracking-wider mt-0.5">Lists</span></a></nav><button aria-label="Quick Action" class="pointer-events-auto flex items-center justify-center w-14 h-14 rounded-full bg-secondary-container text-on-secondary-fixed shadow-[0_8px_24px_-4px_rgba(22,26,24,0.12)] hover:scale-105 active:scale-95 transition-all shrink-0"><span class="material-symbols-outlined text-[26px]">add</span></button></div></div>
+
+
+</body></html>

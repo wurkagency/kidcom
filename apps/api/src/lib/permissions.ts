@@ -39,8 +39,8 @@ const MATRIX: Record<Capability, Record<AccessRole, boolean>> = {
   // spec §1.4: FAMILY/Caregiver get "request" here, not full create/edit —
   // that's a real request/approve workflow (like the existing SwapRequest
   // one) that doesn't exist for appointments today. Denying outright rather
-  // than half-building a new subsystem in this phase — flagged in
-  // tasks/todo.md as a deliberate scope decision, not an oversight.
+  // than half-building a new subsystem in this phase — recorded
+  // as a deliberate scope decision, not an oversight.
   "calendar_event:manage": { PARENT: true, GUARDIAN: true, FAMILY: false },
   // Post-launch backlog Phase C — the request/approve workflow the comment
   // above used to just point at as a future follow-up. FAMILY/Caregiver
