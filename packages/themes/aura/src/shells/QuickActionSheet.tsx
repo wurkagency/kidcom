@@ -11,7 +11,7 @@ const ACTIONS = [
   { key: "moment", icon: "photo_camera", to: paths.moments.create() },
   { key: "event", icon: "event", to: paths.events.create() },
   { key: "listItem", icon: "checklist", to: paths.lists.create() },
-  { key: "message", icon: "chat_bubble", to: paths.messages.inbox() },
+  { key: "message", icon: "chat_bubble", to: paths.messages.compose() },
 ] as const;
 
 export function QuickActionSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {

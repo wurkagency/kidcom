@@ -18,7 +18,8 @@ see "Decisions" below.
 - Mobile-only: soft gate with QR + "continue anyway".
 - Auth: Google + Microsoft OAuth; mandatory SMS OTP at sign-up and on phone change;
   optional SMS in forgot-password; SMS via Brevo.
-- Profile menu: Family, Children, Account & Billing, Preferences, Bookmarks.
+- Profile menu: Family, Children, Messages, Account & Billing, Preferences, Bookmarks.
+  (Messages inbox lives here for now — decided 2026-09-23; "+" sheet opens a new message.)
 - Notifications: standalone page, read-only rows. Messages: inbox → thread.
 - Journal → Moments everywhere (Prisma models renamed via `@@map`, tables unchanged).
 - Global categories shared by Calendar/Moments/Media, user-maintained in Preferences.
@@ -85,7 +86,10 @@ see "Decisions" below.
 ## Phase 7 — Profile menu areas (Family, Account & Billing, Preferences, onboarding)
 ## Phase 8 — Hardening, remove legacy/web-v2, full regression, push
 
+## Credentials (in app/.env, never committed)
+- Google + Microsoft OAuth (Microsoft tenant `common`: any Entra tenant + personal accounts)
+- Brevo API key, SMS sender `KidCom`, SMTP relay login + key
+- Still to register before launch: production OAuth callbacks on app.kidcom.org
+
 ## Needed from Charlie
-- Google + Microsoft OAuth client IDs/redirect URIs (Phase 2)
-- Brevo API key + SMS sender name (Phase 2)
 - QuickPay test-card credentials (Phase 7)
