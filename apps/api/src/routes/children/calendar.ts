@@ -8,6 +8,7 @@ import { ApiError } from "../../middleware/errorHandler";
 import { getDkHolidays } from "../../lib/dkHolidays";
 import { CALENDAR_EVENT_INCLUDE, toCalendarEventDto } from "../../lib/calendarEventDto";
 import { withRls } from "../../lib/rls";
+import { copenhagenMidnight } from "../../lib/validation";
 
 // Mounted at /children/:childId/calendar?start=&end=. Combines the computed
 // custody schedule (see packages/shared/src/custody.ts) with real
@@ -103,22 +104,25 @@ function expandRecurringEvents<T extends { startsAt: Date; endsAt: Date | null; 
  * Run inside withRls; also used by the overview endpoint.
  */
 export async function loadChildRange(tx: Prisma.TransactionClient, childId: string, start: Date, end: Date) {
-  // Exclusive upper bound one day past `end` — `end` is midnight UTC, so an
-  // inclusive `lte: end` would miss almost every event on that day.
-  const endExclusive = new Date(end.getTime() + 24 * 60 * 60 * 1000);
+  // `start` / `end` name calendar days (UTC-midnight Dates of "YYYY-MM-DD").
+  // Query by Copenhagen days: from the first day's local midnight up to the
+  // local midnight after the last day (exclusive) — so a 00:30 appointment
+  // shows on its own day, and DST days are 23/25 hours long.
+  const endExclusive = copenhagenMidnight(dateOnly(new Date(end.getTime() + 24 * 60 * 60 * 1000)));
+  const from = copenhagenMidnight(dateOnly(start));
   const years = Array.from(new Set([start.getUTCFullYear(), end.getUTCFullYear()]));
   await ensureHolidaysSeeded(tx, childId, years);
 
   const [plan, oneOffEvents, recurringTemplates] = await Promise.all([
     tx.custodyPlan.findFirst({ where: { childId }, orderBy: { createdAt: "desc" } }),
     // One-off events overlapping the range (a multi-day event that started
-    // before `start` but ends inside it must still appear).
+    // before `from` but ends inside it must still appear).
     tx.calendarEvent.findMany({
       where: {
         childId,
         recurrenceIntervalWeeks: null,
         startsAt: { lt: endExclusive },
-        OR: [{ endsAt: null, startsAt: { gte: start } }, { endsAt: { gte: start } }],
+        OR: [{ endsAt: null, startsAt: { gte: from } }, { endsAt: { gte: from } }],
       },
       include: CALENDAR_EVENT_INCLUDE,
       orderBy: { startsAt: "asc" },
@@ -129,13 +133,13 @@ export async function loadChildRange(tx: Prisma.TransactionClient, childId: stri
         childId,
         recurrenceIntervalWeeks: { not: null },
         startsAt: { lt: endExclusive },
-        OR: [{ recurrenceEndsAt: null }, { recurrenceEndsAt: { gte: start } }],
+        OR: [{ recurrenceEndsAt: null }, { recurrenceEndsAt: { gte: from } }],
       },
       include: CALENDAR_EVENT_INCLUDE,
     }),
   ]);
 
-  const events = [...oneOffEvents, ...expandRecurringEvents(recurringTemplates, start, endExclusive)];
+  const events = [...oneOffEvents, ...expandRecurringEvents(recurringTemplates, from, endExclusive)];
   events.sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
   return { plan, events };
 }

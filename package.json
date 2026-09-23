@@ -2,7 +2,7 @@
   "name": "kidcom",
   "private": true,
   "version": "0.1.0",
-  "description": "KidCom — a well-being and communication app for separated parents and families.",
+  "description": "KidCom \u2014 a well-being and communication app for separated parents and families.",
   "workspaces": [
     "apps/*",
     "packages/*",
@@ -26,7 +26,8 @@
     "lint": "eslint .",
     "i18n:check": "node scripts/i18n.mjs check",
     "i18n:export": "node scripts/i18n.mjs export",
-    "i18n:import": "node scripts/i18n.mjs import"
+    "i18n:import": "node scripts/i18n.mjs import",
+    "budget": "node scripts/bundle-budget.mjs"
   },
   "engines": {
     "node": ">=20"

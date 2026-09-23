@@ -74,7 +74,6 @@ packages/db/           Prisma schema + generated client
 packages/shared/       Shared TS types and rules between web and api
 docs/design/aura/      Google Stitch exports — the UI source of truth
 tasks/todo.md          v3.0 build plan / progress tracker
-legacy/web-v2/         Pre-v3.0 web app, read-only reference (removed in v3.0 Phase 8)
 ```
 
 ### Theme architecture

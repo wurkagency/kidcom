@@ -129,7 +129,7 @@ function CommentCard({
             <span className="font-label-md text-on-surface font-semibold">{name}</span>
           </div>
         </div>
-        <span className="font-label-sm text-on-surface-variant/70 text-xs">{fmt.relative(comment.createdAt)}</span>
+        <span className="font-label-sm text-secondary text-xs">{fmt.relative(comment.createdAt)}</span>
       </div>
       <p className="font-body-md text-on-surface leading-relaxed pl-9 whitespace-pre-line">{comment.text}</p>
       {mine && (

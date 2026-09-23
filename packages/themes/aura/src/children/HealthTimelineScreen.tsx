@@ -194,7 +194,7 @@ function Row({ item, child, next, onToggle, onInfo }: { item: ScheduleItem; chil
         type="button"
         aria-label={t("health.info", { label: item.label })}
         onClick={onInfo}
-        className="flex items-center justify-center w-6 h-6 rounded-full text-secondary/50 hover:text-on-surface hover:bg-surface-container transition-colors shrink-0"
+        className="flex items-center justify-center w-6 h-6 rounded-full text-secondary hover:text-on-surface hover:bg-surface-container transition-colors shrink-0"
       >
         <Icon name="info" className="text-[11px]" />
       </button>

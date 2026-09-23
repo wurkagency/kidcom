@@ -70,7 +70,7 @@ function Profile({ child }: { child: ChildDetail }) {
                     <h1 className="font-headline-sm text-headline-sm text-on-surface truncate">{name}</h1>
                     {child.canEdit && (
                       <Link to={paths.children.edit(child.id)} aria-label={t("profile.editBasics")} className="inline-flex items-center justify-center p-1 text-on-surface-variant hover:text-on-surface transition-colors active:scale-95">
-                        <Icon name="edit" className="text-[15px] text-secondary opacity-60" />
+                        <Icon name="edit" className="text-[15px] text-secondary" />
                       </Link>
                     )}
                   </div>

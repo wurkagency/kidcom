@@ -107,7 +107,7 @@
   --aura-sand-accent: #845324;
   --aura-peach: #fff1e5; /* week strip on Agenda, swap-request card */
   --aura-apricot: #ffa866; /* "Approve for …" swap button */
-  --aura-alert: #d9383a; /* "Handled by …" */
+  --aura-alert: #cf3335; /* "Handled by …" — the export's #d9383a darkened just enough for 4.5:1 (WCAG AA) on every card tint */
   --aura-viewer: #0a0d0c; /* media viewer backdrop (kidcom_preview, _video_preview, _media_viewer_player) */
   --aura-viewer-accent: #d8e8e1; /* viewer icons, active dot, scrubber */
   --aura-unread-card: #eef5f2; /* unread conversation row (kidcom_messages_1) */

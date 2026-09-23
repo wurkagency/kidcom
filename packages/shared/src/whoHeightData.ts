@@ -1,11 +1,11 @@
 // WHO height-for-age reference, monthly L / M / S from birth to 19 years.
 // Sources (downloaded 2026-09-27 from who.int):
-//   0–24 months (length) and 24–60 months (height): WHO Child Growth
+//   0â€“24 months (length) and 24â€“60 months (height): WHO Child Growth
 //     Standards 2006, lhfa_{boys,girls}_0-to-2-years_zscores.xlsx and
 //     lhfa_{boys,girls}_2-to-5-years_zscores.xlsx
-//   61–228 months: WHO Growth Reference 2007,
+//   61â€“228 months: WHO Growth Reference 2007,
 //     hfa-{boys,girls}-z-who-2007-exp.xlsx
-// Index = age in completed months (0–228). Generated — don't edit by hand.
+// Index = age in completed months (0â€“228). Generated â€” don't edit by hand.
 
 export type Lms = readonly [l: number, m: number, s: number];
 

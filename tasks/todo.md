@@ -245,6 +245,45 @@ see "Decisions" below.
   member") — see docs/data_retention_policy.md.~~ **Fixed in Phase 7.**
 
 ## Phase 8 — Hardening, remove legacy/web-v2, full regression, push
+- [x] `legacy/web-v2` deleted; `geoip-lite` 1.x → 2.0.3 (vulnerable `ip-address` gone —
+      `npm audit --omit=dev`: 0 vulnerabilities)
+- [x] **Production build was broken** (dev mode hid it): `whoHeightData.ts` was saved as
+      Windows-1252; converted to UTF-8, whole tree scanned — no other non-UTF-8 files
+- [x] **Day boundaries were UTC, not Copenhagen** (found by the regression run just after
+      midnight): anything between 00:00 and 01:00/02:00 Danish time — a 00:30 appointment, a
+      note, a task ticked off — showed on the previous day. Calendar and overview now query by
+      Copenhagen days (`copenhagenMidnight`, DST-safe); 3 regression tests
+- [x] Accessibility: axe-core WCAG 2.1 A/AA on 21 main screens, 0 serious/critical. Fixed
+      contrast: "handled by someone else" events (were 40% opacity), other-month days,
+      health info icons, comment times, the week/month toggle (sage → deep green), and
+      `--aura-alert` #d9383a → #cf3335 (just enough for 4.5:1 on every card tint).
+      Visual diffs unchanged
+- [x] PWA manifest: Aura colours, maskable icon, now with stable `id`, `scope`, `lang`
+- [x] Performance budget (`npm run budget`, after build): entry JS 174/200 KB gz, all JS
+      405/480, CSS 20/40, largest lazy chunk 25/60 — all pass
+- [x] Full regression: API 241/241, shared 33, core 26, theme-kit 4, e2e 77/77 (visual,
+      flows, a11y), typecheck, lint, i18n (788 keys)
+
+## Review (v3.0)
+- **Scope delivered:** every screen id has a real screen — 22 from Stitch exports (visual
+  diffs listed per phase), the rest built strictly from DESIGN.md tokens and shadcn parts.
+  Headless core + theme isolation enforced by lint; en-US complete, da/nb/sv scaffolded.
+- **Defects found and fixed on the way** (all had been live in v2): account deletion
+  failing for everyone; first subscription period never charged; push ignoring
+  notification preferences; message photos unreadable by recipients; long threads never
+  showing recent messages; comments of hidden moments readable; UTC day boundaries;
+  broken production build.
+- **Known limitations / follow-ups:**
+  - Material Symbols font is 3.9 MB (precached once). Subsetting broke ligatures in v2;
+    revisit with a GSUB-preserving subset.
+  - "Former member" and push texts are English until the other locales are translated.
+  - Presence, blocking, calls, @mentions, thread details: not built (as agreed).
+  - QuickPay: card-entry on the payment page needs a human test with the test cards; the
+    callback URL must be public (production). The QuickPay account reported a subscription
+    with `test_mode: false` — confirm the account/keys are the test ones before testing.
+  - Local Node is 24 (vitest worker crash on Windows); production uses Node 20.
+  - Legal: DPIA and the retention exemption for "Former member" content (see
+    docs/management_data.md, docs/data_retention_policy.md) need counsel sign-off.
 
 ## Credentials (in app/.env, never committed)
 - Google + Microsoft OAuth (Microsoft tenant `common`: any Entra tenant + personal accounts)

@@ -92,7 +92,7 @@ export function DateStrip({ mode, agenda, selected, today, custody, marks, onSel
                 type="button"
                 aria-label={label}
                 onClick={() => onSelect(day)}
-                className={cn("p-1", outside ? "text-outline-variant" : "text-on-surface", day === today && "font-bold")}
+                className={cn("p-1", outside ? "text-secondary font-normal" : "text-on-surface", day === today && "font-bold")}
               >
                 {dayNumber}
               </button>
@@ -114,7 +114,7 @@ export function DateStrip({ mode, agenda, selected, today, custody, marks, onSel
                 band && "bg-secondary-container/50",
                 bandStart && "rounded-l-full",
                 bandEnd && "rounded-r-full",
-                outside ? "text-outline-variant" : "text-on-surface",
+                outside ? "text-secondary font-normal" : "text-on-surface",
                 isSelected ? "font-semibold" : "font-medium",
               )}
             >
@@ -142,7 +142,7 @@ export function DateStrip({ mode, agenda, selected, today, custody, marks, onSel
         <button
           type="button"
           onClick={onToggleMode}
-          className="w-full flex items-center justify-center gap-1.5 pt-3 pb-1 text-xs font-medium cursor-pointer transition-colors text-sage"
+          className="w-full flex items-center justify-center gap-1.5 pt-3 pb-1 text-xs font-medium cursor-pointer transition-colors text-on-tertiary-fixed-variant"
         >
           <Icon name="keyboard_arrow_up" className="text-[16px]" />
           <span>{t("strip.showWeekly")}</span>

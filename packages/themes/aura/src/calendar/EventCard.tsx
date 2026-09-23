@@ -47,12 +47,12 @@ export function EventCard({ event, category, members }: Props) {
               {event.allDay ? t("event.allDay") : fmt.time(event.startsAt)}
             </span>
           </div>
-          <Link to={detail} className={cn("font-headline-sm text-headline-sm text-on-surface font-bold mt-2 tracking-tight", handledByOther && "opacity-40")}>
+          <Link to={detail} className={cn("font-headline-sm text-headline-sm font-bold mt-2 tracking-tight", handledByOther ? "text-secondary" : "text-on-surface")}>
             {event.title}
           </Link>
           {place && (
             <div className="flex items-center justify-between gap-2 mt-1.5 pt-0.5">
-              <div className={cn("flex flex-col text-label-sm text-secondary min-w-0", handledByOther && "opacity-40")}>
+              <div className="flex flex-col text-label-sm text-secondary min-w-0">
                 <span className="font-semibold text-on-surface truncate">{place}</span>
                 {event.location && event.address && <span className="truncate">{event.address}</span>}
               </div>

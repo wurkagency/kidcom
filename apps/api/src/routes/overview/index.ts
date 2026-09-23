@@ -8,7 +8,7 @@ import { ApiError } from "../../middleware/errorHandler";
 import { can } from "../../lib/permissions";
 import { withRls } from "../../lib/rls";
 import { toCalendarEventDto } from "../../lib/calendarEventDto";
-import { copenhagenToday, requiredDateOnly } from "../../lib/validation";
+import { copenhagenToday, requiredDateOnly, copenhagenMidnight } from "../../lib/validation";
 import { loadChildRange } from "../children/calendar";
 import { toCustodyPlanDto } from "../children/custodyPlan";
 import { toSwapRequestDto } from "../children/swapRequests";
@@ -47,6 +47,9 @@ overviewRouter.get("/", async (req, res, next) => {
     });
 
     const today = copenhagenToday();
+    // Notes and completed tasks by Copenhagen day (see copenhagenMidnight).
+    const dayStart = copenhagenMidnight(from);
+    const dayEnd = copenhagenMidnight(new Date(end.getTime() + DAY).toISOString().slice(0, 10));
     const children: ChildOverview[] = [];
     for (const a of access) {
       const childId = a.childId;
@@ -60,11 +63,11 @@ overviewRouter.get("/", async (req, res, next) => {
         const { plan, events } = await loadChildRange(tx, childId, start, end);
         const [tasks, notes, lessons, swaps, packingRows, forDate] = await Promise.all([
           tx.task.findMany({
-            where: { childId, OR: [{ completedAt: null }, { completedAt: { gte: start, lt: new Date(end.getTime() + DAY) } }] },
+            where: { childId, OR: [{ completedAt: null }, { completedAt: { gte: dayStart, lt: dayEnd } }] },
             orderBy: [{ dueOn: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }],
           }),
           tx.childNote.findMany({
-            where: { childId, createdAt: { gte: start, lt: new Date(end.getTime() + DAY) } },
+            where: { childId, createdAt: { gte: dayStart, lt: dayEnd } },
             orderBy: { createdAt: "desc" },
             take: 50,
           }),

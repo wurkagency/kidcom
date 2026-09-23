@@ -23,7 +23,10 @@ export default defineConfig({
         background_color: "#f8faf9",
         display: "standalone",
         orientation: "portrait",
+        id: "/",
         start_url: "/",
+        scope: "/",
+        lang: "en-US",
         icons: [
           { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
           { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
