@@ -11,10 +11,10 @@ const REUSE_WINDOW_MS = 1000 * 60 * 60 * 24 * 90; // 90 days
 // 90 days. The client shows them live; the server is what enforces them.
 export function assertStrongPassword(password: unknown): asserts password is string {
   if (typeof password !== "string" || password.length < 8) {
-    throw new ApiError(400, "Password must be at least 8 characters long");
+    throw new ApiError(400, "Password must be at least 8 characters long", "PASSWORD_TOO_WEAK");
   }
   if (!/[\d\W_]/.test(password)) {
-    throw new ApiError(400, "Password must include a number or symbol");
+    throw new ApiError(400, "Password must include a number or symbol", "PASSWORD_TOO_WEAK");
   }
 }
 
@@ -39,7 +39,7 @@ export async function setPassword(userId: string, password: unknown): Promise<vo
   assertStrongPassword(password);
   const user = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { passwordHash: true } });
   if (await wasRecentlyUsed(userId, password, user.passwordHash)) {
-    throw new ApiError(400, "Choose a password you haven't used in the past 90 days");
+    throw new ApiError(400, "Choose a password you haven't used in the past 90 days", "PASSWORD_REUSED");
   }
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
   await prisma.$transaction([

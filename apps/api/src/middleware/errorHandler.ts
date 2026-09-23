@@ -2,9 +2,12 @@ import type { NextFunction, Request, Response } from "express";
 
 export class ApiError extends Error {
   status: number;
-  constructor(status: number, message: string) {
+  /** Stable machine-readable reason (e.g. "PASSWORD_REUSED"); clients translate by it. */
+  code?: string;
+  constructor(status: number, message: string, code?: string) {
     super(message);
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -18,14 +21,17 @@ export function errorHandler(
   _next: NextFunction
 ) {
   const status = err instanceof ApiError ? err.status : 500;
-  const message = err instanceof Error ? err.message : "Internal server error";
+  // Only deliberate ApiErrors carry their message to the client; anything
+  // unexpected is logged here and answered generically (no internals leak).
+  const message = err instanceof ApiError ? err.message : "Internal server error";
+  const code = err instanceof ApiError ? err.code : undefined;
 
   if (status >= 500) {
     // eslint-disable-next-line no-console
     console.error(err);
   }
 
-  res.status(status).json({ error: message });
+  res.status(status).json(code ? { error: message, code } : { error: message });
 }
 
 export function notFoundHandler(_req: Request, res: Response) {

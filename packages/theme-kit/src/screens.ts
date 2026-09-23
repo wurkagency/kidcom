@@ -12,6 +12,7 @@ export const SCREEN_IDS = [
   "auth.twoFactor",
   "auth.signup",
   "auth.phoneVerify",
+  "auth.createPassword",
   "auth.forgotPassword",
   "auth.resetPassword",
   "auth.verifyEmail",

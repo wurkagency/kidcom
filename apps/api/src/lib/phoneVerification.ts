@@ -38,7 +38,7 @@ export async function sendPhoneCode(userId: string, phone: string, purpose: Phon
     orderBy: { createdAt: "desc" },
   });
   if (latest && Date.now() - latest.createdAt.getTime() < PHONE_CODE_RESEND_COOLDOWN_MS) {
-    throw new ApiError(429, "Please wait a moment before requesting another code");
+    throw new ApiError(429, "Please wait a moment before requesting another code", "CODE_COOLDOWN");
   }
 
   const code = generateTwoFactorCode();
@@ -77,16 +77,16 @@ export async function consumePhoneCode(userId: string, purpose: PhoneCodePurpose
     orderBy: { createdAt: "desc" },
   });
   if (!record || record.expiresAt < new Date()) {
-    throw new ApiError(400, "This code has expired — request a new one");
+    throw new ApiError(400, "This code has expired — request a new one", "CODE_EXPIRED");
   }
   if (record.codeHash !== hashTwoFactorCode(code.trim())) {
     const attempts = record.attempts + 1;
     if (attempts >= PHONE_CODE_MAX_ATTEMPTS) {
       await prisma.phoneVerificationCode.delete({ where: { id: record.id } });
-      throw new ApiError(400, "Too many incorrect attempts — request a new code");
+      throw new ApiError(400, "Too many incorrect attempts — request a new code", "CODE_ATTEMPTS_EXCEEDED");
     }
     await prisma.phoneVerificationCode.update({ where: { id: record.id }, data: { attempts } });
-    throw new ApiError(401, "Incorrect code");
+    throw new ApiError(401, "Incorrect code", "CODE_INCORRECT");
   }
   await prisma.phoneVerificationCode.delete({ where: { id: record.id } });
   return record.phone;

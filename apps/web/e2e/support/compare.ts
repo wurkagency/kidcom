@@ -49,3 +49,56 @@ export function compareRegion(actualBuffer: Buffer, screenFolder: string, region
 export function cropReference(screenFolder: string, region: Region): Buffer {
   return PNG.sync.write(crop(loadReference(screenFolder), region));
 }
+
+/**
+ * Diffs a full-page screenshot against a Stitch reference image of the same
+ * width. Heights can differ slightly (real content vs mock copy), so the
+ * overlapping top portion is compared and the height delta reported.
+ */
+export function comparePage(
+  actualBuffer: Buffer,
+  referenceBuffer: Buffer,
+  name: string,
+  /**
+   * A deliberate change that shifts everything below it, in reference pixels
+   * from row `atY`: `by` > 0 means the app is shorter there (rows removed
+   * from the reference), `by` < 0 taller (rows removed from the screenshot).
+   * Documented at each call site.
+   */
+  shift?: { atY: number; by: number },
+) {
+  let reference = PNG.sync.read(referenceBuffer);
+  let actual = PNG.sync.read(actualBuffer);
+  const cut = (png: PNG, atY: number, rows: number) => {
+    const out = new PNG({ width: png.width, height: png.height - rows });
+    PNG.bitblt(png, out, 0, 0, png.width, atY, 0, 0);
+    PNG.bitblt(png, out, 0, atY + rows, png.width, png.height - atY - rows, 0, atY);
+    return out;
+  };
+  if (shift && shift.by > 0) reference = cut(reference, shift.atY, shift.by);
+  if (shift && shift.by < 0) actual = cut(actual, shift.atY, -shift.by);
+  const width = Math.min(reference.width, actual.width);
+  const height = Math.min(reference.height, actual.height);
+  const region = { name, x: 0, y: 0, width, height };
+  const ref = crop(reference, region);
+  const act = crop(actual, region);
+  const diff = new PNG({ width, height });
+  const mismatched = pixelmatch(ref.data, act.data, diff.data, width, height, { threshold: 0.15, includeAA: false });
+
+  const sheet = new PNG({ width: width * 3, height });
+  PNG.bitblt(ref, sheet, 0, 0, width, height, 0, 0);
+  PNG.bitblt(act, sheet, 0, 0, width, height, width, 0);
+  PNG.bitblt(diff, sheet, 0, 0, width, height, width * 2, 0);
+  mkdirSync(DIFF_DIR, { recursive: true });
+  writeFileSync(join(DIFF_DIR, `${name}.png`), PNG.sync.write(sheet));
+
+  return { mismatch: mismatched / (width * height), heightDelta: actual.height - reference.height };
+}
+
+export function referencePng(screenFolder: string): Buffer {
+  return readFileSync(join(DESIGN_DIR, screenFolder, "screen.png"));
+}
+
+export function referenceHtml(screenFolder: string): string {
+  return join(DESIGN_DIR, screenFolder, "code.html");
+}

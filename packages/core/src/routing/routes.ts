@@ -4,9 +4,11 @@ import type { ScreenId, ShellKind } from "@kidcom/theme-kit";
  * Who may open a route.
  *  - public:  anyone (links from emails: verify email, reset password, invites)
  *  - guest:   signed-out only; a signed-in user is sent home
- *  - authed:  signed in with a verified email
+ *  - setup:   signed in, still finishing account setup (verify phone, create
+ *             password) — only the screen for the current step is reachable
+ *  - authed:  signed in with setup complete and a verified email
  */
-export type RouteAccess = "public" | "guest" | "authed";
+export type RouteAccess = "public" | "guest" | "setup" | "authed";
 
 export type AppRoute = {
   screen: ScreenId;
@@ -26,7 +28,8 @@ export const ROUTES: readonly AppRoute[] = [
   { screen: "auth.resetPassword", path: "/reset-password", shell: "auth", access: "public" },
   { screen: "auth.verifyEmail", path: "/verify-email", shell: "auth", access: "public" },
   { screen: "auth.inviteAccept", path: "/invite/:token", shell: "auth", access: "public" },
-  { screen: "auth.phoneVerify", path: "/verify-phone", shell: "stack", access: "authed" },
+  { screen: "auth.phoneVerify", path: "/verify-phone", shell: "auth", access: "setup" },
+  { screen: "auth.createPassword", path: "/create-password", shell: "auth", access: "setup" },
 
   // Onboarding
   { screen: "onboarding.child", path: "/onboarding/child", shell: "stack", access: "authed" },

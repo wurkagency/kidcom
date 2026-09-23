@@ -21,6 +21,11 @@ export const charlie: PublicUser = {
   lastName: "Nielsen",
   avatarUrl: "m-charlie",
   emailVerifiedAt: "2026-01-01T00:00:00.000Z",
+  phone: "+4520123456",
+  phoneVerifiedAt: "2026-01-01T00:00:00.000Z",
+  pendingPhone: null,
+  hasPassword: true,
+  oauthProviders: [],
   themeId: "aura",
   locale: "en-US",
 };

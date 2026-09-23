@@ -16,6 +16,7 @@ type UserRow = {
   themeId: string | null;
   locale: string | null;
   oauthAccounts: { provider: "GOOGLE" | "MICROSOFT" }[];
+  phoneCodes: { phone: string }[];
 };
 
 // The single User → PublicUser mapping for every endpoint that returns the
@@ -32,6 +33,7 @@ export function toPublicUser(user: UserRow): PublicUser {
     emailVerifiedAt: user.emailVerifiedAt ? user.emailVerifiedAt.toISOString() : null,
     phone: user.phoneVerifiedAt ? user.phone : null,
     phoneVerifiedAt: user.phoneVerifiedAt ? user.phoneVerifiedAt.toISOString() : null,
+    pendingPhone: user.phoneCodes[0]?.phone ?? null,
     hasPassword: user.passwordHash !== null,
     oauthProviders: user.oauthAccounts.map((a) => a.provider.toLowerCase() as OAuthProviderId),
     themeId: isThemeId(user.themeId) ? user.themeId : null,
@@ -42,7 +44,15 @@ export function toPublicUser(user: UserRow): PublicUser {
 export async function loadPublicUser(userId: string): Promise<PublicUser> {
   const user = await prisma.user.findUniqueOrThrow({
     where: { id: userId },
-    include: { oauthAccounts: { select: { provider: true } } },
+    include: {
+      oauthAccounts: { select: { provider: true } },
+      phoneCodes: {
+        where: { purpose: "VERIFY_PHONE", expiresAt: { gt: new Date() } },
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: { phone: true },
+      },
+    },
   });
   return toPublicUser(user);
 }

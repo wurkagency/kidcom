@@ -40,6 +40,7 @@ describe("Signup and mandatory phone verification", () => {
     expect(res.status).toBe(201);
     expect(res.body.user.hasPassword).toBe(false);
     expect(res.body.user.phone).toBeNull();
+    expect(res.body.user.pendingPhone).toBe("+4520111111");
     expect(sentTo("+4520111111")).toHaveLength(1);
     expect(sentTo("+4520111111")[0].content).toMatch(/@localhost:5173 #\d{6}$/); // WebOTP autofill line
 
@@ -47,6 +48,7 @@ describe("Signup and mandatory phone verification", () => {
     expect(verify.status).toBe(200);
     expect(verify.body.user.phone).toBe("+4520111111");
     expect(verify.body.user.phoneVerifiedAt).not.toBeNull();
+    expect(verify.body.user.pendingPhone).toBeNull();
   });
 
   it("blocks every non-auth endpoint until the phone is verified (server-side, not just the UI)", async () => {
@@ -80,6 +82,7 @@ describe("Signup and mandatory phone verification", () => {
     const { agent } = await signupWithoutPassword(app, phone);
     const res = await agent.post("/auth/phone/verify").send({ code: lastSmsCode(phone) });
     expect(res.status).toBe(409);
+    expect(res.body.code).toBe("PHONE_TAKEN");
     expect((await agent.get("/auth/me")).body.user.phoneVerifiedAt).toBeNull();
   });
 
@@ -127,7 +130,9 @@ describe("Passwords", () => {
 
     expect((await change("password123", "password123")).status).toBe(400);
     expect((await change("password123", "second-pass-2")).status).toBe(204);
-    expect((await change("second-pass-2", "password123")).status).toBe(400); // back to the old one
+    const reused = await change("second-pass-2", "password123"); // back to the old one
+    expect(reused.status).toBe(400);
+    expect(reused.body.code).toBe("PASSWORD_REUSED");
     expect((await change("second-pass-2", "third-pass-3")).status).toBe(204);
   });
 

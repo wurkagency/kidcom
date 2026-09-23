@@ -79,6 +79,7 @@ export const paths = {
     resetPassword: () => "/reset-password",
     verifyEmail: () => "/verify-email",
     verifyPhone: () => "/verify-phone",
+    createPassword: () => "/create-password",
   },
   onboarding: {
     child: () => "/onboarding/child",

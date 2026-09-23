@@ -86,7 +86,7 @@ authRouter.post("/signup", authRateLimiter, async (req, res, next) => {
       throw new ApiError(400, "Please enter a valid email address");
     }
     if (!isE164(phone)) {
-      throw new ApiError(400, "Please enter a valid mobile number");
+      throw new ApiError(400, "Please enter a valid mobile number", "PHONE_INVALID");
     }
     if (body.acceptedTerms !== true) {
       throw new ApiError(400, "You must accept the Privacy Policy and Terms to continue");
@@ -96,7 +96,7 @@ authRouter.post("/signup", authRateLimiter, async (req, res, next) => {
     }
 
     if (await prisma.user.findUnique({ where: { email } })) {
-      throw new ApiError(409, "An account with this email already exists");
+      throw new ApiError(409, "An account with this email already exists", "EMAIL_TAKEN");
     }
 
     const user = await createAccount({
@@ -125,7 +125,7 @@ authRouter.post("/phone/send", authRateLimiter, async (req, res, next) => {
     const { phone: requested } = req.body as SendPhoneCodeRequest;
     let phone: string | null;
     if (requested !== undefined) {
-      if (!isE164(requested)) throw new ApiError(400, "Please enter a valid mobile number");
+      if (!isE164(requested)) throw new ApiError(400, "Please enter a valid mobile number", "PHONE_INVALID");
       phone = requested;
     } else {
       const user = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { phone: true } });
@@ -147,7 +147,7 @@ authRouter.post("/phone/verify", authRateLimiter, async (req, res, next) => {
     const phone = await consumePhoneCode(userId, "VERIFY_PHONE", code);
     const taken = await prisma.user.findFirst({ where: { phone, phoneVerifiedAt: { not: null }, id: { not: userId } } });
     if (taken) {
-      throw new ApiError(409, "This mobile number is already used by another KidCom account");
+      throw new ApiError(409, "This mobile number is already used by another KidCom account", "PHONE_TAKEN");
     }
     await prisma.user.update({ where: { id: userId }, data: { phone, phoneVerifiedAt: new Date() } });
     req.session.phoneVerified = true;
@@ -205,7 +205,7 @@ authRouter.post("/forgot-password", authRateLimiter, async (req, res, next) => {
 
     if (body.method === "sms") {
       const phone = body.phone?.trim();
-      if (!isE164(phone)) throw new ApiError(400, "Please enter a valid mobile number");
+      if (!isE164(phone)) throw new ApiError(400, "Please enter a valid mobile number", "PHONE_INVALID");
       // The code is tied to this browser session; POST /reset-password
       // with { code } completes it here.
       req.session.pendingResetPhone = phone;
@@ -248,7 +248,7 @@ authRouter.post("/reset-password", authRateLimiter, async (req, res, next) => {
     if (body.token) {
       const record = await prisma.passwordResetToken.findUnique({ where: { tokenHash: hashResetToken(body.token) } });
       if (!record || record.expiresAt < new Date()) {
-        throw new ApiError(400, "This reset link is invalid or has expired");
+        throw new ApiError(400, "This reset link is invalid or has expired", "RESET_LINK_INVALID");
       }
       assertStrongPassword(body.password);
       userId = record.userId;
@@ -258,7 +258,7 @@ authRouter.post("/reset-password", authRateLimiter, async (req, res, next) => {
     } else if (body.code) {
       const phone = req.session.pendingResetPhone;
       const user = phone ? await prisma.user.findFirst({ where: { phone, phoneVerifiedAt: { not: null } } }) : null;
-      if (!user) throw new ApiError(400, "This code has expired — request a new one");
+      if (!user) throw new ApiError(400, "This code has expired — request a new one", "CODE_EXPIRED");
       assertStrongPassword(body.password);
       await consumePhoneCode(user.id, "PASSWORD_RESET", body.code);
       userId = user.id;
@@ -291,7 +291,7 @@ authRouter.get("/verify-email", async (req, res, next) => {
     }
     const record = await prisma.emailVerificationToken.findUnique({ where: { tokenHash: hashVerificationToken(token) } });
     if (!record || record.expiresAt < new Date()) {
-      throw new ApiError(400, "This verification link is invalid or has expired");
+      throw new ApiError(400, "This verification link is invalid or has expired", "VERIFY_LINK_INVALID");
     }
     await prisma.$transaction([
       prisma.user.update({ where: { id: record.userId }, data: { emailVerifiedAt: new Date() } }),
@@ -335,7 +335,7 @@ authRouter.post("/login", authRateLimiter, async (req, res, next) => {
     const user = await prisma.user.findUnique({ where: { email } });
     // Same answer for "no account", "no password set" and "wrong password".
     if (!user?.passwordHash || !(await bcrypt.compare(password, user.passwordHash))) {
-      throw new ApiError(401, "Invalid email or password");
+      throw new ApiError(401, "Invalid email or password", "INVALID_CREDENTIALS");
     }
     req.session.pendingTwoFactorUserId = user.id;
     req.session.pendingRememberMe = body.rememberMe !== false;
@@ -361,16 +361,16 @@ authRouter.post("/verify-2fa", authRateLimiter, async (req, res, next) => {
       orderBy: { createdAt: "desc" },
     });
     if (!record || record.expiresAt < new Date()) {
-      throw new ApiError(400, "This code has expired — request a new one");
+      throw new ApiError(400, "This code has expired — request a new one", "CODE_EXPIRED");
     }
     if (record.codeHash !== hashTwoFactorCode(code.trim())) {
       const attempts = record.attempts + 1;
       if (attempts >= TWO_FACTOR_MAX_ATTEMPTS) {
         await prisma.loginTwoFactorCode.delete({ where: { id: record.id } });
-        throw new ApiError(400, "Too many incorrect attempts — request a new code");
+        throw new ApiError(400, "Too many incorrect attempts — request a new code", "CODE_ATTEMPTS_EXCEEDED");
       }
       await prisma.loginTwoFactorCode.update({ where: { id: record.id }, data: { attempts } });
-      throw new ApiError(401, "Incorrect code");
+      throw new ApiError(401, "Incorrect code", "CODE_INCORRECT");
     }
     await prisma.loginTwoFactorCode.delete({ where: { id: record.id } });
 
@@ -475,7 +475,7 @@ authRouter.patch("/me", async (req, res, next) => {
     const currentUser = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
     const emailChanged = email !== undefined && email !== currentUser.email;
     if (emailChanged && (await prisma.user.findUnique({ where: { email } }))) {
-      throw new ApiError(409, "An account with this email already exists");
+      throw new ApiError(409, "An account with this email already exists", "EMAIL_TAKEN");
     }
 
     const user = await withRls(userId, async (tx) => {

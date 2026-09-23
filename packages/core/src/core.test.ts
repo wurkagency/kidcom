@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
+import type { PublicUser } from "@kidcom/shared";
 
+import { checkPassword, maskPhone, splitFullName, toE164 } from "./auth/forms";
+import { pendingSetupStep } from "./auth/setup";
 import { isMobileDevice } from "./device/desktopGate";
 import { createFormatters } from "./i18n/format";
 import { safeNextPath } from "./routing/AppRouter";
@@ -48,5 +51,45 @@ describe("route table", () => {
   });
   it("never exposes an app-shell screen to signed-out users", () => {
     expect(ROUTES.filter((r) => r.shell === "app" && r.access !== "authed")).toEqual([]);
+  });
+});
+
+describe("account form helpers", () => {
+  it("builds E.164 numbers from what people actually type", () => {
+    expect(toE164("45", "20 12 34 56")).toBe("+4520123456");
+    expect(toE164("47", "0406 12 345")).toBe("+4740612345");
+    expect(toE164("45", "+46 70 123 45 67")).toBe("+46701234567");
+    expect(toE164("45", "0045 20123456")).toBe("+4520123456");
+    expect(toE164("45", "123")).toBeNull();
+  });
+  it("masks all but the last two digits", () => {
+    expect(maskPhone("+4520123456")).toBe("+45 ••••••56");
+    expect(maskPhone("+358401234567")).toBe("+358 •••••••67");
+  });
+  it("mirrors the server's password rules", () => {
+    expect(checkPassword("short1").valid).toBe(false);
+    expect(checkPassword("longwithoutdigits").valid).toBe(false);
+    expect(checkPassword("calm-harbour").valid).toBe(true);
+    expect(checkPassword("").strength).toBe(0);
+    expect(checkPassword("abc").strength).toBe(1);
+    expect(checkPassword("Calm-Harbour-7").strength).toBe(3);
+  });
+  it("splits a full name", () => {
+    expect(splitFullName("  Sarah   Jenkins Berg ")).toEqual({ firstName: "Sarah", lastName: "Jenkins Berg" });
+    expect(splitFullName("Madonna")).toEqual({ firstName: "Madonna", lastName: "" });
+  });
+});
+
+describe("account setup order", () => {
+  const user = (over: Partial<PublicUser>): PublicUser => ({
+    id: "u", email: "e@x.dk", firstName: "A", lastName: "B", avatarUrl: null,
+    emailVerifiedAt: "2026-01-01", phone: "+4520123456", phoneVerifiedAt: "2026-01-01", pendingPhone: null,
+    hasPassword: true, oauthProviders: [], themeId: null, locale: null, ...over,
+  });
+  it("phone, then password (email signups only), then email", () => {
+    expect(pendingSetupStep(user({ phoneVerifiedAt: null, hasPassword: false, emailVerifiedAt: null }))).toBe("phone");
+    expect(pendingSetupStep(user({ hasPassword: false, emailVerifiedAt: null }))).toBe("password");
+    expect(pendingSetupStep(user({ hasPassword: false, oauthProviders: ["google"], emailVerifiedAt: null }))).toBe("email");
+    expect(pendingSetupStep(user({}))).toBeNull();
   });
 });

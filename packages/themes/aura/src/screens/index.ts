@@ -1,6 +1,18 @@
+import { lazy, type ComponentType } from "react";
 import type { ThemeManifest } from "@kidcom/theme-kit";
 
 import { DesktopGateScreen, NotFoundScreen, PendingScreen } from "../system/SystemScreens";
+
+/** A screen as its own lazily loaded chunk, from a named export. */
+function screen<M extends Record<string, unknown>>(load: () => Promise<M>, name: keyof M) {
+  return lazy(async () => ({ default: (await load())[name] as ComponentType }));
+}
+
+const loadAuth = () => import("../auth/LoginScreen");
+const loadTwoFactor = () => import("../auth/TwoFactorScreen");
+const loadSignup = () => import("../auth/SignupScreen");
+const loadSetup = () => import("../auth/SetupScreens");
+const loadRecovery = () => import("../auth/RecoveryScreens");
 
 // Every screen id → its Aura implementation. Screens are lazy-loaded chunks
 // (`lazy(() => import(...))`) as each build phase lands; PendingScreen marks
@@ -9,14 +21,16 @@ export const screens: ThemeManifest["screens"] = {
   "system.desktopGate": DesktopGateScreen,
   "system.notFound": NotFoundScreen,
 
-  // Phase 2 — auth
-  "auth.login": PendingScreen,
-  "auth.twoFactor": PendingScreen,
-  "auth.signup": PendingScreen,
-  "auth.phoneVerify": PendingScreen,
-  "auth.forgotPassword": PendingScreen,
-  "auth.resetPassword": PendingScreen,
-  "auth.verifyEmail": PendingScreen,
+  // Auth
+  "auth.login": screen(loadAuth, "LoginScreen"),
+  "auth.twoFactor": screen(loadTwoFactor, "TwoFactorScreen"),
+  "auth.signup": screen(loadSignup, "SignupScreen"),
+  "auth.phoneVerify": screen(loadSetup, "PhoneVerifyScreen"),
+  "auth.createPassword": screen(loadSetup, "CreatePasswordScreen"),
+  "auth.forgotPassword": screen(loadRecovery, "ForgotPasswordScreen"),
+  "auth.resetPassword": screen(loadRecovery, "ResetPasswordScreen"),
+  "auth.verifyEmail": screen(loadSetup, "VerifyEmailScreen"),
+  // Phase 7 — with family invites
   "auth.inviteAccept": PendingScreen,
 
   // Phase 7 — onboarding

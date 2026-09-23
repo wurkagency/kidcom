@@ -182,7 +182,7 @@ oauthRouter.post("/complete-signup", async (req, res, next) => {
       throw new ApiError(400, "You must accept the Privacy Policy and Terms to continue");
     }
     if (await prisma.user.findUnique({ where: { email: p.email } })) {
-      throw new ApiError(409, "An account with this email already exists");
+      throw new ApiError(409, "An account with this email already exists", "EMAIL_TAKEN");
     }
     const user = await createOAuthAccount(req, p.provider, p);
     res.status(201).json({ user: await loadPublicUser(user.id) } satisfies MeResponse);

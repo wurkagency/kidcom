@@ -79,6 +79,36 @@ see "Decisions" below.
   breaking major upgrade
 
 ## Phase 2 — Auth (OAuth, SMS OTP via Brevo)
+- [x] API: signup = name, email, mobile (E.164), consent; password set after SMS
+      (`POST /auth/password`); `passwordHash` nullable
+- [x] API: SMS via Brevo (`lib/smsSender`: log in dev — set SMS_DELIVERY=brevo to send —,
+      memory in tests, Brevo in prod); hashed codes, 10 min, 5 attempts, 30 s cooldown,
+      WebOTP autofill line; **server-side gate**: 403 PHONE_VERIFICATION_REQUIRED on every
+      non-/auth endpoint; phone change only applies once verified; a verified number is
+      unique (409 + partial unique index)
+- [x] API: Google/Microsoft (code + PKCE + session-bound state); consent before an account
+      exists; only Google's verified email links to an existing account (Microsoft never — nOAuth)
+- [x] API: password rules (8+, number/symbol, 90-day reuse) on set/change/reset; forgot by
+      email link or SMS code (by verified mobile, per design); reset signs in and revokes
+      other sessions by default; sessions regenerated at every sign-in + per-user index
+- [x] API hardening found on the way: verify-email no longer returns the token owner's
+      profile to another browser; 500s no longer echo internal error messages; machine
+      `code` on auth errors (translated client-side)
+- [x] Screens: login, 2FA code, sign up (+ OAuth consent continuation), verify phone,
+      create password, verify email, forgot, reset — lazy-loaded
+- [x] Proof: API 27/27 files, 169/169 tests (+25 for these flows); UI flow specs (stateful
+      fake API): signup→phone→password→email→app, password sign-in + code → `next`, steps
+      can't be skipped, provider links carry consent; design diffs: forgot 0.34%, sign up
+      0.60%*, login 1.90%, reset 3.21%* (*documented shifts); real Google/Microsoft
+      authorize endpoints accept our redirect URIs
+- Deviations (all in code comments): sign-up subtitle "Choose your role below" dropped (no
+  role picker); reset's missing confirm-password input restored; buttons stay enabled as
+  designed and validate on tap; radius scale pinned to what the exports rendered
+  (rounded-md 6px, "rounded-DEFAULT" = square) — reverses Phase 1's DESIGN.md sm/md
+  assumption; Tailwind v3 shadow/blur semantics pinned for ported classes
+- Note: flag emoji don't render on Windows desktop Chromium (shows "DK"); fine on phones
+- Carried: invite-accept screen (Phase 7); production OAuth callbacks on app.kidcom.org
+
 ## Phase 3 — Categories + Today + Calendar
 ## Phase 4 — Moments + Media + Bookmarks
 ## Phase 5 — Lists + Children + Health

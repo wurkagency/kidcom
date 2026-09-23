@@ -59,6 +59,9 @@ export type PublicUser = {
   // Verified mobile number (E.164) — null until the SMS code is confirmed.
   phone: string | null;
   phoneVerifiedAt: string | null;
+  // A number awaiting its SMS code (signup, or a number change) — null when
+  // nothing is pending.
+  pendingPhone: string | null;
   // False until a password is set (signup sets it after phone verification;
   // Google/Microsoft accounts may never set one).
   hasPassword: boolean;

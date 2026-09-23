@@ -24,7 +24,20 @@ export {
   useVerifyEmail,
   useResendVerification,
   useUpdateProfile,
+  useSendPhoneCode,
+  useVerifyPhone,
+  useSetPassword,
+  usePendingOAuthSignup,
+  useCompleteOAuthSignup,
+  oauthStartUrl,
 } from "./auth/hooks";
+export { pendingSetupStep, SETUP_STEP_PATH } from "./auth/setup";
+export type { SetupStep } from "./auth/setup";
+export { PHONE_COUNTRIES, DEFAULT_PHONE_COUNTRY, toE164, maskPhone, checkPassword, splitFullName } from "./auth/forms";
+export type { PhoneCountry, PasswordCheck } from "./auth/forms";
+
+// Legal
+export { LEGAL_URLS } from "./legal";
 
 // Children
 export { useChildren } from "./children/hooks";

@@ -3,6 +3,7 @@ import { createBrowserRouter, Navigate, Outlet, RouterProvider, ScrollRestoratio
 import { useTheme, type ScreenId, type ShellKind } from "@kidcom/theme-kit";
 
 import { useMe } from "../auth/hooks";
+import { pendingSetupStep, SETUP_STEP_PATH, type SetupStep } from "../auth/setup";
 import { CurrentScreenContext } from "./currentScreen";
 import { ROUTES, type RouteAccess } from "./routes";
 import { paths } from "./paths";
@@ -30,7 +31,12 @@ export function safeNextPath(next: string | null): string | null {
   return next;
 }
 
-function Guard({ access, children }: { access: RouteAccess; children: ReactNode }) {
+const SETUP_SCREEN: Partial<Record<ScreenId, SetupStep>> = {
+  "auth.phoneVerify": "phone",
+  "auth.createPassword": "password",
+};
+
+function Guard({ screen, access, children }: { screen: ScreenId; access: RouteAccess; children: ReactNode }) {
   const theme = useTheme();
   const location = useLocation();
   const { data: me, isPending } = useMe();
@@ -44,12 +50,18 @@ function Guard({ access, children }: { access: RouteAccess; children: ReactNode 
     return <Navigate to={next ?? paths.today()} replace />;
   }
 
-  // authed
   if (!me) {
     const next = location.pathname + location.search;
     return <Navigate to={`${paths.auth.login()}?next=${encodeURIComponent(next)}`} replace />;
   }
-  if (!me.emailVerifiedAt) return <Navigate to={paths.auth.verifyEmail()} replace />;
+
+  // Setup steps run strictly in order; only the current step's screen shows.
+  const step = pendingSetupStep(me);
+  if (access === "setup") {
+    if (step && SETUP_SCREEN[screen] === step) return <>{children}</>;
+    return <Navigate to={step ? SETUP_STEP_PATH[step] : paths.today()} replace />;
+  }
+  if (step) return <Navigate to={SETUP_STEP_PATH[step]} replace />;
   return <>{children}</>;
 }
 
@@ -59,7 +71,7 @@ function RoutedScreen({ screen, shell, access }: { screen: ScreenId; shell: Shel
   const Screen = theme.screens[screen];
   return (
     <CurrentScreenContext.Provider value={screen}>
-      <Guard access={access}>
+      <Guard screen={screen} access={access}>
         <Shell screen={screen}>
           <ScreenErrorBoundary fallback={(error, reset) => <theme.ErrorFallback error={error} reset={reset} />}>
             <Suspense fallback={<theme.Loading />}>

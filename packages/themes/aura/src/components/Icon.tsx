@@ -10,9 +10,10 @@ type IconProps = HTMLAttributes<HTMLSpanElement> & {
 };
 
 /**
- * Aura's only icon set: Material Symbols Outlined (self-hosted). Size and
- * color come from className (text-[18px], text-secondary), exactly as in the
- * Stitch exports. Decorative by default; pass aria-label to make it
+ * Aura's only icon set: Material Symbols Outlined (self-hosted). Size,
+ * line height and color come from className (text-[18px], text-lg,
+ * text-secondary), exactly as in the Stitch exports — the base class keeps
+ * the font's own line-height: 1 otherwise. Decorative by default; pass aria-label to make it
  * meaningful on its own.
  */
 export function Icon({ name, filled, className, ...props }: IconProps) {
@@ -21,7 +22,7 @@ export function Icon({ name, filled, className, ...props }: IconProps) {
       aria-hidden={props["aria-label"] ? undefined : true}
       translate="no"
       {...props}
-      className={cn("material-symbols-outlined shrink-0 select-none leading-none", filled && "icon-fill", className)}
+      className={cn("material-symbols-outlined shrink-0 select-none", filled && "icon-fill", className)}
     >
       {name}
     </span>

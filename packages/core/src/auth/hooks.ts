@@ -3,6 +3,8 @@ import type {
   ForgotPasswordRequest,
   LoginRequest,
   MeResponse,
+  OAuthProviderId,
+  PendingOAuthSignupResponse,
   PublicUser,
   ResetPasswordRequest,
   SignupRequest,
@@ -10,7 +12,7 @@ import type {
   UpdateProfileRequest,
 } from "@kidcom/shared";
 
-import { api } from "../api/client";
+import { api, apiUrl } from "../api/client";
 import { queryKeys } from "../api/queryClient";
 
 /** The signed-in user, or null when signed out. */
@@ -84,17 +86,75 @@ export function useForgotPassword() {
   });
 }
 
+/** Completes a reset (emailed token or SMS code) and signs the user in. */
 export function useResetPassword() {
+  const setMe = useSetMe();
   return useMutation({
-    mutationFn: (body: ResetPasswordRequest) => api.post<void>("/auth/reset-password", body),
+    mutationFn: (body: ResetPasswordRequest) => api.post<MeResponse>("/auth/reset-password", body),
+    onSuccess: ({ user }) => setMe(user),
   });
 }
 
-export function useVerifyEmail() {
+/** Sends (or re-sends) the SMS code; pass a number to verify a new one. */
+export function useSendPhoneCode() {
+  return useMutation({
+    mutationFn: (phone?: string) => api.post<void>("/auth/phone/send", phone ? { phone } : {}),
+  });
+}
+
+export function useVerifyPhone() {
   const setMe = useSetMe();
   return useMutation({
-    mutationFn: (token: string) => api.get<MeResponse>(`/auth/verify-email?token=${encodeURIComponent(token)}`),
+    mutationFn: (code: string) => api.post<MeResponse>("/auth/phone/verify", { code }),
     onSuccess: ({ user }) => setMe(user),
+  });
+}
+
+/** First password for an account without one. */
+export function useSetPassword() {
+  const setMe = useSetMe();
+  return useMutation({
+    mutationFn: (password: string) => api.post<MeResponse>("/auth/password", { password }),
+    onSuccess: ({ user }) => setMe(user),
+  });
+}
+
+/**
+ * Full-page URL that starts Google/Microsoft sign-in (a navigation, not a
+ * fetch — the provider's pages must load in the browser).
+ */
+export function oauthStartUrl(provider: OAuthProviderId, options: { next?: string; acceptedTerms?: boolean } = {}): string {
+  const query = new URLSearchParams();
+  if (options.next) query.set("next", options.next);
+  if (options.acceptedTerms) query.set("acceptedTerms", "1");
+  const qs = query.toString();
+  return apiUrl(`/auth/oauth/${provider}/start${qs ? `?${qs}` : ""}`);
+}
+
+/** A Google/Microsoft identity waiting for consent on the signup screen. */
+export function usePendingOAuthSignup(enabled: boolean) {
+  return useQuery({
+    queryKey: ["oauth-pending"],
+    queryFn: async () => (await api.get<PendingOAuthSignupResponse>("/auth/oauth/pending")).pending,
+    enabled,
+    staleTime: Infinity,
+  });
+}
+
+export function useCompleteOAuthSignup() {
+  const setMe = useSetMe();
+  return useMutation({
+    mutationFn: () => api.post<MeResponse>("/auth/oauth/complete-signup", { acceptedTerms: true }),
+    onSuccess: ({ user }) => setMe(user),
+  });
+}
+
+/** Confirms an emailed verification link; the session's own user is refreshed. */
+export function useVerifyEmail() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (token: string) => api.get<MeResponse>(`/auth/verify-email?token=${encodeURIComponent(token)}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.me }),
   });
 }
 

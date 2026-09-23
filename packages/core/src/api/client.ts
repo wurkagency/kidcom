@@ -13,6 +13,8 @@ export function apiUrl(path: string): string {
 }
 
 export class ApiError extends Error {
+  /** The server's machine-readable reason, when it gave one ("PASSWORD_REUSED"). */
+  readonly code: string | undefined;
   constructor(
     readonly status: number,
     message: string,
@@ -20,6 +22,8 @@ export class ApiError extends Error {
   ) {
     super(message);
     this.name = "ApiError";
+    this.code =
+      body && typeof body === "object" && "code" in body && typeof body.code === "string" ? body.code : undefined;
   }
 }
 
