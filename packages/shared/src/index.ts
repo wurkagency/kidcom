@@ -56,17 +56,30 @@ export type PublicUser = {
   lastName: string;
   avatarUrl: string | null;
   emailVerifiedAt: string | null;
+  // Verified mobile number (E.164) — null until the SMS code is confirmed.
+  phone: string | null;
+  phoneVerifiedAt: string | null;
+  // False until a password is set (signup sets it after phone verification;
+  // Google/Microsoft accounts may never set one).
+  hasPassword: boolean;
+  oauthProviders: OAuthProviderId[];
   // null = not chosen; resolve with DEFAULT_THEME_ID / DEFAULT_LOCALE.
   themeId: ThemeId | null;
   locale: Locale | null;
 };
 
+export type OAuthProviderId = "google" | "microsoft";
+
+// Signup form (kidcom_sign_up): name, email, mobile, consent. The password is
+// set afterwards (POST /auth/password), once the phone is verified; the
+// optional `password` here is for clients that collect it up front.
 export type SignupRequest = {
   email: string;
-  password: string;
+  password?: string;
   firstName: string;
-  lastName: string;
-  phone?: string;
+  lastName?: string;
+  // Mandatory, E.164 ("+4520123456"). An SMS code is sent at signup.
+  phone: string;
   // Required true — POST /auth/signup rejects anything else. Recorded as
   // User.termsAcceptedAt, a real timestamp rather than a UI-only gate.
   acceptedTerms: boolean;
@@ -117,11 +130,43 @@ export type VerifyTwoFactorRequest = {
 // enumeration leak.
 export type ForgotPasswordRequest = {
   email: string;
+  // "email" (default) sends a reset link; "sms" sends a 6-digit code to the
+  // account's verified mobile number.
+  method?: "email" | "sms";
 };
 
+// Either the emailed link's token, or the SMS code from forgot-password
+// (same browser session). Success signs the user in.
 export type ResetPasswordRequest = {
-  token: string;
+  token?: string;
+  code?: string;
   password: string;
+  // Defaults to true (the screen's checkbox is checked by default).
+  signOutOtherDevices?: boolean;
+};
+
+// POST /auth/phone/send — omit `phone` to resend to the pending number.
+export type SendPhoneCodeRequest = {
+  phone?: string;
+};
+
+export type VerifyPhoneRequest = {
+  code: string;
+};
+
+// POST /auth/password — first password for an account that has none.
+export type SetPasswordRequest = {
+  password: string;
+};
+
+// GET /auth/oauth/pending — a Google/Microsoft identity awaiting terms
+// acceptance on the signup screen.
+export type PendingOAuthSignupResponse = {
+  pending: { provider: OAuthProviderId; email: string; firstName: string; lastName: string } | null;
+};
+
+export type CompleteOAuthSignupRequest = {
+  acceptedTerms: boolean;
 };
 
 // Simple, well-understood format check — this repo has no schema-validation

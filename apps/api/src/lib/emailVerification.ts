@@ -34,8 +34,8 @@ export async function sendVerificationEmail(user: { id: string; email: string; f
   const link = `${config.webBaseUrl}/verify-email?token=${token}`;
   await mailSender.send({
     to: user.email,
-    subject: "Verify your email for SplitKid",
-    text: `Hi ${user.firstName},\n\nPlease confirm this is your email address to finish setting up your SplitKid account:\n\n${link}\n\nThis link expires in ${VERIFICATION_TOKEN_TTL_HOURS} hours. If you didn't create a SplitKid account, you can ignore this email.`,
+    subject: "Verify your email for KidCom",
+    text: `Hi ${user.firstName},\n\nPlease confirm this is your email address to finish setting up your KidCom account:\n\n${link}\n\nThis link expires in ${VERIFICATION_TOKEN_TTL_HOURS} hours. If you didn't create a KidCom account, you can ignore this email.`,
     html: renderConfirmEmailHtml({
       email: user.email,
       confirmUrl: link,

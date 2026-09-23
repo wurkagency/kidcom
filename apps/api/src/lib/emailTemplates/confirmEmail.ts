@@ -1,7 +1,7 @@
 import { escapeHtml, renderEmailShell } from "./layout";
 
 // Real, mail-client-safe adaptation of
-// docs/stitch_splitkid/transactional_email_confirm_email_address/code.html —
+// legacy Stitch export transactional_email_confirm_email_address/code.html —
 // same copy, structure, and brand colors, rebuilt on renderEmailShell's
 // table/inline-style skeleton (the mockup's own markup uses a Tailwind CDN
 // <script> + Google Fonts <link>, neither of which real mail clients honor).
@@ -30,7 +30,7 @@ export function renderConfirmEmailHtml(options: { email: string; confirmUrl: str
   const bodyHtml = `
 <h2 style="margin:16px 0 8px 0;font-size:26px;line-height:1.25;font-weight:700;color:#1b3d2b;letter-spacing:-0.015em;text-align:center;">Confirm your email address</h2>
 <p style="margin:0 auto 24px auto;font-size:14.5px;line-height:1.6;color:#4b5563;max-width:480px;text-align:center;">
-  Welcome to SplitKid! We're dedicated to placing your child's happiness, daily rhythms, and growth at the heart of family collaboration.
+  Welcome to KidCom! We're dedicated to placing your child's happiness, daily rhythms, and growth at the heart of family collaboration.
 </p>
 <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#f9faf6;border:1px solid #e6eae0;border-radius:16px;margin:0 0 24px 0;">
 <tbody><tr><td style="padding:20px;">
@@ -62,13 +62,13 @@ export function renderConfirmEmailHtml(options: { email: string; confirmUrl: str
 <tbody><tr><td style="padding:14px 16px;background-color:#fff9f2;border:1px solid #f5debe;border-radius:12px;">
   <p style="margin:0;font-size:12.5px;line-height:1.55;color:#824d1a;">
     <strong style="color:#6b3e14;display:block;margin-bottom:2px;">Didn't create an account?</strong>
-    If you did not sign up for SplitKid, you can safely ignore this email or reach out to <a href="mailto:support@splitkid.com" style="color:#9a4c00;font-weight:600;text-decoration:underline;">support@splitkid.com</a>. No profile will be activated without verification.
+    If you did not sign up for KidCom, you can safely ignore this email or reach out to <a href="mailto:support@kidcom.org" style="color:#9a4c00;font-weight:600;text-decoration:underline;">support@kidcom.org</a>. No profile will be activated without verification.
   </p>
 </td></tr></tbody></table>`;
 
   return renderEmailShell({
     title: "Confirm your email address",
-    preheader: `Confirm ${email} to finish setting up your SplitKid account.`,
+    preheader: `Confirm ${email} to finish setting up your KidCom account.`,
     badgeText: "Step 1: Account Confirmation",
     bodyHtml,
     footerNote: "You are receiving this transactional security email because an account was registered with your address.",

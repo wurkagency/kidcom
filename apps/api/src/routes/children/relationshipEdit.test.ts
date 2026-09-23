@@ -4,7 +4,7 @@ import request from "supertest";
 import { createApp } from "../../app";
 import { prisma } from "../../db";
 import { resetDb } from "../../testUtils/db";
-import { signupTestUser, verifyTestUserEmail } from "../../testUtils/auth";
+import { signupTestUser, verifyInvitedTestUser } from "../../testUtils/auth";
 
 // Post-launch backlog Phase B proof — PATCH /children/:childId/family/:userId
 // self-corrects a relationship label (most importantly the Phase 5
@@ -24,7 +24,7 @@ describe("PATCH /children/:childId/family/:userId — relationship self-correcti
     const inviteRes = await parentAgent.post("/invites").send({ childId, relationship: "GRANDMOTHER_MAT", email: "rel-grandma@example.com" });
     const grandmaAgent = request.agent(app);
     await grandmaAgent.post(`/invites/${inviteRes.body.token}/accept`).send({ firstName: "G", lastName: "Ma", password: "password123" });
-    await verifyTestUserEmail(grandmaAgent, "rel-grandma@example.com");
+    await verifyInvitedTestUser(grandmaAgent, "rel-grandma@example.com");
     const grandmaId = (await prisma.user.findUniqueOrThrow({ where: { email: "rel-grandma@example.com" } })).id;
 
     // She was actually the paternal grandmother, not maternal — self-correct.
@@ -47,7 +47,7 @@ describe("PATCH /children/:childId/family/:userId — relationship self-correcti
     const inviteRes = await parentAgent.post("/invites").send({ childId, relationship: "AUNT", email: "esc-aunt@example.com" });
     const auntAgent = request.agent(app);
     await auntAgent.post(`/invites/${inviteRes.body.token}/accept`).send({ firstName: "A", lastName: "Unt", password: "password123" });
-    await verifyTestUserEmail(auntAgent, "esc-aunt@example.com");
+    await verifyInvitedTestUser(auntAgent, "esc-aunt@example.com");
     const auntId = (await prisma.user.findUniqueOrThrow({ where: { email: "esc-aunt@example.com" } })).id;
 
     const patchRes = await auntAgent.patch(`/children/${childId}/family/${auntId}`).send({ relationship: "FATHER" });
@@ -82,7 +82,7 @@ describe("PATCH /children/:childId/family/:userId — relationship self-correcti
     const inviteRes = await parentAgent.post("/invites").send({ childId, relationship: "CAREGIVER", email: "care-giver@example.com" });
     const caregiverAgent = request.agent(app);
     await caregiverAgent.post(`/invites/${inviteRes.body.token}/accept`).send({ firstName: "C", lastName: "G", password: "password123" });
-    await verifyTestUserEmail(caregiverAgent, "care-giver@example.com");
+    await verifyInvitedTestUser(caregiverAgent, "care-giver@example.com");
     const caregiverId = (await prisma.user.findUniqueOrThrow({ where: { email: "care-giver@example.com" } })).id;
 
     // Self-attempt to shed the Caregiver restriction — denied.
@@ -105,12 +105,12 @@ describe("PATCH /children/:childId/family/:userId — relationship self-correcti
     const guardianInvite = await parentAgent.post("/invites").send({ childId, relationship: "GUARDIAN", email: "gedit-guardian@example.com" });
     const guardianAgent = request.agent(app);
     await guardianAgent.post(`/invites/${guardianInvite.body.token}/accept`).send({ firstName: "G", lastName: "Uard", password: "password123" });
-    await verifyTestUserEmail(guardianAgent, "gedit-guardian@example.com");
+    await verifyInvitedTestUser(guardianAgent, "gedit-guardian@example.com");
 
     const auntInvite = await parentAgent.post("/invites").send({ childId, relationship: "AUNT", email: "gedit-aunt@example.com" });
     const auntAgent = request.agent(app);
     await auntAgent.post(`/invites/${auntInvite.body.token}/accept`).send({ firstName: "A", lastName: "Unt", password: "password123" });
-    await verifyTestUserEmail(auntAgent, "gedit-aunt@example.com");
+    await verifyInvitedTestUser(auntAgent, "gedit-aunt@example.com");
     const auntId = (await prisma.user.findUniqueOrThrow({ where: { email: "gedit-aunt@example.com" } })).id;
 
     const editAuntRes = await guardianAgent.patch(`/children/${childId}/family/${auntId}`).send({ relationship: "UNCLE" });

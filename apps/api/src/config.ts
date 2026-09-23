@@ -67,7 +67,22 @@ export const config = {
   smtpPort: Number(process.env.SMTP_PORT ?? 587),
   smtpUser: process.env.SMTP_USER,
   smtpPass: process.env.SMTP_PASS,
-  smtpFrom: process.env.SMTP_FROM ?? '"SplitKid" <noreply@splitkid.com>',
+  smtpFrom: process.env.SMTP_FROM ?? '"KidCom" <noreply@kidcom.org>',
+  // SMS (lib/smsSender.ts). "brevo" sends real SMS; "log" prints them. Real
+  // SMS costs credits, so only production sends by default.
+  smsDelivery: (process.env.SMS_DELIVERY ?? (process.env.NODE_ENV === "production" ? "brevo" : "log")) as "brevo" | "log",
+  brevoApiKey: process.env.BREVO_API_KEY,
+  brevoSmsSender: process.env.BREVO_SMS_SENDER ?? "KidCom",
+  // Google/Microsoft sign-in (lib/oauth.ts). The redirect base is the public
+  // origin the browser reaches the API through: the web origin + "/api"
+  // (Vite proxy in dev, the same path routing in production), so the OAuth
+  // callback lands same-origin with the app and the session cookie.
+  oauthRedirectBase: process.env.OAUTH_REDIRECT_BASE ?? "http://localhost:5173/api",
+  googleClientId: process.env.GOOGLE_CLIENT_ID,
+  googleClientSecret: process.env.GOOGLE_CLIENT_SECRET,
+  microsoftClientId: process.env.MICROSOFT_CLIENT_ID,
+  microsoftClientSecret: process.env.MICROSOFT_CLIENT_SECRET,
+  microsoftTenantId: process.env.MICROSOFT_TENANT_ID ?? "common",
   // The web app's own base URL — used to build links that go out in email
   // (verification, invites). The first CORS origin is always the web app's
   // real origin (see corsOrigin above), so it doubles as this without a

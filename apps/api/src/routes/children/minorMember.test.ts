@@ -4,7 +4,7 @@ import request from "supertest";
 import { createApp } from "../../app";
 import { prisma } from "../../db";
 import { resetDb } from "../../testUtils/db";
-import { signupTestUser, verifyTestUserEmail } from "../../testUtils/auth";
+import { signupTestUser, verifyInvitedTestUser } from "../../testUtils/auth";
 import { can, canViewMedicalInfo } from "../../lib/permissions";
 
 // Phase 10 proof — spec 9.16: sibling accounts get a reduced default, are
@@ -57,7 +57,7 @@ describe("Minor sibling accounts (spec 9.16)", () => {
     const guardianInvite = await parentAgent.post("/invites").send({ childId, relationship: "GUARDIAN", email: "sib-guardian@example.com" });
     const guardianAgent = request.agent(app);
     await guardianAgent.post(`/invites/${guardianInvite.body.token}/accept`).send({ firstName: "G", lastName: "Uardian", password: "password123" });
-    await verifyTestUserEmail(guardianAgent, "sib-guardian@example.com");
+    await verifyInvitedTestUser(guardianAgent, "sib-guardian@example.com");
 
     const res = await guardianAgent.post(`/children/${childId}/family/minor`).send({ firstName: "Sam", relationship: "BROTHER" });
     expect(res.status).toBe(403);

@@ -1,5 +1,7 @@
-import type { PublicUser } from "@kidcom/shared";
+import type { OAuthProviderId, PublicUser } from "@kidcom/shared";
 import { isLocale, isThemeId } from "@kidcom/shared";
+
+import { prisma } from "../db";
 
 type UserRow = {
   id: string;
@@ -8,13 +10,18 @@ type UserRow = {
   lastName: string;
   avatarUrl: string | null;
   emailVerifiedAt: Date | null;
+  phone: string | null;
+  phoneVerifiedAt: Date | null;
+  passwordHash: string | null;
   themeId: string | null;
   locale: string | null;
+  oauthAccounts: { provider: "GOOGLE" | "MICROSOFT" }[];
 };
 
 // The single User → PublicUser mapping for every endpoint that returns the
 // signed-in account. A stored themeId/locale the catalogue no longer knows
 // (a retired theme, say) degrades to null, i.e. the code-level default.
+// The password hash itself never leaves the server — only whether one is set.
 export function toPublicUser(user: UserRow): PublicUser {
   return {
     id: user.id,
@@ -23,7 +30,19 @@ export function toPublicUser(user: UserRow): PublicUser {
     lastName: user.lastName,
     avatarUrl: user.avatarUrl,
     emailVerifiedAt: user.emailVerifiedAt ? user.emailVerifiedAt.toISOString() : null,
+    phone: user.phoneVerifiedAt ? user.phone : null,
+    phoneVerifiedAt: user.phoneVerifiedAt ? user.phoneVerifiedAt.toISOString() : null,
+    hasPassword: user.passwordHash !== null,
+    oauthProviders: user.oauthAccounts.map((a) => a.provider.toLowerCase() as OAuthProviderId),
     themeId: isThemeId(user.themeId) ? user.themeId : null,
     locale: isLocale(user.locale) ? user.locale : null,
   };
+}
+
+export async function loadPublicUser(userId: string): Promise<PublicUser> {
+  const user = await prisma.user.findUniqueOrThrow({
+    where: { id: userId },
+    include: { oauthAccounts: { select: { provider: true } } },
+  });
+  return toPublicUser(user);
 }

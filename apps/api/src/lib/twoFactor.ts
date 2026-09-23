@@ -77,8 +77,8 @@ export async function sendLoginTwoFactorCode(user: { id: string; email: string }
 
   await mailSender.send({
     to: user.email,
-    subject: "Your SplitKid verification code",
-    text: `Your SplitKid login verification code is ${code}. It's valid for ${ttlMinutes} minutes.\n\nLogin attempt details:\nDevice: ${device}\nLocation: ${location}\nTime: ${time}\n\nIf you didn't request this code, change your password immediately or contact support@splitkid.com.`,
+    subject: "Your KidCom verification code",
+    text: `Your KidCom login verification code is ${code}. It's valid for ${ttlMinutes} minutes.\n\nLogin attempt details:\nDevice: ${device}\nLocation: ${location}\nTime: ${time}\n\nIf you didn't request this code, change your password immediately or contact support@kidcom.org.`,
     html: renderLoginTwoFactorHtml({
       email: user.email,
       code,

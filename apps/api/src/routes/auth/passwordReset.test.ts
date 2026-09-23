@@ -10,7 +10,7 @@ import { mailSender, MemoryMailSender } from "../../lib/mailSender";
 // Post-launch backlog Phase F proof — password reset didn't exist at all
 // before this (change-password required an active session + the current
 // password). Same token-extraction pattern testUtils/auth.ts's
-// verifyTestUserEmail already uses for email verification.
+// verifyInvitedTestUser already uses for email verification.
 function extractResetToken(email: string): string {
   const sender = mailSender as MemoryMailSender;
   const resetEmail = [...sender.sent].reverse().find((m) => m.to === email && m.subject.toLowerCase().includes("reset your password"));
@@ -34,7 +34,9 @@ describe("Password reset (post-launch backlog Phase F)", () => {
 
     const token = extractResetToken(email);
     const resetRes = await request(app).post("/auth/reset-password").send({ token, password: "newpassword123" });
-    expect(resetRes.status).toBe(204);
+    // Reset signs the user in ("Update Password & Sign In").
+    expect(resetRes.status).toBe(200);
+    expect(resetRes.body.user.email).toBe(email);
 
     const oldLoginRes = await request(app).post("/auth/login").send({ email, password: "password123" });
     expect(oldLoginRes.status).toBe(401);
@@ -51,7 +53,7 @@ describe("Password reset (post-launch backlog Phase F)", () => {
     const token = extractResetToken(email);
 
     const firstUse = await request(app).post("/auth/reset-password").send({ token, password: "newpassword123" });
-    expect(firstUse.status).toBe(204);
+    expect(firstUse.status).toBe(200);
 
     const secondUse = await request(app).post("/auth/reset-password").send({ token, password: "anotherpassword456" });
     expect(secondUse.status).toBe(400);

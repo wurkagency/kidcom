@@ -4,7 +4,7 @@ import request from "supertest";
 import { createApp } from "../app";
 import { prisma } from "../db";
 import { resetDb } from "../testUtils/db";
-import { signupTestUser, verifyTestUserEmail } from "../testUtils/auth";
+import { signupTestUser, verifyInvitedTestUser } from "../testUtils/auth";
 
 // Small helper: accept a brand-new invite, verify the resulting account's
 // email (POST /children and POST /invites both require it — an invite
@@ -20,7 +20,7 @@ async function acceptInvite(
   const agent = request.agent(app);
   const res = await agent.post(`/invites/${token}/accept`).send({ firstName, lastName, password: "password123" });
   expect(res.status).toBe(200);
-  await verifyTestUserEmail(agent, email);
+  await verifyInvitedTestUser(agent, email);
   return { agent, userId: res.body.user.id as string };
 }
 

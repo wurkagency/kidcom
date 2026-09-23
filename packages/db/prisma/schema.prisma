@@ -63,8 +63,15 @@ enum RelationshipType {
 model User {
   id              String    @id @default(cuid())
   email           String    @unique
+  // E.164 ("+4520123456"). Only ever set to a number the user proved they
+  // control via SMS (PhoneVerificationCode) — a pending change lives on the
+  // code row, not here, until verified.
   phone           String?
-  passwordHash    String
+  phoneVerifiedAt DateTime?
+  // Null for accounts that have not set a password yet: signup collects the
+  // password after phone verification, and Google/Microsoft accounts may
+  // never set one.
+  passwordHash    String?
   firstName       String
   lastName        String
   avatarUrl       String?
@@ -96,6 +103,9 @@ model User {
   ownedSubscription Subscription?
 
   childAccess    ChildAccess[]
+  oauthAccounts  OAuthAccount[]
+  phoneCodes     PhoneVerificationCode[]
+  passwordHistory PasswordHistory[]
   moments        Moment[]
   comments       Comment[]
   momentReactions MomentReaction[]
@@ -947,4 +957,64 @@ model NotificationPreferences {
   updatedAt                 DateTime @updatedAt
 
   @@map("notification_preferences")
+}
+
+// ---------------------------------------------------------------------------
+// Sign-in methods and phone verification (v3.0)
+// ---------------------------------------------------------------------------
+
+enum OAuthProvider {
+  GOOGLE
+  MICROSOFT
+}
+
+// A Google/Microsoft identity linked to an account. Matched on the
+// provider's stable subject id, never on email.
+model OAuthAccount {
+  id             String        @id @default(cuid())
+  userId         String
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider       OAuthProvider
+  providerUserId String
+  email          String?
+  createdAt      DateTime      @default(now())
+
+  @@unique([provider, providerUserId])
+  @@index([userId])
+  @@map("oauth_accounts")
+}
+
+enum PhoneCodePurpose {
+  VERIFY_PHONE
+  PASSWORD_RESET
+}
+
+// A 6-digit SMS code (stored hashed). `phone` is the number the code was
+// sent to — for VERIFY_PHONE it becomes User.phone only once the code is
+// confirmed, so an unverified number never replaces a verified one.
+model PhoneVerificationCode {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purpose   PhoneCodePurpose
+  phone     String
+  codeHash  String
+  attempts  Int              @default(0)
+  expiresAt DateTime
+  createdAt DateTime         @default(now())
+
+  @@index([userId, purpose])
+  @@map("phone_verification_codes")
+}
+
+// Previous password hashes, for the "not used in the past 90 days" rule.
+model PasswordHistory {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@map("password_history")
 }

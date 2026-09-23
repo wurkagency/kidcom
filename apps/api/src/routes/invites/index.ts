@@ -14,7 +14,9 @@ import { logAccessGrant } from "../../lib/accessGrantAnalytics";
 import { findClaimableChild, mergeChildAccessInto } from "../../lib/claimMerge";
 import { assertUnderMemberFairUseCap } from "../../lib/fairUseCaps";
 import { bypassRls } from "../../lib/rls";
-import { toPublicUser } from "../../lib/publicUser";
+import { loadPublicUser } from "../../lib/publicUser";
+import { establishSession } from "../../lib/sessions";
+import { assertStrongPassword } from "../../lib/passwordPolicy";
 
 export const invitesRouter = Router();
 
@@ -195,9 +197,7 @@ invitesRouter.post("/:token/accept", async (req, res, next) => {
     if (!firstName || !lastName || !password) {
       throw new ApiError(400, "firstName, lastName, and password are required");
     }
-    if (password.length < 8) {
-      throw new ApiError(400, "Password must be at least 8 characters long");
-    }
+    assertStrongPassword(password);
 
     const invite = await prisma.invite.findUnique({ where: { token } });
     if (!invite) {
@@ -302,7 +302,7 @@ invitesRouter.post("/:token/accept", async (req, res, next) => {
       });
     }
 
-    req.session.userId = user.id;
+    await establishSession(req, user.id);
     // Same anti-spoofing treatment as an organic signup (apps/api/src/routes/
     // auth/index.ts) — this route also creates a brand-new account, just via
     // an invite link rather than the signup form, so it needs the same
@@ -317,9 +317,7 @@ invitesRouter.post("/:token/accept", async (req, res, next) => {
       // eslint-disable-next-line no-console
       console.error(`Failed to send verification email to ${user.email}:`, err);
     }
-    res.json({
-      user: toPublicUser({ ...user, emailVerifiedAt: null }),
-    } satisfies MeResponse);
+    res.json({ user: await loadPublicUser(user.id) } satisfies MeResponse);
   } catch (err) {
     next(err);
   }
@@ -424,9 +422,7 @@ invitesRouter.post(
       });
     }
 
-    res.json({
-      user: toPublicUser(me),
-    } satisfies MeResponse);
+    res.json({ user: await loadPublicUser(me.id) } satisfies MeResponse);
   } catch (err) {
     next(err);
   }

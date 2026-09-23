@@ -5,7 +5,7 @@ import request from "supertest";
 import { createApp } from "../app";
 import { prisma } from "../db";
 import { resetDb } from "../testUtils/db";
-import { signupTestUser, verifyTestUserEmail } from "../testUtils/auth";
+import { signupTestUser, verifyInvitedTestUser } from "../testUtils/auth";
 import { isChildSatisfied, isCustodyPlanLockedPendingParent } from "./entitlement";
 
 describe("isChildSatisfied — direct unit coverage of the DB-wiring layer", () => {
@@ -106,7 +106,7 @@ describe("isCustodyPlanLockedPendingParent (spec 9.8)", () => {
       lastName: "Parent",
       password: "password123",
     });
-    await verifyTestUserEmail(secondAgent, "second-parent-locktest@example.com");
+    await verifyInvitedTestUser(secondAgent, "second-parent-locktest@example.com");
     void acceptRes;
 
     expect(await isCustodyPlanLockedPendingParent(childRes.body.id)).toBe(false);
@@ -177,7 +177,7 @@ describe("GET /children/:childId/custody-plan — locked/daysUntilLocked (spec 9
     const inviteRes = await parentAgent.post("/invites").send({ childId, relationship: "FATHER", email: "banner-2p-dad@example.com" });
     const dadAgent = request.agent(app);
     await dadAgent.post(`/invites/${inviteRes.body.token}/accept`).send({ firstName: "D", lastName: "Ad", password: "password123" });
-    await verifyTestUserEmail(dadAgent, "banner-2p-dad@example.com");
+    await verifyInvitedTestUser(dadAgent, "banner-2p-dad@example.com");
 
     const res = await parentAgent.get(`/children/${childId}/custody-plan`);
     expect(res.status).toBe(200);

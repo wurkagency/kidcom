@@ -3,7 +3,7 @@ import request from "supertest";
 
 import { createApp } from "../../app";
 import { resetDb } from "../../testUtils/db";
-import { signupTestUser, verifyTestUserEmail } from "../../testUtils/auth";
+import { signupTestUser, verifyInvitedTestUser } from "../../testUtils/auth";
 import { withRls } from "../../lib/rls";
 
 // Post-launch backlog Phase C proof — the request/approve workflow closing
@@ -24,7 +24,7 @@ describe("Calendar event requests (post-launch backlog Phase C)", () => {
     const inviteRes = await parentAgent.post("/invites").send({ childId, relationship: "AUNT", email: "cer-aunt@example.com" });
     const auntAgent = request.agent(app);
     await auntAgent.post(`/invites/${inviteRes.body.token}/accept`).send({ firstName: "A", lastName: "Unt", password: "password123" });
-    await verifyTestUserEmail(auntAgent, "cer-aunt@example.com");
+    await verifyInvitedTestUser(auntAgent, "cer-aunt@example.com");
 
     const reqRes = await auntAgent.post(`/children/${childId}/calendar-event-requests`).send({
       category: "ACTIVITY",
@@ -64,7 +64,7 @@ describe("Calendar event requests (post-launch backlog Phase C)", () => {
     const inviteRes = await parentAgent.post("/invites").send({ childId, relationship: "FATHER", email: "cer-dad@example.com" });
     const dadAgent = request.agent(app);
     await dadAgent.post(`/invites/${inviteRes.body.token}/accept`).send({ firstName: "D", lastName: "Ad", password: "password123" });
-    await verifyTestUserEmail(dadAgent, "cer-dad@example.com");
+    await verifyInvitedTestUser(dadAgent, "cer-dad@example.com");
 
     const declineRes = await dadAgent
       .patch(`/children/${childId}/calendar-event-requests/${reqRes.body.id}`)
@@ -101,7 +101,7 @@ describe("Calendar event requests (post-launch backlog Phase C)", () => {
     const cgInvite = await parentAgent.post("/invites").send({ childId, relationship: "CAREGIVER", email: "cer-caregiver@example.com" });
     const cgAgent = request.agent(app);
     await cgAgent.post(`/invites/${cgInvite.body.token}/accept`).send({ firstName: "C", lastName: "G", password: "password123" });
-    await verifyTestUserEmail(cgAgent, "cer-caregiver@example.com");
+    await verifyInvitedTestUser(cgAgent, "cer-caregiver@example.com");
 
     const cgRes = await cgAgent.post(`/children/${childId}/calendar-event-requests`).send({
       category: "ACTIVITY",
@@ -113,7 +113,7 @@ describe("Calendar event requests (post-launch backlog Phase C)", () => {
     const otherInvite = await parentAgent.post("/invites").send({ childId, relationship: "AUNT", email: "cer-plain-family@example.com" });
     const otherAgent = request.agent(app);
     await otherAgent.post(`/invites/${otherInvite.body.token}/accept`).send({ firstName: "P", lastName: "Family", password: "password123" });
-    await verifyTestUserEmail(otherAgent, "cer-plain-family@example.com");
+    await verifyInvitedTestUser(otherAgent, "cer-plain-family@example.com");
 
     const okRes = await otherAgent.post(`/children/${childId}/calendar-event-requests`).send({
       category: "ACTIVITY",
@@ -138,7 +138,7 @@ describe("Calendar event requests (post-launch backlog Phase C)", () => {
     const auntInvite = await parentAgent.post("/invites").send({ childId, relationship: "AUNT", email: "cer-noapprove-aunt@example.com" });
     const auntAgent = request.agent(app);
     await auntAgent.post(`/invites/${auntInvite.body.token}/accept`).send({ firstName: "A", lastName: "Unt", password: "password123" });
-    await verifyTestUserEmail(auntAgent, "cer-noapprove-aunt@example.com");
+    await verifyInvitedTestUser(auntAgent, "cer-noapprove-aunt@example.com");
 
     const approveRes = await auntAgent
       .patch(`/children/${childId}/calendar-event-requests/${reqRes.body.id}`)

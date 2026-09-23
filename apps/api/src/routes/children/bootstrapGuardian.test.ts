@@ -4,7 +4,7 @@ import request from "supertest";
 import { createApp } from "../../app";
 import { prisma } from "../../db";
 import { resetDb } from "../../testUtils/db";
-import { signupTestUser, verifyTestUserEmail } from "../../testUtils/auth";
+import { signupTestUser, verifyInvitedTestUser } from "../../testUtils/auth";
 import { mailSender, MemoryMailSender } from "../../lib/mailSender";
 import { decryptField } from "../../lib/medicalEncryption";
 import { withRls } from "../../lib/rls";

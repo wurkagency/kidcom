@@ -15,7 +15,7 @@ import { billingRouter } from "./routes/billing";
 import { pushRouter } from "./routes/push";
 import { notificationPreferencesRouter } from "./routes/notificationPreferences";
 import { searchRouter } from "./routes/search";
-import { sessionMiddleware } from "./middleware/session";
+import { requireVerifiedPhone, sessionMiddleware } from "./middleware/session";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler";
 
 declare global {
@@ -75,6 +75,7 @@ export function createApp() {
   );
   app.use(cookieParser());
   app.use(sessionMiddleware);
+  app.use(requireVerifiedPhone);
 
   app.use("/health", healthRouter);
   app.use("/auth", authRouter);

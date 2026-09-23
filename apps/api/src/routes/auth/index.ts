@@ -6,9 +6,12 @@ import type {
   LoginRequest,
   MeResponse,
   ResetPasswordRequest,
+  SendPhoneCodeRequest,
+  SetPasswordRequest,
   SignupRequest,
   TwoFactorRequiredResponse,
   UpdateProfileRequest,
+  VerifyPhoneRequest,
   VerifyTwoFactorRequest,
 } from "@kidcom/shared";
 import { isLocale, isThemeId, isValidEmail } from "@kidcom/shared";
@@ -20,164 +23,178 @@ import { hashVerificationToken, sendVerificationEmail } from "../../lib/emailVer
 import { hashResetToken, sendPasswordResetEmail } from "../../lib/passwordReset";
 import { TWO_FACTOR_MAX_ATTEMPTS, hashTwoFactorCode, sendLoginTwoFactorCode } from "../../lib/twoFactor";
 import { withRls } from "../../lib/rls";
-import { toPublicUser } from "../../lib/publicUser";
+import { loadPublicUser } from "../../lib/publicUser";
+import { createAccount } from "../../lib/accounts";
+import { SALT_ROUNDS, assertStrongPassword, setPassword } from "../../lib/passwordPolicy";
+import { consumePhoneCode, isE164, pendingPhone, sendPhoneCode } from "../../lib/phoneVerification";
+import { establishSession, forgetSession, revokeOtherSessions } from "../../lib/sessions";
+import { oauthRouter } from "./oauth";
 
 export const authRouter = Router();
 
-const SALT_ROUNDS = 10;
-// I-2 (spec §2.2/§4.3) — the one-time per-user trial window, granted at
-// account creation. Same 30-day figure invites/index.ts already used for
-// the (now legacy-for-entitlement) Subscription-level trial.
-const THIRTY_DAYS_MS = 1000 * 60 * 60 * 24 * 30;
-
 // Basic per-IP throttling on the endpoints most attractive to abuse
-// (credential stuffing on /login, signup spam, and verification-email
-// flooding via /resend-verification) — nothing existed here before. Kept
-// deliberately simple (no CAPTCHA/external service) since this is meant as
-// a low-effort floor, not a full anti-abuse system.
+// (credential stuffing, signup spam, code guessing, SMS/email flooding).
+// Skipped under test: supertest traffic all comes from one "IP".
 const authRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 10,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many attempts — please try again later." },
-  // The integration test suite creates many real accounts per run (every
-  // test that needs an authenticated caller signs one up — see
-  // testUtils/auth.ts) from what express-rate-limit sees as a single
-  // "IP" (supertest never leaves the process), which would otherwise trip
-  // this within one `vitest run`. Real per-IP abuse protection stays on
-  // everywhere else.
   skip: () => config.nodeEnv === "test",
 });
 
+async function meResponse(userId: string): Promise<MeResponse> {
+  return { user: await loadPublicUser(userId) };
+}
+
+function requireSession(userId: string | undefined): string {
+  if (!userId) throw new ApiError(401, "Not signed in");
+  return userId;
+}
+
+// Emails must never block or roll back the action that triggered them.
+async function sendVerificationEmailSafely(user: { id: string; email: string; firstName: string }) {
+  try {
+    await sendVerificationEmail(user);
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error(`Failed to send verification email to ${user.email}:`, err);
+  }
+}
+
+authRouter.use("/oauth", oauthRouter);
+
+// ---------------------------------------------------------------------------
+// Signup — name, email, mobile, consent (kidcom_sign_up). The account is
+// created and signed in immediately; it then has to verify the phone by SMS
+// (mandatory — every non-/auth endpoint answers 403 until it does), set a
+// password, and verify the email.
+// ---------------------------------------------------------------------------
 authRouter.post("/signup", authRateLimiter, async (req, res, next) => {
   try {
     const body = req.body as Partial<SignupRequest>;
     const email = body.email?.trim().toLowerCase();
-    const { password, firstName, lastName, phone, acceptedTerms } = body;
+    const firstName = body.firstName?.trim();
+    const lastName = body.lastName?.trim() ?? "";
+    const phone = body.phone?.trim();
 
-    if (!email || !password || !firstName || !lastName) {
-      throw new ApiError(400, "email, password, firstName, and lastName are required");
+    if (!email || !firstName) {
+      throw new ApiError(400, "Name and email are required");
     }
     if (!isValidEmail(email)) {
       throw new ApiError(400, "Please enter a valid email address");
     }
-    if (password.length < 8) {
-      throw new ApiError(400, "Password must be at least 8 characters long");
+    if (!isE164(phone)) {
+      throw new ApiError(400, "Please enter a valid mobile number");
     }
-    if (acceptedTerms !== true) {
-      throw new ApiError(400, "You must accept the Terms & Privacy Policy to continue");
+    if (body.acceptedTerms !== true) {
+      throw new ApiError(400, "You must accept the Privacy Policy and Terms to continue");
+    }
+    if (body.password !== undefined) {
+      assertStrongPassword(body.password);
     }
 
-    const existing = await prisma.user.findUnique({ where: { email } });
-    if (existing) {
+    if (await prisma.user.findUnique({ where: { email } })) {
       throw new ApiError(409, "An account with this email already exists");
     }
 
-    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
-
-    // Every new account starts on the Free tier (PRD pricing section) —
-    // status ACTIVE and Subscription.trialEndsAt: null, since an organic
-    // Free signup's *subscription* never expires (spec §4.1's permanent
-    // Free tier — contrast with invites/index.ts, where an invited user's
-    // Subscription itself starts TRIALING). Separately, I-2 (spec §2.2/
-    // §4.3) grants every new account — organic or invited alike — its own
-    // one-time 30-day User-level trial (User.trialStartedAt/trialEndsAt),
-    // which is what lets this person's own coverage temporarily reach
-    // FAMILY-tier requirements (a 2nd child, extended family, etc.) before
-    // anyone needs to actually pay — see packages/shared/src/entitlement.ts.
-    const now = new Date();
-    const user = await prisma.$transaction(async (tx) => {
-      const created = await tx.user.create({
-        data: {
-          email,
-          passwordHash,
-          firstName,
-          lastName,
-          phone: phone?.trim() || undefined,
-          termsAcceptedAt: now,
-          trialStartedAt: now,
-          trialEndsAt: new Date(now.getTime() + THIRTY_DAYS_MS),
-        },
-      });
-      await tx.subscription.create({
-        data: { ownerId: created.id, tier: "FREE", status: "ACTIVE", trialEndsAt: null },
-      });
-      return created;
+    const user = await createAccount({
+      email,
+      firstName,
+      lastName,
+      passwordHash: body.password ? await bcrypt.hash(body.password, SALT_ROUNDS) : null,
     });
 
-    req.session.userId = user.id;
-    // Signup itself (the transaction above) already committed — an SMTP
-    // outage/misconfiguration must never roll that back or block the
-    // response, or account creation silently depends on a third-party mail
-    // server's uptime. Swallow-and-log here; the user lands on the
-    // VerifyEmailGate either way and can hit "resend" once mail is working.
-    try {
-      await sendVerificationEmail(user);
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error(`Failed to send verification email to ${user.email}:`, err);
-    }
-    res.status(201).json({ user: toPublicUser(user) } satisfies MeResponse);
+    await establishSession(req, user.id);
+    await sendPhoneCode(user.id, phone, "VERIFY_PHONE");
+    await sendVerificationEmailSafely(user);
+    res.status(201).json(await meResponse(user.id));
   } catch (err) {
     next(err);
   }
 });
 
-authRouter.get("/verify-email", async (req, res, next) => {
+// ---------------------------------------------------------------------------
+// Phone verification (mandatory). Also how a verified user changes number:
+// the new number only replaces the old one once its code is confirmed.
+// ---------------------------------------------------------------------------
+authRouter.post("/phone/send", authRateLimiter, async (req, res, next) => {
   try {
-    const token = typeof req.query.token === "string" ? req.query.token : undefined;
-    if (!token) {
-      throw new ApiError(400, "Missing verification token");
+    const userId = requireSession(req.session.userId);
+    const { phone: requested } = req.body as SendPhoneCodeRequest;
+    let phone: string | null;
+    if (requested !== undefined) {
+      if (!isE164(requested)) throw new ApiError(400, "Please enter a valid mobile number");
+      phone = requested;
+    } else {
+      const user = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { phone: true } });
+      phone = (await pendingPhone(userId)) ?? user.phone;
     }
-
-    const record = await prisma.emailVerificationToken.findUnique({
-      where: { tokenHash: hashVerificationToken(token) },
-    });
-    if (!record || record.expiresAt < new Date()) {
-      throw new ApiError(400, "This verification link is invalid or has expired");
-    }
-
-    const user = await prisma.$transaction(async (tx) => {
-      const updated = await tx.user.update({
-        where: { id: record.userId },
-        data: { emailVerifiedAt: new Date() },
-      });
-      await tx.emailVerificationToken.delete({ where: { id: record.id } });
-      return updated;
-    });
-
-    res.json({ user: toPublicUser(user) } satisfies MeResponse);
-  } catch (err) {
-    next(err);
-  }
-});
-
-authRouter.post("/resend-verification", authRateLimiter, async (req, res, next) => {
-  try {
-    if (!req.session.userId) {
-      throw new ApiError(401, "Not signed in");
-    }
-    const user = await prisma.user.findUnique({ where: { id: req.session.userId } });
-    if (!user) {
-      throw new ApiError(401, "Not signed in");
-    }
-    if (user.emailVerifiedAt) {
-      res.status(204).end();
-      return;
-    }
-    await sendVerificationEmail(user);
+    if (!phone) throw new ApiError(400, "Please enter your mobile number");
+    await sendPhoneCode(userId, phone, "VERIFY_PHONE");
     res.status(204).end();
   } catch (err) {
     next(err);
   }
 });
 
-// Post-launch backlog Phase F — no auth required (that's the whole point: a
-// locked-out user has no session and can't prove the current password,
-// which change-password requires). Always 204s whether or not the email
-// belongs to a real account — telling the caller "no account exists" would
-// let anyone enumerate registered emails one guess at a time.
+authRouter.post("/phone/verify", authRateLimiter, async (req, res, next) => {
+  try {
+    const userId = requireSession(req.session.userId);
+    const { code } = req.body as Partial<VerifyPhoneRequest>;
+    if (!code) throw new ApiError(400, "code is required");
+    const phone = await consumePhoneCode(userId, "VERIFY_PHONE", code);
+    await prisma.user.update({ where: { id: userId }, data: { phone, phoneVerifiedAt: new Date() } });
+    req.session.phoneVerified = true;
+    res.json(await meResponse(userId));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Passwords
+// ---------------------------------------------------------------------------
+
+// First password for an account that has none (signup step 3, or a
+// Google/Microsoft account adding one).
+authRouter.post("/password", authRateLimiter, async (req, res, next) => {
+  try {
+    const userId = requireSession(req.session.userId);
+    const { password } = req.body as Partial<SetPasswordRequest>;
+    const user = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { passwordHash: true } });
+    if (user.passwordHash) {
+      throw new ApiError(409, "A password is already set — use change password instead");
+    }
+    await setPassword(userId, password);
+    res.json(await meResponse(userId));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Requires the current password (not just an active session).
+authRouter.post("/change-password", authRateLimiter, async (req, res, next) => {
+  try {
+    const userId = requireSession(req.session.userId);
+    const { currentPassword, newPassword } = req.body as { currentPassword?: string; newPassword?: string };
+    if (!currentPassword || !newPassword) {
+      throw new ApiError(400, "currentPassword and newPassword are required");
+    }
+    const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    if (!user.passwordHash || !(await bcrypt.compare(currentPassword, user.passwordHash))) {
+      throw new ApiError(401, "Current password is incorrect");
+    }
+    await setPassword(userId, newPassword);
+    res.status(204).end();
+  } catch (err) {
+    next(err);
+  }
+});
+
+// No auth required (a locked-out user has no session). Always 204 whether or
+// not the email exists — anything else would let anyone enumerate accounts.
 authRouter.post("/forgot-password", authRateLimiter, async (req, res, next) => {
   try {
     const body = req.body as Partial<ForgotPasswordRequest>;
@@ -186,7 +203,20 @@ authRouter.post("/forgot-password", authRateLimiter, async (req, res, next) => {
       throw new ApiError(400, "A valid email is required");
     }
     const user = await prisma.user.findUnique({ where: { email } });
-    if (user) {
+
+    if (body.method === "sms") {
+      // The code is tied to this browser session; POST /reset-password
+      // with { code } completes it here.
+      req.session.pendingResetEmail = email;
+      if (user?.phone && user.phoneVerifiedAt) {
+        try {
+          await sendPhoneCode(user.id, user.phone, "PASSWORD_RESET");
+        } catch (err) {
+          // A throttled resend must look identical to "no such account".
+          if (!(err instanceof ApiError && err.status === 429)) throw err;
+        }
+      }
+    } else if (user) {
       await sendPasswordResetEmail(user);
     }
     res.status(204).end();
@@ -195,60 +225,105 @@ authRouter.post("/forgot-password", authRateLimiter, async (req, res, next) => {
   }
 });
 
+// Completes a reset with the emailed link's token or the SMS code, then
+// signs the user in ("Update Password & Sign In"). The link proves control
+// of the email and the code control of the verified phone, so no further
+// 2FA step is needed. Other sessions are revoked unless the user unticks
+// "Sign out of all other devices".
 authRouter.post("/reset-password", authRateLimiter, async (req, res, next) => {
   try {
     const body = req.body as Partial<ResetPasswordRequest>;
-    const { token, password } = body;
-    if (!token || !password) {
-      throw new ApiError(400, "token and password are required");
-    }
-    if (password.length < 8) {
-      throw new ApiError(400, "Password must be at least 8 characters long");
+    let userId: string;
+    let proofOfEmail = false;
+
+    if (body.token) {
+      const record = await prisma.passwordResetToken.findUnique({ where: { tokenHash: hashResetToken(body.token) } });
+      if (!record || record.expiresAt < new Date()) {
+        throw new ApiError(400, "This reset link is invalid or has expired");
+      }
+      assertStrongPassword(body.password);
+      userId = record.userId;
+      proofOfEmail = true;
+      await setPassword(userId, body.password);
+      await prisma.passwordResetToken.delete({ where: { id: record.id } }); // single use
+    } else if (body.code) {
+      const email = req.session.pendingResetEmail;
+      const user = email ? await prisma.user.findUnique({ where: { email } }) : null;
+      if (!user) throw new ApiError(400, "This code has expired — request a new one");
+      assertStrongPassword(body.password);
+      await consumePhoneCode(user.id, "PASSWORD_RESET", body.code);
+      userId = user.id;
+      await setPassword(userId, body.password);
+    } else {
+      throw new ApiError(400, "A reset link or code is required");
     }
 
-    const record = await prisma.passwordResetToken.findUnique({ where: { tokenHash: hashResetToken(token) } });
+    if (proofOfEmail) {
+      await prisma.user.updateMany({ where: { id: userId, emailVerifiedAt: null }, data: { emailVerifiedAt: new Date() } });
+    }
+    await establishSession(req, userId);
+    if (body.signOutOtherDevices !== false) {
+      await revokeOtherSessions(userId, req.sessionID);
+    }
+    res.json(await meResponse(userId));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Email verification
+// ---------------------------------------------------------------------------
+authRouter.get("/verify-email", async (req, res, next) => {
+  try {
+    const token = typeof req.query.token === "string" ? req.query.token : undefined;
+    if (!token) {
+      throw new ApiError(400, "Missing verification token");
+    }
+    const record = await prisma.emailVerificationToken.findUnique({ where: { tokenHash: hashVerificationToken(token) } });
     if (!record || record.expiresAt < new Date()) {
-      throw new ApiError(400, "This reset link is invalid or has expired");
+      throw new ApiError(400, "This verification link is invalid or has expired");
     }
-
-    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
     await prisma.$transaction([
-      prisma.user.update({ where: { id: record.userId }, data: { passwordHash } }),
-      // Single-use — same reasoning as email verification's token delete.
-      prisma.passwordResetToken.delete({ where: { id: record.id } }),
+      prisma.user.update({ where: { id: record.userId }, data: { emailVerifiedAt: new Date() } }),
+      prisma.emailVerificationToken.delete({ where: { id: record.id } }),
     ]);
+    res.json(await meResponse(record.userId));
+  } catch (err) {
+    next(err);
+  }
+});
 
+authRouter.post("/resend-verification", authRateLimiter, async (req, res, next) => {
+  try {
+    const userId = requireSession(req.session.userId);
+    const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    if (!user.emailVerifiedAt) {
+      await sendVerificationEmail(user);
+    }
     res.status(204).end();
   } catch (err) {
     next(err);
   }
 });
 
-// Logins always require 2FA — a correct password alone never grants a
-// session. On success this sends a 6-digit email OTP and parks the login as
-// "pending" (session.pendingTwoFactorUserId) rather than setting
-// session.userId; the client must then call POST /auth/verify-2fa to
-// actually complete login. See lib/twoFactor.ts.
+// ---------------------------------------------------------------------------
+// Sign in: password, then a 6-digit code by email. A correct password alone
+// never grants a session; it parks the login as pending until verify-2fa.
+// ---------------------------------------------------------------------------
 authRouter.post("/login", authRateLimiter, async (req, res, next) => {
   try {
     const body = req.body as Partial<LoginRequest>;
     const email = body.email?.trim().toLowerCase();
     const { password } = body;
-
     if (!email || !password) {
       throw new ApiError(400, "email and password are required");
     }
-
     const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) {
+    // Same answer for "no account", "no password set" and "wrong password".
+    if (!user?.passwordHash || !(await bcrypt.compare(password, user.passwordHash))) {
       throw new ApiError(401, "Invalid email or password");
     }
-
-    const valid = await bcrypt.compare(password, user.passwordHash);
-    if (!valid) {
-      throw new ApiError(401, "Invalid email or password");
-    }
-
     req.session.pendingTwoFactorUserId = user.id;
     req.session.pendingRememberMe = body.rememberMe !== false;
     await sendLoginTwoFactorCode(user, req);
@@ -258,12 +333,6 @@ authRouter.post("/login", authRateLimiter, async (req, res, next) => {
   }
 });
 
-// Completes a login started by POST /login. Requires the pending state that
-// endpoint sets (not a full session — that's the whole point) plus the
-// 6-digit code just emailed. Wrong codes count against a small attempt cap
-// (TWO_FACTOR_MAX_ATTEMPTS) rather than allowing unlimited guesses against
-// the 6-digit space; hitting the cap or expiry both require a fresh code via
-// resend-2fa (or logging in again, which re-sends one too).
 authRouter.post("/verify-2fa", authRateLimiter, async (req, res, next) => {
   try {
     const pendingUserId = req.session.pendingTwoFactorUserId;
@@ -274,7 +343,6 @@ authRouter.post("/verify-2fa", authRateLimiter, async (req, res, next) => {
     if (!code) {
       throw new ApiError(400, "code is required");
     }
-
     const record = await prisma.loginTwoFactorCode.findFirst({
       where: { userId: pendingUserId },
       orderBy: { createdAt: "desc" },
@@ -282,7 +350,7 @@ authRouter.post("/verify-2fa", authRateLimiter, async (req, res, next) => {
     if (!record || record.expiresAt < new Date()) {
       throw new ApiError(400, "This code has expired — request a new one");
     }
-    if (record.codeHash !== hashTwoFactorCode(code)) {
+    if (record.codeHash !== hashTwoFactorCode(code.trim())) {
       const attempts = record.attempts + 1;
       if (attempts >= TWO_FACTOR_MAX_ATTEMPTS) {
         await prisma.loginTwoFactorCode.delete({ where: { id: record.id } });
@@ -291,26 +359,11 @@ authRouter.post("/verify-2fa", authRateLimiter, async (req, res, next) => {
       await prisma.loginTwoFactorCode.update({ where: { id: record.id }, data: { attempts } });
       throw new ApiError(401, "Incorrect code");
     }
-
-    const user = await prisma.$transaction(async (tx) => {
-      await tx.loginTwoFactorCode.delete({ where: { id: record.id } });
-      return tx.user.findUniqueOrThrow({ where: { id: pendingUserId } });
-    });
+    await prisma.loginTwoFactorCode.delete({ where: { id: record.id } });
 
     const rememberMe = req.session.pendingRememberMe !== false;
-    delete req.session.pendingTwoFactorUserId;
-    delete req.session.pendingRememberMe;
-    req.session.userId = user.id;
-    // Unchecked "Remember me": grant a browser-session cookie (cleared on
-    // browser close) instead of the configured 30-day maxAge (see
-    // middleware/session.ts) — express-session's own type declaration
-    // documents setting `cookie.expires` to `false` for exactly this
-    // ("to enable the cookie to remain for only the duration of the
-    // user-agent"), even though its type signature only lists `Date`.
-    if (!rememberMe) {
-      req.session.cookie.expires = false as unknown as Date;
-    }
-    res.json({ user: toPublicUser(user) } satisfies MeResponse);
+    await establishSession(req, pendingUserId, { rememberMe });
+    res.json(await meResponse(pendingUserId));
   } catch (err) {
     next(err);
   }
@@ -319,10 +372,7 @@ authRouter.post("/verify-2fa", authRateLimiter, async (req, res, next) => {
 authRouter.post("/resend-2fa", authRateLimiter, async (req, res, next) => {
   try {
     const pendingUserId = req.session.pendingTwoFactorUserId;
-    if (!pendingUserId) {
-      throw new ApiError(401, "No login is pending verification");
-    }
-    const user = await prisma.user.findUnique({ where: { id: pendingUserId } });
+    const user = pendingUserId ? await prisma.user.findUnique({ where: { id: pendingUserId } }) : null;
     if (!user) {
       throw new ApiError(401, "No login is pending verification");
     }
@@ -333,56 +383,58 @@ authRouter.post("/resend-2fa", authRateLimiter, async (req, res, next) => {
   }
 });
 
-// Lets the "Not you? Use a different account" link on the code-entry screen
-// back out cleanly without a full session.destroy (there's nothing else in
-// the session to clear at this point anyway).
+// "Not you? Use a different account" on the code screen.
 authRouter.post("/cancel-2fa", (req, res) => {
   delete req.session.pendingTwoFactorUserId;
+  delete req.session.pendingRememberMe;
   res.status(204).end();
 });
 
 authRouter.post("/logout", (req, res, next) => {
+  const userId = req.session.userId;
+  const sessionId = req.sessionID;
   req.session.destroy((err) => {
     if (err) {
       next(err);
       return;
     }
-    res.clearCookie("kidcom.sid");
-    res.status(204).end();
+    const done = () => {
+      res.clearCookie("kidcom.sid");
+      res.status(204).end();
+    };
+    if (userId) forgetSession(userId, sessionId).then(done, done);
+    else done();
   });
 });
 
-// Swaps the caller's avatar to a MediaAsset they already uploaded via
-// POST /media/upload. The asset must belong to them (avatars aren't shared
-// uploads). Clearing the old asset's avatarForUserId before/alongside
-// setting the new one in the same transaction keeps the unique constraint
-// from ever seeing two assets claim the same user simultaneously.
-// Partial account-settings update — avatar (original purpose) plus
-// firstName/lastName/email (new, for the Account Settings screen's inline
-// edit card). Every field is optional; only the ones present are touched.
-//
-// Changing `email` is treated as a real security action, not a cosmetic
-// edit: it's what requireVerifiedEmail gates on, so a successful change
-// resets emailVerifiedAt to null and re-sends the real confirmation email
-// (same sendVerificationEmail signup uses) — same swallow-and-log treatment
-// as signup so an SMTP hiccup never blocks the save itself.
+// ---------------------------------------------------------------------------
+// Account
+// ---------------------------------------------------------------------------
+authRouter.get("/me", async (req, res, next) => {
+  try {
+    const userId = req.session.userId;
+    const exists = userId ? await prisma.user.count({ where: { id: userId } }) : 0;
+    if (!userId || !exists) {
+      res.json({ user: null } satisfies MeResponse);
+      return;
+    }
+    res.json(await meResponse(userId));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Partial account update: avatar, name, email, theme, language. Changing the
+// email is a security action — it resets verification and re-sends the
+// confirmation email.
 authRouter.patch("/me", async (req, res, next) => {
   try {
-    if (!req.session.userId) {
-      throw new ApiError(401, "Not signed in");
-    }
+    const userId = requireSession(req.session.userId);
     const body = req.body as Partial<UpdateProfileRequest>;
     const { avatarMediaAssetId, firstName, lastName, themeId, locale } = body;
     const email = body.email?.trim().toLowerCase();
 
-    if (
-      avatarMediaAssetId === undefined &&
-      firstName === undefined &&
-      lastName === undefined &&
-      email === undefined &&
-      themeId === undefined &&
-      locale === undefined
-    ) {
+    if ([avatarMediaAssetId, firstName, lastName, email, themeId, locale].every((v) => v === undefined)) {
       throw new ApiError(400, "Nothing to update");
     }
     if (firstName !== undefined && !firstName.trim()) {
@@ -401,39 +453,27 @@ authRouter.patch("/me", async (req, res, next) => {
       throw new ApiError(400, "Unsupported language");
     }
 
-    let avatarAsset: { id: string; ownerId: string } | null = null;
     if (avatarMediaAssetId !== undefined) {
-      avatarAsset = await withRls(req.session.userId, (tx) => tx.mediaAsset.findUnique({ where: { id: avatarMediaAssetId } }));
-      if (!avatarAsset) {
-        throw new ApiError(404, "Media not found");
-      }
-      if (avatarAsset.ownerId !== req.session.userId) {
-        throw new ApiError(403, "You don't have access to this media");
-      }
+      const asset = await withRls(userId, (tx) => tx.mediaAsset.findUnique({ where: { id: avatarMediaAssetId } }));
+      if (!asset) throw new ApiError(404, "Media not found");
+      if (asset.ownerId !== userId) throw new ApiError(403, "You don't have access to this media");
     }
 
-    const currentUser = await prisma.user.findUniqueOrThrow({ where: { id: req.session.userId } });
+    const currentUser = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
     const emailChanged = email !== undefined && email !== currentUser.email;
-    if (emailChanged) {
-      const existing = await prisma.user.findUnique({ where: { email } });
-      if (existing) {
-        throw new ApiError(409, "An account with this email already exists");
-      }
+    if (emailChanged && (await prisma.user.findUnique({ where: { email } }))) {
+      throw new ApiError(409, "An account with this email already exists");
     }
 
-    const user = await withRls(req.session.userId, async (tx) => {
+    const user = await withRls(userId, async (tx) => {
       if (avatarMediaAssetId !== undefined) {
-        await tx.mediaAsset.updateMany({
-          where: { avatarForUserId: req.session.userId! },
-          data: { avatarForUserId: null },
-        });
-        await tx.mediaAsset.update({
-          where: { id: avatarMediaAssetId },
-          data: { avatarForUserId: req.session.userId! },
-        });
+        // Clear the old asset's claim first so the unique constraint never
+        // sees two assets on one user.
+        await tx.mediaAsset.updateMany({ where: { avatarForUserId: userId }, data: { avatarForUserId: null } });
+        await tx.mediaAsset.update({ where: { id: avatarMediaAssetId }, data: { avatarForUserId: userId } });
       }
       return tx.user.update({
-        where: { id: req.session.userId! },
+        where: { id: userId },
         data: {
           ...(avatarMediaAssetId !== undefined ? { avatarUrl: avatarMediaAssetId } : {}),
           ...(firstName !== undefined ? { firstName } : {}),
@@ -445,85 +485,21 @@ authRouter.patch("/me", async (req, res, next) => {
       });
     });
 
-    if (emailChanged) {
-      try {
-        await sendVerificationEmail(user);
-      } catch (err) {
-        // eslint-disable-next-line no-console
-        console.error(`Failed to send verification email to ${user.email}:`, err);
-      }
-    }
-
-    res.json({ user: toPublicUser(user) } satisfies MeResponse);
+    if (emailChanged) await sendVerificationEmailSafely(user);
+    res.json(await meResponse(userId));
   } catch (err) {
     next(err);
   }
 });
 
-authRouter.get("/me", async (req, res, next) => {
-  try {
-    if (!req.session.userId) {
-      res.json({ user: null } satisfies MeResponse);
-      return;
-    }
-    const user = await prisma.user.findUnique({ where: { id: req.session.userId } });
-    if (!user) {
-      res.json({ user: null } satisfies MeResponse);
-      return;
-    }
-    res.json({ user: toPublicUser(user) } satisfies MeResponse);
-  } catch (err) {
-    next(err);
-  }
-});
-
-// Privacy & Security screen — "Change Password". Requires the current
-// password (not just an active session) before setting a new one, same
-// verification bar as any real account-security flow.
-authRouter.post("/change-password", authRateLimiter, async (req, res, next) => {
-  try {
-    if (!req.session.userId) {
-      throw new ApiError(401, "Not signed in");
-    }
-    const { currentPassword, newPassword } = req.body as {
-      currentPassword?: string;
-      newPassword?: string;
-    };
-    if (!currentPassword || !newPassword) {
-      throw new ApiError(400, "currentPassword and newPassword are required");
-    }
-    if (newPassword.length < 8) {
-      throw new ApiError(400, "New password must be at least 8 characters long");
-    }
-
-    const user = await prisma.user.findUniqueOrThrow({ where: { id: req.session.userId } });
-    const valid = await bcrypt.compare(currentPassword, user.passwordHash);
-    if (!valid) {
-      throw new ApiError(401, "Current password is incorrect");
-    }
-
-    const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
-    await prisma.user.update({ where: { id: user.id }, data: { passwordHash } });
-    res.status(204).end();
-  } catch (err) {
-    next(err);
-  }
-});
-
-// Privacy & Security screen — "Export My Data". A real, scoped export (the
-// caller's own profile, the children they have access to, moments
-// they authored, their personal notes, and growth entries for children they
-// can see — GrowthEntry has no per-entry author, so this is "visible to
-// you", not "logged by you"), not a raw table dump.
+// GDPR export: the caller's own profile, the children they can access,
+// moments they authored, personal notes, and growth entries for children
+// they can see (GrowthEntry has no per-entry author).
 authRouter.get("/export", async (req, res, next) => {
   try {
-    if (!req.session.userId) {
-      throw new ApiError(401, "Not signed in");
-    }
-    const userId = req.session.userId;
-
-    const [user, access, moments, notes] = await Promise.all([
-      prisma.user.findUniqueOrThrow({ where: { id: userId } }),
+    const userId = requireSession(req.session.userId);
+    const [profile, access, moments, notes] = await Promise.all([
+      loadPublicUser(userId),
       prisma.childAccess.findMany({ where: { userId }, include: { child: true } }),
       withRls(userId, (tx) => tx.moment.findMany({ where: { authorId: userId }, include: { media: true } })),
       prisma.personalNote.findMany({ where: { userId } }),
@@ -533,9 +509,10 @@ authRouter.get("/export", async (req, res, next) => {
       ? await withRls(userId, (tx) => tx.growthEntry.findMany({ where: { childId: { in: childIds } } }))
       : [];
 
-    const exportData = {
+    res.setHeader("Content-Disposition", 'attachment; filename="kidcom-data-export.json"');
+    res.json({
       exportedAt: new Date().toISOString(),
-      profile: toPublicUser(user),
+      profile,
       children: access.map((a) => ({
         childId: a.childId,
         firstName: a.child.firstName,
@@ -564,27 +541,19 @@ authRouter.get("/export", async (req, res, next) => {
         weightKg: g.weightKg,
         note: g.note,
       })),
-    };
-
-    res.setHeader("Content-Disposition", 'attachment; filename="kidcom-data-export.json"');
-    res.json(exportData);
+    });
   } catch (err) {
     next(err);
   }
 });
 
-// Privacy & Security screen — "Delete Account". Cascades via the existing
-// onDelete: Cascade relations on User's child models (ChildAccess,
-// Moment, Comment, PersonalNote, etc.) — no per-model cleanup code
-// needed. Does not delete a Child itself (co-parents may still need it);
-// only this user's access/content is removed.
+// Deletes the account. Cascades remove this user's access and content (not
+// the children themselves — co-parents may still need them).
 authRouter.delete("/me", async (req, res, next) => {
   try {
-    if (!req.session.userId) {
-      throw new ApiError(401, "Not signed in");
-    }
-    const userId = req.session.userId;
+    const userId = requireSession(req.session.userId);
     await prisma.user.delete({ where: { id: userId } });
+    await revokeOtherSessions(userId, req.sessionID);
     req.session.destroy(() => {
       res.clearCookie("kidcom.sid");
       res.status(204).end();

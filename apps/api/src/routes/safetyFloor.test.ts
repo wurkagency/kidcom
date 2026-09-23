@@ -4,7 +4,7 @@ import request from "supertest";
 import { createApp } from "../app";
 import { prisma } from "../db";
 import { resetDb } from "../testUtils/db";
-import { signupTestUser, verifyTestUserEmail } from "../testUtils/auth";
+import { signupTestUser, verifyInvitedTestUser } from "../testUtils/auth";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -12,7 +12,7 @@ async function acceptInvite(app: ReturnType<typeof createApp>, token: string, em
   const agent = request.agent(app);
   const res = await agent.post(`/invites/${token}/accept`).send({ firstName, lastName, password: "password123" });
   expect(res.status).toBe(200);
-  await verifyTestUserEmail(agent, email);
+  await verifyInvitedTestUser(agent, email);
   return { agent, userId: res.body.user.id as string };
 }
 

@@ -1,7 +1,7 @@
 import { escapeHtml, renderEmailShell } from "./layout";
 
 // Real, mail-client-safe adaptation of
-// docs/stitch_splitkid/transactional_email_login_2fa_verification/code.html.
+// legacy Stitch export transactional_email_login_2fa_verification/code.html.
 // That mockup was already written as production-grade table/inline-style
 // markup (unlike the confirm-email one) — this keeps its exact box/badge/
 // warning-notice design, rebuilt on the shared renderEmailShell skeleton so
@@ -19,7 +19,7 @@ export function renderLoginTwoFactorHtml(options: {
   const bodyHtml = `
 <h2 style="margin:16px 0 8px 0;font-size:26px;line-height:1.25;font-weight:700;color:#1b3d2b;letter-spacing:-0.015em;text-align:center;">Your verification code</h2>
 <p style="margin:0 auto 24px auto;font-size:14.5px;line-height:1.6;color:#4b5563;max-width:480px;text-align:center;">
-  A login request to your SplitKid account was initiated for <span style="color:#1f2937;font-weight:600;">${escapeHtml(email)}</span>. Enter the 6-digit verification code below to complete your sign in.
+  A login request to your KidCom account was initiated for <span style="color:#1f2937;font-weight:600;">${escapeHtml(email)}</span>. Enter the 6-digit verification code below to complete your sign in.
 </p>
 <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="margin:0 0 24px 0;">
 <tbody><tr><td align="center">
@@ -49,20 +49,20 @@ export function renderLoginTwoFactorHtml(options: {
 <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="background-color:#fff9f2;border:1px solid #f5debe;border-radius:12px;max-width:460px;width:100%;">
 <tbody><tr><td style="padding:14px 16px;font-size:12.5px;line-height:1.55;color:#824d1a;">
   <strong style="color:#6b3e14;display:block;margin-bottom:2px;">Didn't request this code?</strong>
-  If you didn't attempt to log in, someone may be trying to access your account. Please <a href="https://splitkid.com/account/security/password-reset" style="color:#9a4c00;font-weight:600;text-decoration:underline;">change your password immediately</a> or contact us at <a href="mailto:support@splitkid.com" style="color:#9a4c00;font-weight:600;text-decoration:underline;">support@splitkid.com</a>.
+  If you didn't attempt to log in, someone may be trying to access your account. Please <a href="https://kidcom.org/account/security/password-reset" style="color:#9a4c00;font-weight:600;text-decoration:underline;">change your password immediately</a> or contact us at <a href="mailto:support@kidcom.org" style="color:#9a4c00;font-weight:600;text-decoration:underline;">support@kidcom.org</a>.
 </td></tr></tbody></table>
 </td></tr></tbody></table>`;
 
   return renderEmailShell({
-    title: "Your SplitKid verification code",
-    preheader: `Your SplitKid verification code is ${code}. Valid for ${ttlMinutes} minutes.`,
+    title: "Your KidCom verification code",
+    preheader: `Your KidCom verification code is ${code}. Valid for ${ttlMinutes} minutes.`,
     badgeText: "\u{1F512} Security: Two-Factor Authentication",
     bodyHtml,
     footerLinks: [
-      { label: "Privacy Policy", href: "https://splitkid.com/privacy" },
-      { label: "Terms of Service", href: "https://splitkid.com/terms" },
-      { label: "Help Center", href: "https://splitkid.com/help" },
-      { label: "Security Overview", href: "https://splitkid.com/security" },
+      { label: "Privacy Policy", href: "https://kidcom.org/privacy" },
+      { label: "Terms of Service", href: "https://kidcom.org/terms" },
+      { label: "Help Center", href: "https://kidcom.org/help" },
+      { label: "Security Overview", href: "https://kidcom.org/security" },
     ],
     footerNote: "You received this security email because two-factor authentication is active on your account.",
   });

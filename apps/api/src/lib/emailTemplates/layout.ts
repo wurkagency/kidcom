@@ -26,9 +26,9 @@ export function renderEmailShell(options: {
   footerNote: string;
 }): string {
   const footerLinks = options.footerLinks ?? [
-    { label: "Privacy Policy", href: "https://splitkid.com/privacy" },
-    { label: "Terms of Service", href: "https://splitkid.com/terms" },
-    { label: "Help Center", href: "https://splitkid.com/help" },
+    { label: "Privacy Policy", href: "https://kidcom.org/privacy" },
+    { label: "Terms of Service", href: "https://kidcom.org/terms" },
+    { label: "Help Center", href: "https://kidcom.org/help" },
   ];
   const footerLinksHtml = footerLinks
     .map(
@@ -70,7 +70,7 @@ export function renderEmailShell(options: {
 <div style="display:inline-block;padding:12px 14px;background-color:#eef4ea;border:1px solid #d8e5d3;border-radius:16px;margin-bottom:12px;">
 ${SPLITKID_BRAND_MARK_SVG}
 </div>
-<h1 style="margin:0;font-size:26px;font-weight:700;color:#1b3d2b;letter-spacing:-0.02em;">SplitKid</h1>
+<h1 style="margin:0;font-size:26px;font-weight:700;color:#1b3d2b;letter-spacing:-0.02em;">KidCom</h1>
 <p style="margin:4px 0 0 0;font-size:11px;font-weight:700;color:#4e7d61;letter-spacing:0.12em;">CHILD-CENTERED FAMILY WELL-BEING</p>
 </td></tr>
 </tbody></table>
@@ -86,7 +86,7 @@ ${options.bodyHtml}
 <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top:24px;margin-bottom:8px;">
 <tbody><tr><td align="center" style="padding:0 16px;">
 <p style="margin:0;font-size:12px;color:#64748b;line-height:1.8;">${footerLinksHtml}</p>
-<p style="margin:12px 0 4px 0;font-size:11px;color:#788c7f;line-height:1.5;">&copy; ${new Date().getFullYear()} SplitKid ApS. All rights reserved. Copenhagen, Denmark.</p>
+<p style="margin:12px 0 4px 0;font-size:11px;color:#788c7f;line-height:1.5;">&copy; ${new Date().getFullYear()} KidCom ApS. All rights reserved. Copenhagen, Denmark.</p>
 <p style="margin:0;font-size:11px;color:#8fa195;line-height:1.5;">${escapeHtml(options.footerNote)}</p>
 </td></tr>
 </tbody></table>

@@ -18,6 +18,26 @@ declare module "express-session" {
     // gap so POST /verify-2fa can size the session cookie once it actually
     // grants one — see that handler.
     pendingRememberMe?: boolean;
+    // Cached "this account has a verified phone" (lib/sessions.ts sets it at
+    // sign-in and on phone verification) so requireVerifiedPhone needs no DB
+    // lookup per request. Undefined on sessions older than the flag: checked
+    // against the DB once, then cached.
+    phoneVerified?: boolean;
+    // Forgot-password by SMS: the account a reset code was requested for.
+    // Set whether or not the email exists (no account enumeration).
+    pendingResetEmail?: string;
+    // Google/Microsoft round trip (lib/oauth.ts).
+    oauth?: { provider: "google" | "microsoft"; state: string; verifier: string; next: string; acceptedTerms: boolean };
+    // A Google/Microsoft identity with no KidCom account yet, waiting for the
+    // user to accept the terms on the sign-up screen.
+    pendingOAuthSignup?: {
+      provider: "google" | "microsoft";
+      subject: string;
+      email: string;
+      emailVerified: boolean;
+      firstName: string;
+      lastName: string;
+    };
   }
 }
 
@@ -72,4 +92,24 @@ export async function requireVerifiedEmail(req: Request, res: Response, next: Ne
     return;
   }
   next();
+}
+
+// Phone verification is mandatory (v3.0): a signed-in account without a
+// verified phone can reach only what it needs to finish verifying — the
+// /auth endpoints — and gets 403 PHONE_VERIFICATION_REQUIRED everywhere else.
+// Mounted globally after sessionMiddleware.
+const PHONE_GATE_EXEMPT = /^\/(auth|health)(\/|$)/;
+
+export async function requireVerifiedPhone(req: Request, res: Response, next: NextFunction) {
+  if (!req.session.userId || req.session.phoneVerified || PHONE_GATE_EXEMPT.test(req.path)) {
+    next();
+    return;
+  }
+  const user = await prisma.user.findUnique({ where: { id: req.session.userId }, select: { phoneVerifiedAt: true } });
+  if (user?.phoneVerifiedAt) {
+    req.session.phoneVerified = true;
+    next();
+    return;
+  }
+  res.status(403).json({ error: "Please verify your mobile number to continue", code: "PHONE_VERIFICATION_REQUIRED" });
 }

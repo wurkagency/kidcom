@@ -4,7 +4,7 @@ import request from "supertest";
 import { createApp } from "../../app";
 import { prisma } from "../../db";
 import { resetDb } from "../../testUtils/db";
-import { signupTestUser, verifyTestUserEmail } from "../../testUtils/auth";
+import { signupTestUser, verifyInvitedTestUser } from "../../testUtils/auth";
 
 describe("POST /invites — D1: only a PARENT may invite", () => {
   beforeEach(async () => {
@@ -34,7 +34,7 @@ describe("POST /invites — D1: only a PARENT may invite", () => {
       password: "password123",
     });
     expect(acceptRes.status).toBe(200);
-    await verifyTestUserEmail(grandmaAgent, "grandma@example.com");
+    await verifyInvitedTestUser(grandmaAgent, "grandma@example.com");
 
     // Previously (D1): any ChildAccess row passed the check, so a FAMILY
     // member could invite someone as FATHER/MOTHER/PARENT and grant them
@@ -88,7 +88,7 @@ describe("D3: organic and invited signups land in equivalent gated states", () =
       password: "password123",
     });
     const grandmaUserId = acceptRes.body.user.id;
-    await verifyTestUserEmail(grandmaAgent, "grandma2@example.com");
+    await verifyInvitedTestUser(grandmaAgent, "grandma2@example.com");
 
     // Simulate her 30-day trial having ended yesterday — this is exactly
     // the state that previously hard-blocked every mutation under

@@ -4,7 +4,7 @@ import request from "supertest";
 import { createApp } from "../../app";
 import { prisma } from "../../db";
 import { resetDb } from "../../testUtils/db";
-import { signupTestUser, verifyTestUserEmail } from "../../testUtils/auth";
+import { signupTestUser, verifyInvitedTestUser } from "../../testUtils/auth";
 
 // Phase 10 proof — spec 9.21/§1.4a.4: soft delete, 30-day restore, all-
 // PARENT-confirm with GUARDIAN-fallback-if-none.
@@ -44,7 +44,7 @@ describe("Child soft delete (spec 9.21)", () => {
     const acceptRes = await parentBAgent
       .post(`/invites/${inviteRes.body.token}/accept`)
       .send({ firstName: "Parent", lastName: "B", password: "password123" });
-    await verifyTestUserEmail(parentBAgent, "parent-b@example.com");
+    await verifyInvitedTestUser(parentBAgent, "parent-b@example.com");
     void acceptRes;
 
     const requestRes = await parentA.post(`/children/${childId}/delete-request`).send({});
@@ -62,7 +62,7 @@ describe("Child soft delete (spec 9.21)", () => {
     const grandmaInvite = await parentA.post("/invites").send({ childId, relationship: "GRANDMOTHER_MAT", email: "grandma6@example.com" });
     const grandmaAgent = request.agent(app);
     await grandmaAgent.post(`/invites/${grandmaInvite.body.token}/accept`).send({ firstName: "Grandma", lastName: "Six", password: "password123" });
-    await verifyTestUserEmail(grandmaAgent, "grandma6@example.com");
+    await verifyInvitedTestUser(grandmaAgent, "grandma6@example.com");
     const grandmaConfirm = await grandmaAgent.post(`/children/${childId}/delete-request/confirm`).send({});
     expect(grandmaConfirm.status).toBe(403);
 
@@ -100,7 +100,7 @@ describe("Child soft delete (spec 9.21)", () => {
     const inviteRes = await parentA.post("/invites").send({ childId, relationship: "MOTHER", email: "cancel-b@example.com" });
     const parentBAgent = request.agent(app);
     await parentBAgent.post(`/invites/${inviteRes.body.token}/accept`).send({ firstName: "Cancel", lastName: "B", password: "password123" });
-    await verifyTestUserEmail(parentBAgent, "cancel-b@example.com");
+    await verifyInvitedTestUser(parentBAgent, "cancel-b@example.com");
 
     await parentA.post(`/children/${childId}/delete-request`).send({});
     const cancelRes = await parentA.delete(`/children/${childId}/delete-request`);
@@ -148,7 +148,7 @@ describe("Child soft delete (spec 9.21)", () => {
     const guardianInvite = await parentAgent.post("/invites").send({ childId, relationship: "GUARDIAN", email: "gaming-guardian@example.com" });
     const guardianAgent = request.agent(app);
     await guardianAgent.post(`/invites/${guardianInvite.body.token}/accept`).send({ firstName: "Gaming", lastName: "Guardian", password: "password123" });
-    await verifyTestUserEmail(guardianAgent, "gaming-guardian@example.com");
+    await verifyInvitedTestUser(guardianAgent, "gaming-guardian@example.com");
 
     // The guardian tries to remove the only parent — denied outright,
     // regardless of parent count (member:invite_or_remove_parent is
