@@ -201,6 +201,13 @@ export type ChildSummary = {
   profileImageUrl: string | null;
   clothingSize: string | null;
   shoeSize: string | null;
+  /** Media asset id of the profile's cover photo */
+  coverImageUrl: string | null;
+  /** The requesting user's own access to this child */
+  myRole: AccessRole;
+  myRelationship: RelationshipType | null;
+  /** May edit the child's details (child:edit_basic_info) */
+  canEdit: boolean;
 };
 
 export type CreateChildRequest = {
@@ -249,6 +256,7 @@ export type UpdateChildRequest = Partial<{
   clothingSize: string;
   shoeSize: string;
   profileImageMediaAssetId: string;
+  coverImageMediaAssetId: string;
 }>;
 
 // Full child detail, used by the child profile / medical / contacts / growth
@@ -1022,6 +1030,13 @@ export type ListItemDto = {
   // Single optional photo — id of a MediaAsset, fetched via GET /media/:id
   // the same way Moments media is (see MediaAssetDto).
   imageAssetId: string | null;
+  /** "YYYY-MM-DD" — needed by */
+  dueOn: string | null;
+  /** When it was claimed ("I'll get it") */
+  claimedAt: string | null;
+  /** The claimer's note ("Bought at Magasin, size 28…") */
+  claimNote: string | null;
+  claimedByAvatarUrl: string | null;
   createdAt: string;
 };
 
@@ -1037,7 +1052,17 @@ export type CreateListItemRequest = {
   // this item is being attached to alongside other wishlist items.
   calendarEventId?: string;
   imageAssetId?: string;
+  /** "YYYY-MM-DD" */
+  dueOn?: string | null;
 };
+
+/**
+ * PATCH …/lists/:itemId/claim. `claimed` true/false sets it; omitted toggles
+ * (older clients). `note` alone, on an item you've claimed, edits the note.
+ */
+export type ClaimListItemRequest = { claimed?: boolean; note?: string | null };
+
+export type ListItemsResponse = { items: ListItemDto[] };
 
 export type UpdateListItemAssignmentRequest = {
   assignedToId: string | null;
@@ -1055,6 +1080,7 @@ export type UpdateListItemRequest = Partial<{
   assignedToId: string | null;
   calendarEventId: string | null;
   imageAssetId: string | null;
+  dueOn: string | null;
 }>;
 
 // ---------------------------------------------------------------------------
@@ -1340,3 +1366,5 @@ export type SearchResponse = {
   moments: SearchResultMoment[];
   listItems: SearchResultListItem[];
 };
+
+export * from "./growth";

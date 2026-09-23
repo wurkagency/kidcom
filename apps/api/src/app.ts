@@ -19,6 +19,7 @@ import { categoriesRouter } from "./routes/categories";
 import { overviewRouter } from "./routes/overview";
 import { momentsFeedRouter } from "./routes/moments";
 import { bookmarksRouter } from "./routes/bookmarks";
+import { listsRouter } from "./routes/lists";
 import { requireVerifiedPhone, sessionMiddleware } from "./middleware/session";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler";
 
@@ -96,6 +97,7 @@ export function createApp() {
   app.use("/overview", overviewRouter);
   app.use("/moments", momentsFeedRouter);
   app.use("/bookmarks", bookmarksRouter);
+  app.use("/lists", listsRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

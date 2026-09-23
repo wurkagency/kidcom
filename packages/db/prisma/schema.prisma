@@ -257,6 +257,9 @@ model Child {
   emergencyContacts  EmergencyContact[]
   scheduleOccurrences ChildScheduleOccurrence[]
   avatarAsset        MediaAsset?               @relation("ChildAvatar")
+  coverAsset         MediaAsset?               @relation("ChildCover")
+  // Media asset id of the cover photo (mirrors profileImageUrl for the avatar).
+  coverImageUrl      String?
   upgradeRequests    UpgradeRequest[]
   deletionRequest    ChildDeletionRequest?
 
@@ -666,6 +669,9 @@ model MediaAsset {
   avatarForUser    User?            @relation("UserAvatar", fields: [avatarForUserId], references: [id])
   avatarForChildId String?          @unique
   avatarForChild   Child?           @relation("ChildAvatar", fields: [avatarForChildId], references: [id])
+  // v3.0 Phase 5: the child profile's cover photo (same 1:1 pattern as the avatar).
+  coverForChildId  String?          @unique
+  coverForChild    Child?           @relation("ChildCover", fields: [coverForChildId], references: [id], onDelete: SetNull)
   // Same 1:1-current-asset pattern as the avatar fields above, for a
   // Necessity/Wishlist item's single photo.
   listItemImageForId String?        @unique
@@ -785,6 +791,10 @@ model ListItem {
   title        String
   description  String?
   sizeValue    String?      // e.g. clothing/shoe size pulled from the child's profile at creation time
+  // v3.0 Phase 5: when it's needed by, and the claim ("I'll get it") with its note.
+  dueOn        DateTime?    @db.Date
+  claimedAt    DateTime?
+  claimNote    String?
   // Necessities: real delegation — any family member can assign/reassign this
   // to any other family member (not just claim it for themselves).
   assignedToId String?

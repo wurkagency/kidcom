@@ -101,7 +101,7 @@ mediaRouter.post("/upload", requireAuth, upload.single("file"), async (req, res,
 //   journal_posts RLS policy), so `asset.moment` comes back null for them
 //   and they fall through to the owner-only rule below.
 // - A user's avatar: that user, or anyone who shares a child with them.
-// - A child's avatar / a list item's photo: anyone with access to that child.
+// - A child's avatar or cover photo / a list item's photo: anyone with access to that child.
 // - Anything else (an upload not yet attached): its owner only.
 // Access is checked on every request, so revoking access takes effect at once.
 
@@ -135,8 +135,8 @@ async function loadReadableAsset(userId: string, id: string) {
       });
       if (!sharesChild) throw denied();
     }
-  } else if (asset.avatarForChildId || asset.listItemImageFor) {
-    const childId = asset.avatarForChildId ?? asset.listItemImageFor!.childId;
+  } else if (asset.avatarForChildId || asset.coverForChildId || asset.listItemImageFor) {
+    const childId = asset.avatarForChildId ?? asset.coverForChildId ?? asset.listItemImageFor!.childId;
     if (!(await prisma.childAccess.count({ where: { childId, userId } }))) throw denied();
   } else if (asset.ownerId !== userId) {
     throw denied();

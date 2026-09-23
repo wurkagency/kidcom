@@ -1,5 +1,6 @@
 import { Router, type Request } from "express";
 import type {
+  ClaimListItemRequest,
   CreateListItemRequest,
   ListItemDto,
   UpdateListItemAssignmentRequest,
@@ -10,6 +11,7 @@ import { prisma } from "../../db";
 import { ApiError } from "../../middleware/errorHandler";
 import { can, requireCapability } from "../../lib/permissions";
 import { withRls } from "../../lib/rls";
+import { optionalDateOnly, optionalText } from "../../lib/validation";
 
 // Mounted at /children/:childId/lists. Necessities + wishlist share one
 // model (ListItem.type) — the frontend splits them into two tabs.
@@ -21,7 +23,7 @@ export const listItemsRouter = Router({ mergeParams: true });
 type ChildParams = { childId: string };
 type ItemParams = { childId: string; itemId: string };
 
-function toDto(row: {
+export function toListItemDto(row: {
   id: string;
   childId: string;
   type: "NECESSITY" | "WISHLIST";
@@ -31,9 +33,12 @@ function toDto(row: {
   assignedToId: string | null;
   assignedTo: { firstName: string; lastName: string } | null;
   claimedById: string | null;
-  claimedBy: { firstName: string; lastName: string } | null;
+  claimedBy: { firstName: string; lastName: string; avatarUrl: string | null } | null;
   calendarEventId: string | null;
   image: { id: string } | null;
+  dueOn: Date | null;
+  claimedAt: Date | null;
+  claimNote: string | null;
   createdAt: Date;
 }): ListItemDto {
   return {
@@ -49,11 +54,17 @@ function toDto(row: {
     claimedByName: row.claimedBy ? `${row.claimedBy.firstName} ${row.claimedBy.lastName}`.trim() : null,
     calendarEventId: row.calendarEventId,
     imageAssetId: row.image?.id ?? null,
+    dueOn: row.dueOn ? row.dueOn.toISOString().slice(0, 10) : null,
+    claimedAt: row.claimedAt?.toISOString() ?? null,
+    claimNote: row.claimNote,
+    claimedByAvatarUrl: row.claimedBy?.avatarUrl ?? null,
     createdAt: row.createdAt.toISOString(),
   };
 }
 
-const INCLUDE = { assignedTo: true, claimedBy: true, image: { select: { id: true } } } as const;
+export const LIST_ITEM_INCLUDE = { assignedTo: true, claimedBy: true, image: { select: { id: true } } } as const;
+const INCLUDE = LIST_ITEM_INCLUDE;
+const toDto = toListItemDto;
 
 // Any family member may be assigned a Necessity — validated against
 // ChildAccess the same way family-member listing (/children/:childId/family)
@@ -154,6 +165,7 @@ listItemsRouter.post("/", requireCapability("list_item:manage"), async (req: Req
           sizeValue: body.sizeValue?.trim() || null,
           assignedToId: body.assignedToId || null,
           calendarEventId: body.calendarEventId || null,
+          dueOn: optionalDateOnly(body.dueOn, "dueOn") ?? null,
         },
       });
       await setListItemImage(tx, created.id, null, body.imageAssetId || null, userId);
@@ -220,6 +232,7 @@ listItemsRouter.patch("/:itemId", requireCapability("list_item:manage"), async (
           sizeValue: body.sizeValue !== undefined ? body.sizeValue?.trim() || null : undefined,
           assignedToId: body.assignedToId !== undefined ? body.assignedToId : undefined,
           calendarEventId: body.calendarEventId !== undefined ? body.calendarEventId : undefined,
+          dueOn: optionalDateOnly(body.dueOn, "dueOn"),
         },
       });
       await setListItemImage(tx, existing.id, existing.image?.id ?? null, body.imageAssetId, userId);
@@ -260,12 +273,14 @@ listItemsRouter.patch("/:itemId/assign", requireCapability("list_item:manage"), 
   }
 });
 
-// Toggle claim/"Reserve" (Wishlist): unclaimed -> claimed by caller; claimed
-// by caller -> unclaimed; claimed by someone else -> 409 (someone else
-// already stepped up).
+// "I'll get it" (both list types): claim with an optional note, unclaim, or
+// edit your own note. `claimed` omitted toggles (older clients). Claimed by
+// someone else -> 409 (someone else already stepped up).
 listItemsRouter.patch("/:itemId/claim", async (req: Request<ItemParams>, res, next) => {
   try {
     const userId = req.session.userId!;
+    const body = (req.body ?? {}) as ClaimListItemRequest;
+    const note = optionalText(body.note, "note", 500);
     const row = await withRls(userId, async (tx) => {
       const existing = await tx.listItem.findFirst({
         where: { id: req.params.itemId, childId: req.params.childId },
@@ -273,16 +288,23 @@ listItemsRouter.patch("/:itemId/claim", async (req: Request<ItemParams>, res, ne
       if (!existing) throw new ApiError(404, "List item not found");
 
       if (existing.claimedById && existing.claimedById !== userId) {
-        throw new ApiError(409, "This item is already claimed by someone else");
+        throw new ApiError(409, "This item is already claimed by someone else", "ALREADY_CLAIMED");
       }
 
+      const mine = existing.claimedById === userId;
+      const claim = body.claimed ?? (body.note !== undefined && mine ? true : !mine);
       // Conditional update guarded on the claim state we just read, so two
       // concurrent claim/unclaim attempts can't both succeed silently — the
       // loser's updateMany matches zero rows and gets a 409 instead.
-      const targetClaimedById = existing.claimedById === userId ? null : userId;
       const { count } = await tx.listItem.updateMany({
         where: { id: existing.id, claimedById: existing.claimedById },
-        data: { claimedById: targetClaimedById },
+        data: claim
+          ? {
+              claimedById: userId,
+              claimedAt: mine ? existing.claimedAt ?? new Date() : new Date(),
+              claimNote: note !== undefined ? note : mine ? existing.claimNote : null,
+            }
+          : { claimedById: null, claimedAt: null, claimNote: null },
       });
       if (count === 0) {
         throw new ApiError(409, "Someone else already changed this item's claim — refresh and try again");

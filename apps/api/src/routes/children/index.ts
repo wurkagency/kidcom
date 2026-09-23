@@ -1,5 +1,6 @@
 import { Router } from "express";
 import type {
+  AccessRole,
   ChildCoverageStatus,
   ChildDetail,
   ChildGender,
@@ -9,6 +10,7 @@ import type {
   CreateMinorMemberRequest,
   CreateUpgradeRequestResponse,
   MinorMemberDto,
+  RelationshipType,
   UpdateChildRequest,
   UpdateMemberRelationshipRequest,
   UpgradeRequestDto,
@@ -88,16 +90,22 @@ childrenRouter.use("/:childId/handover-packing", requireChildAccess, requireChil
 // comment for why.
 childrenRouter.use("/:childId", requireChildAccess, deletionRouter);
 
-function toChildSummary(child: {
-  id: string;
-  firstName: string;
-  lastName: string;
-  gender: "BOY" | "GIRL" | "OTHER";
-  birthday: Date;
-  profileImageUrl: string | null;
-  clothingSize: string | null;
-  shoeSize: string | null;
-}): ChildSummary {
+type MyAccess = { role: AccessRole; relationship: RelationshipType | null; isMinorMember?: boolean };
+
+function toChildSummary(
+  child: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    gender: "BOY" | "GIRL" | "OTHER";
+    birthday: Date;
+    profileImageUrl: string | null;
+    clothingSize: string | null;
+    shoeSize: string | null;
+    coverImageUrl: string | null;
+  },
+  me: MyAccess,
+): ChildSummary {
   return {
     id: child.id,
     firstName: child.firstName,
@@ -107,6 +115,10 @@ function toChildSummary(child: {
     profileImageUrl: child.profileImageUrl,
     clothingSize: child.clothingSize,
     shoeSize: child.shoeSize,
+    coverImageUrl: child.coverImageUrl,
+    myRole: me.role,
+    myRelationship: me.relationship,
+    canEdit: can(me, "child:edit_basic_info"),
   };
 }
 
@@ -121,9 +133,10 @@ childrenRouter.get("/", async (req, res, next) => {
       // restore window (GET /:childId doesn't filter on deletedAt), just not
       // listed here.
       where: { deletedAt: null, access: { some: { userId: req.session.userId! } } },
+      include: { access: { where: { userId: req.session.userId! }, take: 1 } },
       orderBy: { createdAt: "asc" },
     });
-    res.json({ children: children.map(toChildSummary) });
+    res.json({ children: children.map((c) => toChildSummary(c, c.access[0]!)) });
   } catch (err) {
     next(err);
   }
@@ -286,7 +299,7 @@ childrenRouter.post("/", requireVerifiedEmail, async (req, res, next) => {
       parentInvite = { token: invite.token, emailSent };
     }
 
-    res.status(201).json({ ...toChildSummary(child), parentInvite } satisfies CreateChildResponse);
+    res.status(201).json({ ...toChildSummary(child, { role, relationship }), parentInvite } satisfies CreateChildResponse);
   } catch (err) {
     next(err);
   }
@@ -299,7 +312,7 @@ childrenRouter.get("/:childId", requireChildAccess, async (req, res, next) => {
   try {
     const child = await prisma.child.findUniqueOrThrow({ where: { id: req.params.childId } });
     const detail: ChildDetail = {
-      ...toChildSummary(child),
+      ...toChildSummary(child, req.childAccess!),
       heightCm: child.heightCm,
       countryCode: child.countryCode,
     };
@@ -346,6 +359,18 @@ childrenRouter.patch(
       });
     }
 
+    // The cover photo: same ownership check + swap as the avatar above.
+    if (body.coverImageMediaAssetId) {
+      const coverId = body.coverImageMediaAssetId;
+      await withRls(req.session.userId!, async (tx) => {
+        const asset = await tx.mediaAsset.findUnique({ where: { id: coverId } });
+        if (!asset) throw new ApiError(404, "Media not found");
+        if (asset.ownerId !== req.session.userId) throw new ApiError(403, "You don't have access to this media");
+        await tx.mediaAsset.updateMany({ where: { coverForChildId: req.params.childId }, data: { coverForChildId: null } });
+        await tx.mediaAsset.update({ where: { id: coverId }, data: { coverForChildId: req.params.childId } });
+      });
+    }
+
     if (body.gender !== undefined && !CHILD_GENDERS.includes(body.gender)) {
       throw new ApiError(400, "gender must be one of BOY, GIRL, OTHER");
     }
@@ -361,10 +386,11 @@ childrenRouter.patch(
         clothingSize: body.clothingSize,
         shoeSize: body.shoeSize,
         profileImageUrl: body.profileImageMediaAssetId,
+        coverImageUrl: body.coverImageMediaAssetId,
       },
     });
     const detail: ChildDetail = {
-      ...toChildSummary(child),
+      ...toChildSummary(child, req.childAccess!),
       heightCm: child.heightCm,
       countryCode: child.countryCode,
     };
