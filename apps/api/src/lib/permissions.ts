@@ -23,7 +23,14 @@ export type Capability =
   | "member:invite_family_or_caregiver"
   | "member:remove_family_or_caregiver"
   | "member:invite_or_remove_parent"
-  | "member:remove_guardian";
+  | "member:remove_guardian"
+  // v3.0 Phase 3 — tasks, shared notes, school timetable, handover packing.
+  // Ticking a task done or an item packed is open to every member (like
+  // claiming a list item); these gate creating/editing.
+  | "task:manage"
+  | "note:write"
+  | "school:manage"
+  | "packing:manage";
 
 // Deliberately excludes AccessRole so a capability check can't silently
 // return true for a role added to the enum but not yet to MATRIX —
@@ -64,6 +71,10 @@ const MATRIX: Record<Capability, Record<AccessRole, boolean>> = {
   "member:remove_family_or_caregiver": { PARENT: true, GUARDIAN: true, FAMILY: false },
   "member:invite_or_remove_parent": { PARENT: true, GUARDIAN: false, FAMILY: false },
   "member:remove_guardian": { PARENT: true, GUARDIAN: false, FAMILY: false },
+  "task:manage": { PARENT: true, GUARDIAN: true, FAMILY: true },
+  "note:write": { PARENT: true, GUARDIAN: true, FAMILY: true },
+  "school:manage": { PARENT: true, GUARDIAN: true, FAMILY: false },
+  "packing:manage": { PARENT: true, GUARDIAN: true, FAMILY: false },
 };
 
 // Capabilities where a Caregiver (AccessRole FAMILY + relationship
@@ -78,6 +89,8 @@ const CAREGIVER_DENIED: ReadonlySet<Capability> = new Set<Capability>([
   "calendar_event_request:create",
   "moments:post",
   "list_item:manage",
+  "task:manage",
+  "note:write",
 ]);
 
 // spec 9.16 — a sibling's own account (ChildAccess.isMinorMember) gets

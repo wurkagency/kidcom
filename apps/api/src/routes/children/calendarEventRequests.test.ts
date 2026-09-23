@@ -27,7 +27,7 @@ describe("Calendar event requests (post-launch backlog Phase C)", () => {
     await verifyInvitedTestUser(auntAgent, "cer-aunt@example.com");
 
     const reqRes = await auntAgent.post(`/children/${childId}/calendar-event-requests`).send({
-      category: "ACTIVITY",
+      categoryId: "cat_sport",
       title: "Soccer practice",
       startsAt: "2026-10-01T15:00:00.000Z",
     });
@@ -54,7 +54,7 @@ describe("Calendar event requests (post-launch backlog Phase C)", () => {
     const childId = childRes.body.id;
 
     const reqRes = await parentAgent.post(`/children/${childId}/calendar-event-requests`).send({
-      category: "SCHOOL",
+      categoryId: "cat_school",
       title: "Field trip",
       startsAt: "2026-11-01T09:00:00.000Z",
     });
@@ -82,7 +82,7 @@ describe("Calendar event requests (post-launch backlog Phase C)", () => {
     const childId = childRes.body.id;
 
     const reqRes = await parentAgent.post(`/children/${childId}/calendar-event-requests`).send({
-      category: "APPOINTMENT",
+      categoryId: "cat_appointment",
       title: "Dentist",
       startsAt: "2026-10-15T10:00:00.000Z",
     });
@@ -104,7 +104,7 @@ describe("Calendar event requests (post-launch backlog Phase C)", () => {
     await verifyInvitedTestUser(cgAgent, "cer-caregiver@example.com");
 
     const cgRes = await cgAgent.post(`/children/${childId}/calendar-event-requests`).send({
-      category: "ACTIVITY",
+      categoryId: "cat_sport",
       title: "Playdate",
       startsAt: "2026-10-20T14:00:00.000Z",
     });
@@ -116,7 +116,7 @@ describe("Calendar event requests (post-launch backlog Phase C)", () => {
     await verifyInvitedTestUser(otherAgent, "cer-plain-family@example.com");
 
     const okRes = await otherAgent.post(`/children/${childId}/calendar-event-requests`).send({
-      category: "ACTIVITY",
+      categoryId: "cat_sport",
       title: "Playdate",
       startsAt: "2026-10-20T14:00:00.000Z",
     });
@@ -130,7 +130,7 @@ describe("Calendar event requests (post-launch backlog Phase C)", () => {
     const childId = childRes.body.id;
 
     const reqRes = await parentAgent.post(`/children/${childId}/calendar-event-requests`).send({
-      category: "ACTIVITY",
+      categoryId: "cat_sport",
       title: "Art class",
       startsAt: "2026-10-05T13:00:00.000Z",
     });

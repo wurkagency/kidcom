@@ -15,6 +15,8 @@ import { billingRouter } from "./routes/billing";
 import { pushRouter } from "./routes/push";
 import { notificationPreferencesRouter } from "./routes/notificationPreferences";
 import { searchRouter } from "./routes/search";
+import { categoriesRouter } from "./routes/categories";
+import { overviewRouter } from "./routes/overview";
 import { requireVerifiedPhone, sessionMiddleware } from "./middleware/session";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler";
 
@@ -88,6 +90,8 @@ export function createApp() {
   app.use("/push", pushRouter);
   app.use("/notification-preferences", notificationPreferencesRouter);
   app.use("/search", searchRouter);
+  app.use("/categories", categoriesRouter);
+  app.use("/overview", overviewRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

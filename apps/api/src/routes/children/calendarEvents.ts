@@ -5,24 +5,24 @@ import { ApiError } from "../../middleware/errorHandler";
 import { CALENDAR_EVENT_INCLUDE, toCalendarEventDto } from "../../lib/calendarEventDto";
 import { requireCapability } from "../../lib/permissions";
 import { withRls } from "../../lib/rls";
+import { assertUsableCategory } from "../../lib/categories";
+import { prisma } from "../../db";
 
-// Mounted at /children/:childId/calendar-events. Every category except
-// HOLIDAY is writable here — HOLIDAY rows are system-seeded (see the
-// calendar route's ensureHolidaysSeeded) and rejected below.
+// Mounted at /children/:childId/calendar-events. National holidays are
+// system-seeded (the calendar route's ensureHolidaysSeeded) and read-only.
 export const calendarEventsRouter = Router({ mergeParams: true });
 
 type ChildParams = { childId: string };
 type ChildEventParams = { childId: string; id: string };
 type ChecklistItemParams = { childId: string; id: string; itemId: string };
 
-const WRITABLE_CATEGORIES: CreateCalendarEventRequest["category"][] = [
-  "CUSTODY",
-  "APPOINTMENT",
-  "MEDICAL",
-  "SCHOOL",
-  "ACTIVITY",
-  "PLANNED_HOLIDAY",
-];
+/** "Handled by" must be someone who is a member of this child. */
+async function assertMemberOrNull(childId: string, userId: string | null | undefined): Promise<string | null | undefined> {
+  if (userId === undefined || userId === null) return userId;
+  const member = await prisma.childAccess.findUnique({ where: { childId_userId: { childId, userId } } });
+  if (!member) throw new ApiError(400, "The person handling this must be a member of the child's family");
+  return userId;
+}
 
 function validateRecurrence(body: Partial<CreateCalendarEventRequest>) {
   if (body.recurrenceIntervalWeeks === undefined || body.recurrenceIntervalWeeks === null) return;
@@ -44,12 +44,13 @@ function toRecurrenceEndsAtInput(value: string | null | undefined): Date | null 
 // short freeform list edited as a unit from EventFormPage. `tx` is a Prisma
 // transaction client, typed loosely (`any`) to match this codebase's
 // existing convention for transaction-callback params elsewhere.
-async function replaceChecklist(tx: any, calendarEventId: string, items: { label: string }[]) {
+async function replaceChecklist(tx: any, calendarEventId: string, items: { label: string; kind?: "TASK" | "PACKING" }[]) {
   await tx.calendarEventChecklistItem.deleteMany({ where: { calendarEventId } });
   if (items.length === 0) return;
   await tx.calendarEventChecklistItem.createMany({
     data: items.map((item, index) => ({
       calendarEventId,
+      kind: item.kind === "PACKING" ? "PACKING" : "TASK",
       label: item.label,
       sortOrder: index,
     })),
@@ -102,24 +103,25 @@ calendarEventsRouter.get("/:id", async (req: Request<ChildEventParams>, res, nex
 calendarEventsRouter.post("/", requireCapability("calendar_event:manage"), async (req: Request<ChildParams>, res, next) => {
   try {
     const body = req.body as Partial<CreateCalendarEventRequest>;
-    if (!body.category || !body.title || !body.startsAt) {
-      throw new ApiError(400, "category, title, and startsAt are required");
-    }
-    if (!WRITABLE_CATEGORIES.includes(body.category)) {
-      throw new ApiError(400, `category must be one of: ${WRITABLE_CATEGORIES.join(", ")}`);
+    if (!body.title || !body.startsAt) {
+      throw new ApiError(400, "title and startsAt are required");
     }
     validateRecurrence(body);
+    const categoryId = await assertUsableCategory(req.session.userId!, body.categoryId);
+    const assigneeId = await assertMemberOrNull(req.params.childId, body.assigneeUserId);
     const row = await withRls(req.session.userId!, async (tx) => {
       const created = await tx.calendarEvent.create({
         data: {
           childId: req.params.childId,
-          category: body.category!,
+          categoryId,
           title: body.title!,
           startsAt: new Date(body.startsAt!),
           endsAt: body.endsAt ? new Date(body.endsAt) : undefined,
           allDay: body.allDay ?? false,
           notes: body.notes,
           location: body.location,
+          address: body.address,
+          assigneeId: assigneeId ?? undefined,
           assignedNote: body.assignedNote,
           contactName: body.contactName,
           contactDetail: body.contactDetail,
@@ -143,28 +145,29 @@ calendarEventsRouter.patch("/:id", requireCapability("calendar_event:manage"), a
   try {
     const body = req.body as UpdateCalendarEventRequest;
     validateRecurrence(body);
+    const categoryId = body.categoryId === undefined ? undefined : await assertUsableCategory(req.session.userId!, body.categoryId);
+    const assigneeId = await assertMemberOrNull(req.params.childId, body.assigneeUserId);
     const row = await withRls(req.session.userId!, async (tx) => {
       const existing = await tx.calendarEvent.findFirst({
         where: { id: req.params.id, childId: req.params.childId },
       });
       if (!existing) throw new ApiError(404, "Event not found");
-      if (existing.category === "HOLIDAY") {
-        throw new ApiError(400, "System holidays can't be edited");
-      }
-      if (body.category && !WRITABLE_CATEGORIES.includes(body.category)) {
-        throw new ApiError(400, `category must be one of: ${WRITABLE_CATEGORIES.join(", ")}`);
+      if (existing.kind === "NATIONAL_HOLIDAY") {
+        throw new ApiError(400, "National holidays can't be edited");
       }
 
       await tx.calendarEvent.update({
         where: { id: req.params.id },
         data: {
-          category: body.category,
+          categoryId,
           title: body.title,
           startsAt: body.startsAt ? new Date(body.startsAt) : undefined,
           endsAt: body.endsAt ? new Date(body.endsAt) : undefined,
           allDay: body.allDay,
           notes: body.notes,
           location: body.location,
+          address: body.address,
+          assigneeId,
           assignedNote: body.assignedNote,
           contactName: body.contactName,
           contactDetail: body.contactDetail,
@@ -191,8 +194,8 @@ calendarEventsRouter.delete("/:id", requireCapability("calendar_event:manage"), 
         where: { id: req.params.id, childId: req.params.childId },
       });
       if (!existing) throw new ApiError(404, "Event not found");
-      if (existing.category === "HOLIDAY") {
-        throw new ApiError(400, "System holidays can't be deleted");
+      if (existing.kind === "NATIONAL_HOLIDAY") {
+        throw new ApiError(400, "National holidays can't be deleted");
       }
 
       await tx.calendarEvent.delete({ where: { id: req.params.id } });

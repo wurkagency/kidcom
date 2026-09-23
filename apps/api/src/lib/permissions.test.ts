@@ -27,6 +27,10 @@ const ALL_CAPABILITIES: Capability[] = [
   "member:remove_family_or_caregiver",
   "member:invite_or_remove_parent",
   "member:remove_guardian",
+  "task:manage",
+  "note:write",
+  "school:manage",
+  "packing:manage",
 ];
 
 describe("permission matrix (spec §1.4) — PARENT/GUARDIAN/FAMILY columns", () => {
@@ -48,6 +52,11 @@ describe("permission matrix (spec §1.4) — PARENT/GUARDIAN/FAMILY columns", ()
     // the child's parents (or another guardian).
     { capability: "member:invite_or_remove_parent", parent: true, guardian: false, family: false },
     { capability: "member:remove_guardian", parent: true, guardian: false, family: false },
+    // v3.0 Phase 3
+    { capability: "task:manage", parent: true, guardian: true, family: true },
+    { capability: "note:write", parent: true, guardian: true, family: true },
+    { capability: "school:manage", parent: true, guardian: true, family: false },
+    { capability: "packing:manage", parent: true, guardian: true, family: false },
   ];
 
   it.each(rows)(

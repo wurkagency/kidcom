@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 
+import { findNextHandover } from "./custody";
 import { isValidEmail, relationshipTypeToRole, vatBreakdown } from "./index";
 
 // Phase 0 proof that the packages/shared test harness works end to end
@@ -83,5 +84,20 @@ describe("vatBreakdown", () => {
       const { netMinorUnits, vatMinorUnits } = vatBreakdown(gross);
       expect(netMinorUnits + vatMinorUnits).toBe(gross);
     }
+  });
+});
+
+describe("findNextHandover", () => {
+  const plan = {
+    startDate: "2026-09-07T00:00:00Z", // a Monday
+    patternDays: { cycleLengthDays: 14, blocks: [{ userId: "mom", days: 7 }, { userId: "dad", days: 7 }] },
+  };
+  it("finds the day the child changes hands", () => {
+    expect(findNextHandover(plan, "2026-09-10")).toEqual({ date: "2026-09-14", toUserId: "dad" });
+    expect(findNextHandover(plan, "2026-09-14")).toEqual({ date: "2026-09-21", toUserId: "mom" });
+  });
+  it("returns null when the plan never changes hands", () => {
+    const solo = { startDate: plan.startDate, patternDays: { cycleLengthDays: 7, blocks: [{ userId: "mom", days: 7 }] } };
+    expect(findNextHandover(solo, "2026-09-10")).toBeNull();
   });
 });

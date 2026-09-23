@@ -1,5 +1,6 @@
 import { prisma } from "../db";
 import { redis } from "../redis";
+import { ensureSystemCategories } from "../lib/categories";
 
 // Truncates every application table and flushes the session store between
 // tests. A full truncate (rather than per-test transactions) because
@@ -17,5 +18,8 @@ export async function resetDb(): Promise<void> {
     const names = tables.map((t) => `"${t.tablename}"`).join(", ");
     await prisma.$executeRawUnsafe(`TRUNCATE TABLE ${names} RESTART IDENTITY CASCADE`);
   }
+  // System categories are reference data the app assumes exist (ensured at
+  // startup in production); put them back after the truncate.
+  await ensureSystemCategories();
   await redis.flushdb();
 }

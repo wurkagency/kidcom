@@ -46,6 +46,10 @@ import { calendarEventRequestsRouter } from "./calendarEventRequests";
 import { swapRequestsRouter } from "./swapRequests";
 import { momentsRouter } from "./moments";
 import { listItemsRouter } from "./listItems";
+import { tasksRouter } from "./tasks";
+import { childNotesRouter } from "./notes";
+import { schoolLessonsRouter } from "./schoolLessons";
+import { handoverPackingRouter } from "./handoverPacking";
 
 export const childrenRouter = Router();
 
@@ -76,6 +80,10 @@ childrenRouter.use("/:childId/calendar-event-requests", requireChildAccess, requ
 childrenRouter.use("/:childId/swap-requests", requireChildAccess, requireChildEntitlement, swapRequestsRouter);
 childrenRouter.use("/:childId/moments", requireChildAccess, requireChildEntitlement, momentsRouter);
 childrenRouter.use("/:childId/lists", requireChildAccess, requireChildEntitlement, listItemsRouter);
+childrenRouter.use("/:childId/tasks", requireChildAccess, requireChildEntitlement, tasksRouter);
+childrenRouter.use("/:childId/notes", requireChildAccess, requireChildEntitlement, childNotesRouter);
+childrenRouter.use("/:childId/school-lessons", requireChildAccess, requireChildEntitlement, schoolLessonsRouter);
+childrenRouter.use("/:childId/handover-packing", requireChildAccess, requireChildEntitlement, handoverPackingRouter);
 // Phase 10 (spec 9.21) — no requireChildEntitlement, see deletion.ts's own
 // comment for why.
 childrenRouter.use("/:childId", requireChildAccess, deletionRouter);

@@ -11,6 +11,8 @@ import ffmpeg from "fluent-ffmpeg";
 import ffmpegPath from "ffmpeg-static";
 import ffprobeStatic from "ffprobe-static";
 
+import { systemCategoryId } from "@kidcom/shared";
+
 import { prisma } from "./db";
 import { withRlsBypass } from "./lib/rls";
 import { bullConnection, type ProcessMediaJob } from "./lib/mediaQueue";
@@ -274,7 +276,10 @@ const remindersWorker = new Worker<RemindAppointmentsJob>(
     const dueEvents = await withRlsBypass((tx) =>
       tx.calendarEvent.findMany({
         where: {
-          category: "APPOINTMENT",
+          // Timed appointments and health visits (not routines, holidays…).
+          kind: "EVENT",
+          allDay: false,
+          categoryId: { in: [systemCategoryId("appointment"), systemCategoryId("health")] },
           remindedAt: null,
           startsAt: { gte: new Date(), lte: windowEnd },
         },

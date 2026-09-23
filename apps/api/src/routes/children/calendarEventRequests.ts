@@ -6,6 +6,7 @@ import { ApiError } from "../../middleware/errorHandler";
 import { pushQueue } from "../../lib/pushQueue";
 import { requireCapability } from "../../lib/permissions";
 import { withRls } from "../../lib/rls";
+import { assertUsableCategory } from "../../lib/categories";
 
 // Mounted at /children/:childId/calendar-event-requests. Post-launch backlog
 // Phase C — close sibling of swapRequests.ts, for the FAMILY/Caregiver
@@ -18,20 +19,9 @@ export const calendarEventRequestsRouter = Router({ mergeParams: true });
 type ChildParams = { childId: string };
 type ChildRequestParams = { childId: string; id: string };
 
-// HOLIDAY is system-seeded only (see calendar.ts's ensureHolidaysSeeded) —
-// same exclusion calendarEvents.ts's own writable-category list applies.
-const REQUESTABLE_CATEGORIES: CreateCalendarEventRequestRequest["category"][] = [
-  "CUSTODY",
-  "APPOINTMENT",
-  "MEDICAL",
-  "SCHOOL",
-  "ACTIVITY",
-  "PLANNED_HOLIDAY",
-];
-
 function toDto(row: {
   id: string;
-  category: string;
+  categoryId: string | null;
   title: string;
   startsAt: Date;
   endsAt: Date | null;
@@ -44,7 +34,7 @@ function toDto(row: {
 }): CalendarEventRequestDto {
   return {
     id: row.id,
-    category: row.category as CalendarEventRequestDto["category"],
+    categoryId: row.categoryId,
     title: row.title,
     startsAt: row.startsAt.toISOString(),
     endsAt: row.endsAt?.toISOString() ?? null,
@@ -77,13 +67,10 @@ calendarEventRequestsRouter.post(
   async (req: Request<ChildParams>, res, next) => {
     try {
       const body = req.body as Partial<CreateCalendarEventRequestRequest>;
-      if (!body.category || !body.title || !body.startsAt) {
-        throw new ApiError(400, "category, title, and startsAt are required");
+      if (!body.title || !body.startsAt) {
+        throw new ApiError(400, "title and startsAt are required");
       }
-      if (!REQUESTABLE_CATEGORIES.includes(body.category)) {
-        throw new ApiError(400, `category must be one of: ${REQUESTABLE_CATEGORIES.join(", ")}`);
-      }
-      const category = body.category;
+      const categoryId = await assertUsableCategory(req.session.userId!, body.categoryId);
       const title = body.title;
       const startsAt = body.startsAt;
 
@@ -91,7 +78,7 @@ calendarEventRequestsRouter.post(
         tx.calendarEventRequest.create({
           data: {
             childId: req.params.childId,
-            category,
+            categoryId,
             title,
             startsAt: new Date(startsAt),
             endsAt: body.endsAt ? new Date(body.endsAt) : undefined,
@@ -157,7 +144,7 @@ calendarEventRequestsRouter.patch(
           await tx.calendarEvent.create({
             data: {
               childId: req.params.childId,
-              category: existing.category,
+              categoryId: existing.categoryId,
               title: existing.title,
               startsAt: existing.startsAt,
               endsAt: existing.endsAt,

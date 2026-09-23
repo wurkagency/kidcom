@@ -15,7 +15,7 @@ export const swapRequestsRouter = Router({ mergeParams: true });
 type ChildParams = { childId: string };
 type ChildRequestParams = { childId: string; id: string };
 
-function toDto(row: {
+export function toSwapRequestDto(row: {
   id: string;
   date: Date;
   requestedById: string;
@@ -43,7 +43,7 @@ swapRequestsRouter.get("/", async (req: Request<ChildParams>, res, next) => {
         orderBy: { createdAt: "desc" },
       })
     );
-    res.json({ items: rows.map(toDto) });
+    res.json({ items: rows.map(toSwapRequestDto) });
   } catch (err) {
     next(err);
   }
@@ -84,7 +84,7 @@ swapRequestsRouter.post("/", requireCapability("swap_request:create"), async (re
       )
     );
 
-    res.status(201).json(toDto(row));
+    res.status(201).json(toSwapRequestDto(row));
   } catch (err) {
     next(err);
   }
@@ -125,7 +125,7 @@ swapRequestsRouter.patch("/:id", requireCapability("swap_request:approve"), asyn
       url: `/calendar`,
     });
 
-    res.json(toDto(row));
+    res.json(toSwapRequestDto(row));
   } catch (err) {
     next(err);
   }

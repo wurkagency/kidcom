@@ -12,19 +12,25 @@ export const custodyPlanRouter = Router({ mergeParams: true });
 
 type ChildParams = { childId: string };
 
-function toDto(row: {
+export function toCustodyPlanDto(row: {
   id: string;
   label: string;
   startDate: Date;
   patternDays: unknown;
+  handoverTime: string | null;
+  handoverLocation: string | null;
 }): CustodyPlanDto {
   return {
     id: row.id,
     label: row.label,
     startDate: row.startDate.toISOString(),
     patternDays: row.patternDays as CustodyPattern,
+    handoverTime: row.handoverTime,
+    handoverLocation: row.handoverLocation,
   };
 }
+
+const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 custodyPlanRouter.get("/", async (req: Request<ChildParams>, res, next) => {
   try {
@@ -38,7 +44,7 @@ custodyPlanRouter.get("/", async (req: Request<ChildParams>, res, next) => {
       getCustodyPlanLockStatus(req.params.childId),
     ]);
     res.json({
-      plan: plan ? toDto(plan) : null,
+      plan: plan ? toCustodyPlanDto(plan) : null,
       locked: lockStatus.locked,
       daysUntilLocked: lockStatus.daysUntilLocked,
     } satisfies CustodyPlanStatusResponse);
@@ -80,6 +86,9 @@ custodyPlanRouter.put("/", requireCapability("custody_plan:edit"), async (req: R
     if (!body.patternDays.cycleLengthDays || !body.patternDays.blocks?.length) {
       throw new ApiError(400, "patternDays must have a cycleLengthDays and at least one block");
     }
+    if (body.handoverTime != null && !HHMM.test(body.handoverTime)) {
+      throw new ApiError(400, "handoverTime must be HH:mm");
+    }
 
     // Replace any existing plan(s) for this child — one active plan at a
     // time keeps "whose day is it" unambiguous.
@@ -91,11 +100,13 @@ custodyPlanRouter.put("/", requireCapability("custody_plan:edit"), async (req: R
           label: body.label!,
           startDate: new Date(body.startDate!),
           patternDays: body.patternDays as object,
+          handoverTime: body.handoverTime ?? null,
+          handoverLocation: body.handoverLocation?.trim() || null,
         },
       });
     });
 
-    res.status(201).json(toDto(plan));
+    res.status(201).json(toCustodyPlanDto(plan));
   } catch (err) {
     next(err);
   }

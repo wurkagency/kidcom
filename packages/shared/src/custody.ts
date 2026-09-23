@@ -87,6 +87,26 @@ export function resolveCustodyBlockProgress(
   };
 }
 
+/**
+ * The first day after `fromDate` on which a different person has the child
+ * (the next handover), searching at most one full cycle ahead. "YYYY-MM-DD"
+ * strings in and out; null when the plan never changes hands.
+ */
+export function findNextHandover(
+  plan: CustodyPlanLike,
+  fromDate: string
+): { date: string; toUserId: string } | null {
+  const holder = resolveCustodyForDate(plan, `${fromDate}T00:00:00Z`);
+  const limit = Math.max(1, plan.patternDays.cycleLengthDays || 0);
+  const start = new Date(`${fromDate}T00:00:00Z`).getTime();
+  for (let i = 1; i <= limit; i++) {
+    const day = new Date(start + i * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const next = resolveCustodyForDate(plan, `${day}T00:00:00Z`);
+    if (next && next !== holder) return { date: day, toUserId: next };
+  }
+  return null;
+}
+
 // True when `dateIso` and the day before it belong to different custody
 // owners — powers the List view's "Custody Handover Day" badge.
 // `custodyByDate` is the same "YYYY-MM-DD" -> userId map the calendar range

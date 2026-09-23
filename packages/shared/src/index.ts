@@ -13,6 +13,7 @@ export {
   resolveCustodyForDate,
   resolveCustodyBlockProgress,
   isCustodyHandoverDay,
+  findNextHandover,
   CUSTODY_PRESETS,
   describeCustodyPattern,
 } from "./custody";
@@ -20,6 +21,10 @@ import type { CustodyPattern } from "./custody";
 
 export type { ChildMember, OwnerEntitlementData } from "./entitlement";
 export { tierAtLeast, requiredTier, effectiveCoverageTier, isSatisfied, satisfyingOwnerIds } from "./entitlement";
+
+export type { CategoryTone, SystemCategory } from "./categories";
+export { CATEGORY_TONES, SYSTEM_CATEGORIES, systemCategoryId, isCategoryTone } from "./categories";
+import type { CategoryTone } from "./categories";
 
 export type { ThemeId, Locale } from "./preferences";
 export {
@@ -529,6 +534,9 @@ export type CustodyPlanDto = {
   label: string;
   startDate: string;
   patternDays: CustodyPattern;
+  /** "HH:mm", Europe/Copenhagen wall clock; null = the day belongs to the receiving parent */
+  handoverTime: string | null;
+  handoverLocation: string | null;
 };
 
 // GET /children/:childId/custody-plan — spec 9.8's persistent-banner data
@@ -546,38 +554,64 @@ export type SetCustodyPlanRequest = {
   label: string;
   startDate: string;
   patternDays: CustodyPattern;
+  handoverTime?: string | null;
+  handoverLocation?: string | null;
 };
 
-// CUSTODY existed in the DB enum from the start but was unused by the API;
-// MEDICAL/SCHOOL/ACTIVITY replace the old isMedical/isSport booleans as
-// real, filterable categories in their own right.
-export type CalendarEventCategory =
-  | "CUSTODY"
-  | "APPOINTMENT"
-  | "MEDICAL"
-  | "SCHOOL"
-  | "ACTIVITY"
-  | "HOLIDAY"
-  | "PLANNED_HOLIDAY";
+// ---------------------------------------------------------------------------
+// Categories — one set shared by Calendar, Moments and Media
+// ---------------------------------------------------------------------------
+
+export type CategoryDto = {
+  id: string;
+  /** System categories: translation key (`categories.<key>`); custom: null */
+  key: string | null;
+  /** Custom categories: the owner's name for it; system: null */
+  name: string | null;
+  icon: string;
+  tone: CategoryTone;
+  sortOrder: number;
+  /** Only the owner may change a custom category. */
+  ownedByMe: boolean;
+  /** Archived custom categories stay on existing items but aren't offered for new ones. */
+  archived: boolean;
+};
+
+export type CategoriesResponse = { categories: CategoryDto[] };
+
+export type CreateCategoryRequest = { name: string; icon: string; tone: CategoryTone };
+export type UpdateCategoryRequest = Partial<CreateCategoryRequest>;
+
+export type ChecklistKind = "TASK" | "PACKING";
 
 export type CalendarEventChecklistItemDto = {
   id: string;
+  kind: ChecklistKind;
   label: string;
   isChecked: boolean;
   sortOrder: number;
 };
 
+export type CalendarEventKind = "EVENT" | "NATIONAL_HOLIDAY";
+
 export type CalendarEventDto = {
   id: string;
-  category: CalendarEventCategory;
+  childId: string;
+  kind: CalendarEventKind;
+  categoryId: string | null;
   title: string;
   startsAt: string;
   endsAt: string | null;
   allDay: boolean;
   notes: string | null;
+  /** Place name ("Oakwood Elementary") */
   location: string | null;
-  // HOLIDAY rows are system-seeded (see apps/api's dkHolidays helper) and
-  // can't be edited/deleted through the calendar-events endpoints.
+  /** Street address, for the directions link */
+  address: string | null;
+  /** "Handled by …" */
+  assigneeUserId: string | null;
+  // National holidays are system-seeded (apps/api dkHolidays) and can't be
+  // edited or deleted through the calendar-events endpoints.
   editable: boolean;
   // Free-text note on who/what this event is for, beyond the assigned
   // child(ies) — e.g. "Leo & Maya", "Whole family". Purely descriptive.
@@ -599,18 +633,17 @@ export type CalendarEventDto = {
   recurrenceEndsAt: string | null;
 };
 
-// HOLIDAY stays system-seeded/read-only (excluded here, same as before);
-// every other category is now creatable, including CUSTODY (a manually
-// logged handover/custody-related event — not an auto-generated one, see
-// the calendar redesign plan's open issues).
 export type CreateCalendarEventRequest = {
-  category: Exclude<CalendarEventCategory, "HOLIDAY">;
+  categoryId?: string | null;
   title: string;
   startsAt: string;
   endsAt?: string;
   allDay?: boolean;
   notes?: string;
   location?: string;
+  address?: string;
+  /** Must be a member of the child; null clears it */
+  assigneeUserId?: string | null;
   assignedNote?: string;
   contactName?: string;
   contactDetail?: string;
@@ -618,7 +651,7 @@ export type CreateCalendarEventRequest = {
   // Full-replace on edit: a PATCH with this field set deletes and recreates
   // the event's checklist rows from this list (order = array order). Omit
   // to leave the existing checklist unchanged.
-  checklist?: { label: string }[];
+  checklist?: { label: string; kind?: ChecklistKind }[];
   // Explicit `null` (as opposed to omitting the field) clears an existing
   // series when editing — needed since Update is `Partial<Create...>` and
   // an omitted field there means "leave unchanged," not "clear."
@@ -672,7 +705,7 @@ export type ResolveSwapRequestRequest = {
 // rather than a duplicate enum — same three values, same meaning.
 export type CalendarEventRequestDto = {
   id: string;
-  category: Exclude<CalendarEventCategory, "HOLIDAY">;
+  categoryId: string | null;
   title: string;
   startsAt: string;
   endsAt: string | null;
@@ -685,7 +718,7 @@ export type CalendarEventRequestDto = {
 };
 
 export type CreateCalendarEventRequestRequest = {
-  category: Exclude<CalendarEventCategory, "HOLIDAY">;
+  categoryId?: string | null;
   title: string;
   startsAt: string;
   endsAt?: string;
@@ -695,6 +728,137 @@ export type CreateCalendarEventRequestRequest = {
 
 export type ResolveCalendarEventRequestRequest = {
   status: Extract<SwapRequestStatus, "APPROVED" | "DECLINED">;
+};
+
+// ---------------------------------------------------------------------------
+// Tasks, shared notes, school timetable, handover packing
+// ---------------------------------------------------------------------------
+
+export type TaskDto = {
+  id: string;
+  childId: string;
+  title: string;
+  note: string | null;
+  categoryId: string | null;
+  /** "YYYY-MM-DD" */
+  dueOn: string | null;
+  createdByUserId: string | null;
+  completedAt: string | null;
+  completedByUserId: string | null;
+  createdAt: string;
+};
+
+export type CreateTaskRequest = {
+  title: string;
+  note?: string | null;
+  categoryId?: string | null;
+  dueOn?: string | null;
+};
+export type UpdateTaskRequest = Partial<CreateTaskRequest> & { completed?: boolean };
+
+export type ChildNoteDto = {
+  id: string;
+  childId: string;
+  title: string;
+  text: string | null;
+  categoryId: string | null;
+  /** null once the author has left KidCom ("Former member") */
+  authorUserId: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CreateChildNoteRequest = { title: string; text?: string | null; categoryId?: string | null };
+export type UpdateChildNoteRequest = Partial<CreateChildNoteRequest>;
+
+export type SchoolLessonDto = {
+  id: string;
+  childId: string;
+  /** ISO weekday: 1 = Monday … 7 = Sunday */
+  weekday: number;
+  /** "HH:mm" */
+  startTime: string;
+  endTime: string | null;
+  subject: string;
+  room: string | null;
+  note: string | null;
+  /** Something to pack that day ("Gym gear") — drives the school routine reminder */
+  bring: string | null;
+};
+
+export type CreateSchoolLessonRequest = Omit<SchoolLessonDto, "id" | "childId" | "endTime" | "room" | "note" | "bring"> & {
+  endTime?: string | null;
+  room?: string | null;
+  note?: string | null;
+  bring?: string | null;
+};
+export type UpdateSchoolLessonRequest = Partial<CreateSchoolLessonRequest>;
+
+export type HandoverPackingItemDto = {
+  id: string;
+  label: string;
+  sortOrder: number;
+  /** Packed for the upcoming handover */
+  packed: boolean;
+};
+
+/** Full replace of the list's labels (order = array order); ids keep packed state. */
+export type SetHandoverPackingRequest = { items: { id?: string; label: string }[] };
+export type ToggleHandoverPackingRequest = { packed: boolean };
+
+// ---------------------------------------------------------------------------
+// Overview — everything the Today and calendar screens show, in one call
+// GET /overview?from=YYYY-MM-DD&to=YYYY-MM-DD[&childIds=a,b]
+// ---------------------------------------------------------------------------
+
+export type CustodyNow = {
+  holderUserId: string;
+  dayOfBlock: number;
+  blockLengthDays: number;
+  /** The next change of hands after today, if the plan has one */
+  nextHandover: {
+    /** "YYYY-MM-DD" */
+    date: string;
+    time: string | null;
+    location: string | null;
+    toUserId: string;
+  } | null;
+};
+
+export type ChildOverview = {
+  childId: string;
+  members: ChildFamilyMember[];
+  custody: {
+    plan: CustodyPlanDto | null;
+    /** "YYYY-MM-DD" → userId holding the child that day */
+    byDate: Record<string, string | null>;
+    today: CustodyNow | null;
+  };
+  events: CalendarEventDto[];
+  /** Open tasks, plus tasks completed within the range */
+  tasks: TaskDto[];
+  /** Notes written within the range, newest first */
+  notes: ChildNoteDto[];
+  /** The whole weekly timetable */
+  lessons: SchoolLessonDto[];
+  /** Swap requests awaiting an answer */
+  pendingSwaps: SwapRequestDto[];
+  packing: { forDate: string | null; items: HandoverPackingItemDto[] };
+  /** What the caller may do for this child */
+  can: {
+    manageEvents: boolean;
+    requestSwap: boolean;
+    approveSwap: boolean;
+    editCustody: boolean;
+  };
+};
+
+export type OverviewResponse = {
+  from: string;
+  to: string;
+  /** "YYYY-MM-DD" of today in Europe/Copenhagen, as the server sees it */
+  today: string;
+  children: ChildOverview[];
 };
 
 // ---------------------------------------------------------------------------

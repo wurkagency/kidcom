@@ -53,14 +53,14 @@ describe("Permission matrix (spec §1.4) — wired into real routes", () => {
     const { parentAgent, familyAgent, childId } = await setupChildWithRoles();
 
     const familyCreate = await familyAgent.post(`/children/${childId}/calendar-events`).send({
-      category: "APPOINTMENT",
+      categoryId: "cat_appointment",
       title: "Dentist",
       startsAt: "2026-02-01T10:00:00Z",
     });
     expect(familyCreate.status).toBe(403);
 
     const parentCreate = await parentAgent.post(`/children/${childId}/calendar-events`).send({
-      category: "APPOINTMENT",
+      categoryId: "cat_appointment",
       title: "Dentist",
       startsAt: "2026-02-01T10:00:00Z",
     });

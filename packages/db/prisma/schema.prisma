@@ -106,6 +106,11 @@ model User {
 
   childAccess    ChildAccess[]
   oauthAccounts  OAuthAccount[]
+  categories     Category[]
+  assignedEvents CalendarEvent[] @relation("CalendarEventAssignee")
+  tasksCreated   Task[]          @relation("TaskCreatedBy")
+  tasksCompleted Task[]          @relation("TaskCompletedBy")
+  childNotes     ChildNote[]
   phoneCodes     PhoneVerificationCode[]
   passwordHistory PasswordHistory[]
   moments        Moment[]
@@ -238,6 +243,10 @@ model Child {
   custodyPlans       CustodyPlan[]
   calendarEvents     CalendarEvent[]
   swapRequests       SwapRequest[]
+  handoverPacking    HandoverPackingItem[]
+  tasks              Task[]
+  notes              ChildNote[]
+  schoolLessons      SchoolLesson[]
   calendarEventRequests CalendarEventRequest[]
   momentTags         MomentChild[]
   listItems          ListItem[]
@@ -426,14 +435,11 @@ model EmergencyContact {
 // Calendar / custody
 // ---------------------------------------------------------------------------
 
-enum CalendarEventCategory {
-  CUSTODY
-  APPOINTMENT
-  MEDICAL
-  SCHOOL
-  ACTIVITY
-  HOLIDAY
-  PLANNED_HOLIDAY
+// Where a calendar row came from. National holidays are seeded by the
+// system (apps/api/src/lib/dkHolidays.ts) and can't be edited or deleted.
+enum CalendarEventKind {
+  EVENT
+  NATIONAL_HOLIDAY
 }
 
 enum SwapRequestStatus {
@@ -454,6 +460,11 @@ model CustodyPlan {
   label       String   // e.g. "Week on/week off", "2-2-3"
   patternDays Json
   startDate   DateTime
+  // Optional handover wall-clock time in Europe/Copenhagen ("15:00") and
+  // place ("Oakwood School"). Without a time, a handover day belongs to the
+  // receiving parent (docs/calendar_custody.md).
+  handoverTime     String?
+  handoverLocation String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -467,13 +478,23 @@ model CalendarEvent {
   id        String                @id @default(cuid())
   childId   String
   child     Child                 @relation(fields: [childId], references: [id], onDelete: Cascade)
-  category  CalendarEventCategory
+  kind      CalendarEventKind     @default(EVENT)
+  // Global category (shared with Moments and Media). Null only if a custom
+  // category was removed; the app then shows the event uncategorised.
+  categoryId String?
+  category   Category?            @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   title     String
   startsAt  DateTime
   endsAt    DateTime?
   allDay    Boolean               @default(false)
   notes     String?
+  // Place name ("Oakwood Elementary") and street address, shown as two
+  // lines on the event card with a directions link.
   location  String?
+  address   String?
+  // "Handled by …" — the family member responsible for this event.
+  assigneeId String?
+  assignee   User?                @relation("CalendarEventAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
   // Free-text note on who/what this event is for beyond the assigned
   // child(ren) — e.g. "Leo & Maya" vs. a single-child default, or a plain
   // note like "Whole family". Purely descriptive; assignment itself is
@@ -523,6 +544,9 @@ model CalendarEventChecklistItem {
   id              String        @id @default(cuid())
   calendarEventId String
   calendarEvent   CalendarEvent @relation(fields: [calendarEventId], references: [id], onDelete: Cascade)
+  // TASK items render inline as checkboxes on the event card; PACKING items
+  // form the event's packing list.
+  kind            ChecklistKind @default(TASK)
   label           String
   isChecked       Boolean       @default(false)
   sortOrder       Int           @default(0)
@@ -579,7 +603,8 @@ model CalendarEventRequest {
   id            String            @id @default(cuid())
   childId       String
   child         Child             @relation(fields: [childId], references: [id], onDelete: Cascade)
-  category      CalendarEventCategory
+  categoryId    String?
+  category      Category?         @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   title         String
   startsAt      DateTime
   endsAt        DateTime?
@@ -1019,4 +1044,127 @@ model PasswordHistory {
 
   @@index([userId, createdAt])
   @@map("password_history")
+}
+
+// ---------------------------------------------------------------------------
+// Categories, tasks, shared notes, school timetable, handover packing (v3.0)
+// ---------------------------------------------------------------------------
+
+// The four colour tones the Aura design uses for category chips and cards.
+enum CategoryTone {
+  NEUTRAL
+  SAGE
+  ROSE
+  SAND
+}
+
+enum ChecklistKind {
+  TASK
+  PACKING
+}
+
+// One category set shared by Calendar, Moments and Media. System categories
+// have a stable `key` (their name is translated in the app) and no owner;
+// they are ensured at startup (apps/api/src/lib/categories.ts). Custom
+// categories belong to the user who made it; family members sharing a child
+// with them see it on shared items; only the owner can change it.
+model Category {
+  id         String       @id @default(cuid())
+  key        String?      @unique
+  ownerId    String?
+  owner      User?        @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name       String?
+  icon       String
+  tone       CategoryTone @default(NEUTRAL)
+  sortOrder  Int          @default(0)
+  archivedAt DateTime?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  calendarEvents        CalendarEvent[]
+  calendarEventRequests CalendarEventRequest[]
+  tasks                 Task[]
+  notes                 ChildNote[]
+
+  @@index([ownerId])
+  @@map("categories")
+}
+
+// "Reminders & Tasks" for a child. `dueOn` is a calendar date (no time).
+model Task {
+  id            String    @id @default(cuid())
+  childId       String
+  child         Child     @relation(fields: [childId], references: [id], onDelete: Cascade)
+  title         String
+  note          String?
+  categoryId    String?
+  category      Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  dueOn         DateTime? @db.Date
+  createdById   String?
+  createdBy     User?     @relation("TaskCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  completedAt   DateTime?
+  completedById String?
+  completedBy   User?     @relation("TaskCompletedBy", fields: [completedById], references: [id], onDelete: SetNull)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([childId, completedAt])
+  @@map("tasks")
+}
+
+// A note shared with everyone who can see the child ("Written by Mom").
+// Distinct from PersonalNote, which only its author sees.
+model ChildNote {
+  id         String    @id @default(cuid())
+  childId    String
+  child      Child     @relation(fields: [childId], references: [id], onDelete: Cascade)
+  authorId   String?
+  author     User?     @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  title      String
+  text       String?
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([childId, createdAt])
+  @@map("child_notes")
+}
+
+// Weekly school timetable. `weekday` is ISO (1 = Monday … 7 = Sunday);
+// times are Europe/Copenhagen wall-clock "HH:mm". `bring` flags something
+// to pack that day ("Gym gear"), which drives the school routine reminder.
+model SchoolLesson {
+  id        String   @id @default(cuid())
+  childId   String
+  child     Child    @relation(fields: [childId], references: [id], onDelete: Cascade)
+  weekday   Int
+  startTime String
+  endTime   String?
+  subject   String
+  room      String?
+  note      String?
+  bring     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([childId, weekday])
+  @@map("school_lessons")
+}
+
+// The child's handover packing list ("3 of 4 items packed"). An item counts
+// as packed for a handover when `packedFor` equals that handover's date, so
+// the list resets itself for every new handover without a cleanup job.
+model HandoverPackingItem {
+  id        String    @id @default(cuid())
+  childId   String
+  child     Child     @relation(fields: [childId], references: [id], onDelete: Cascade)
+  label     String
+  sortOrder Int       @default(0)
+  packedFor DateTime? @db.Date
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([childId])
+  @@map("handover_packing_items")
 }
