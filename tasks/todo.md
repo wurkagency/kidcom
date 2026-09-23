@@ -47,7 +47,7 @@ see "Decisions" below.
 - [x] Copy Aura exports to `docs/design/aura/` (5 corrupt `screen.png` removed:
       create_moment, media_gallery, preview, reset_password, video_preview — compare
       those against a render of their `code.html`)
-- [ ] Move old frontend to `apps/web-legacy` (reference only; deleted in Phase 8)
+- [x] Move old frontend to `legacy/web-v2` (outside workspaces; reference only; deleted in Phase 8)
 
 ## Phase 1 — Foundations
 - [ ] `packages/theme-kit` (manifest contract, ThemeProvider, registry, DEFAULT_THEME_ID)
@@ -65,7 +65,7 @@ see "Decisions" below.
 ## Phase 5 — Lists + Children + Health
 ## Phase 6 — Messages + Notifications + Search
 ## Phase 7 — Profile menu areas (Family, Account & Billing, Preferences, onboarding)
-## Phase 8 — Hardening, remove web-legacy, full regression, push
+## Phase 8 — Hardening, remove legacy/web-v2, full regression, push
 
 ## Needed from Charlie
 - Google + Microsoft OAuth client IDs/redirect URIs (Phase 2)
