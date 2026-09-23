@@ -64,3 +64,27 @@ export function timeKey(instant: Date | string): string {
     new Date(instant),
   );
 }
+
+/** The UTC instant (ISO string) of a Copenhagen wall-clock day + "HH:mm". */
+export function copenhagenInstant(day: DateKey, time = "00:00"): string {
+  const wall = Date.parse(`${day}T${time}:00Z`);
+  const offsetAt = (ms: number) => {
+    const p = Object.fromEntries(
+      new Intl.DateTimeFormat("en-GB", {
+        timeZone: APP_TIME_ZONE,
+        hourCycle: "h23",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+        .formatToParts(new Date(ms))
+        .map((x) => [x.type, x.value]),
+    );
+    return Date.UTC(+p.year!, +p.month! - 1, +p.day!, +p.hour!, +p.minute!) - ms;
+  };
+  // Two passes settle the offset across a daylight-saving change.
+  const first = wall - offsetAt(wall);
+  return new Date(wall - offsetAt(first)).toISOString();
+}

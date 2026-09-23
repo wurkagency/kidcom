@@ -114,10 +114,10 @@ export function TodayScreen() {
 }
 
 /** One timetable row: "09:00  Math & Logic ……… Room 14" (+ what to bring). */
-export function LessonRow({ lesson, childName }: { lesson: SchoolLessonDto; childName?: string }) {
+export function LessonRow({ lesson, childName, className }: { lesson: SchoolLessonDto; childName?: string; className?: string }) {
   const sub = [childName, lesson.bring].filter(Boolean).join(" · ");
   return (
-    <div className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
+    <div className={className ?? "flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"}>
       <div className={sub ? "flex items-start gap-3 min-w-0" : "flex items-center gap-3 min-w-0"}>
         <span className={sub ? "font-label-md text-label-md text-secondary font-semibold w-12 shrink-0 pt-0.5" : "font-label-md text-label-md text-secondary font-semibold w-12 shrink-0"}>
           {lesson.startTime}

@@ -197,22 +197,33 @@ function TaskRow({ task, category }: { task: TaskDto; category: CategoryDto | un
           onCheckedChange={(v) => toggle.mutate({ taskId: task.id, completed: v === true })}
           className="mt-0.5 size-5 rounded-full border-2 border-outline/30 bg-transparent hover:border-primary data-[state=checked]:border-secondary/40 data-[state=checked]:bg-secondary/40 transition-colors"
         />
-        <button type="button" onClick={() => setOpen(!open)} className="flex flex-col gap-1 min-w-0 flex-1 text-left">
-          <span
+        <div className="flex flex-col gap-1 min-w-0 flex-1">
+          <button
+            type="button"
+            aria-expanded={open}
+            onClick={() => setOpen(!open)}
             className={cn(
-              "font-body-md text-sm font-medium leading-snug",
+              "text-left font-body-md text-sm font-medium leading-snug",
               done ? "line-through opacity-60 text-secondary" : "text-on-surface",
             )}
           >
             {task.title}
-          </span>
+          </button>
           {/* The export keeps this meta row even when empty (its gap is part of the row height). */}
           <div className="flex items-center gap-2 flex-wrap text-label-sm text-secondary">
             {open && task.note && <span className="text-[12px] text-outline">{task.note}</span>}
             {open && task.dueOn && <span className="text-[12px] text-outline">{t("tasks.due", { date: fmt.weekdayDate(`${task.dueOn}T12:00:00Z`) })}</span>}
           </div>
           {open && category && <CategoryChip category={category} className="w-fit mt-1.5" />}
-        </button>
+          {open && (
+            <Link
+              to={`${paths.tasks.create()}?child=${encodeURIComponent(task.childId)}&task=${encodeURIComponent(task.id)}`}
+              className="w-fit mt-1 font-label-sm text-label-sm text-on-surface underline decoration-secondary underline-offset-4"
+            >
+              {t("tasks.editLink")}
+            </Link>
+          )}
+        </div>
       </div>
       <button type="button" aria-label={t(open ? "tasks.collapse" : "tasks.expand")} onClick={() => setOpen(!open)} className="shrink-0 mt-0.5 flex">
         <Icon name="expand_more" className={cn("text-[20px] text-secondary transition-transform", open && "rotate-180")} />

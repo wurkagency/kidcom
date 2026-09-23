@@ -4,6 +4,7 @@ import type {
   CalendarEventDto,
   CategoriesResponse,
   CategoryDto,
+  ChildFamilyMember,
   ChildNoteDto,
   ChildOverview,
   CreateCalendarEventRequest,
@@ -81,6 +82,40 @@ export function useCustodyPlan(childId: string | undefined) {
   });
 }
 
+/** Everyone with access to a child (names for "Handled by", assignees). */
+export function useChildFamily(childId: string | undefined) {
+  return useQuery({
+    queryKey: ["family", childId],
+    queryFn: async () => (await api.get<{ members: ChildFamilyMember[] }>(`${child(childId!)}/family`)).members,
+    enabled: Boolean(childId),
+    staleTime: 60_000,
+  });
+}
+
+export function useChildNotes(childId: string | undefined) {
+  return useQuery({
+    queryKey: ["notes", childId],
+    queryFn: async () => (await api.get<{ notes: ChildNoteDto[] }>(`${child(childId!)}/notes`)).notes,
+    enabled: Boolean(childId),
+  });
+}
+
+export function useChildTasks(childId: string | undefined) {
+  return useQuery({
+    queryKey: ["tasks", childId],
+    queryFn: async () => (await api.get<{ tasks: TaskDto[] }>(`${child(childId!)}/tasks`)).tasks,
+    enabled: Boolean(childId),
+  });
+}
+
+export function useSchoolLessons(childId: string | undefined) {
+  return useQuery({
+    queryKey: ["lessons", childId],
+    queryFn: async () => (await api.get<{ lessons: SchoolLessonDto[] }>(`${child(childId!)}/school-lessons`)).lessons,
+    enabled: Boolean(childId),
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Writes. Every write refreshes the overview; toggles update it optimistically.
 // ---------------------------------------------------------------------------
@@ -139,17 +174,20 @@ export const useToggleTask = (childId: string) =>
       tasks: c.tasks.map((t) => (t.id === v.taskId ? { ...t, completedAt: v.completed ? new Date().toISOString() : null } : t)),
     }),
   );
-export const useCreateTask = (childId: string) => useWrite((body: CreateTaskRequest) => api.post<TaskDto>(`${child(childId)}/tasks`, body));
+export const useCreateTask = (childId: string) =>
+  useWrite((body: CreateTaskRequest) => api.post<TaskDto>(`${child(childId)}/tasks`, body), [["tasks", childId]]);
 export const useUpdateTask = (childId: string) =>
-  useWrite((v: { taskId: string; body: UpdateTaskRequest }) => api.patch<TaskDto>(`${child(childId)}/tasks/${enc(v.taskId)}`, v.body));
-export const useDeleteTask = (childId: string) => useWrite((taskId: string) => api.delete<void>(`${child(childId)}/tasks/${enc(taskId)}`));
+  useWrite((v: { taskId: string; body: UpdateTaskRequest }) => api.patch<TaskDto>(`${child(childId)}/tasks/${enc(v.taskId)}`, v.body), [["tasks", childId]]);
+export const useDeleteTask = (childId: string) =>
+  useWrite((taskId: string) => api.delete<void>(`${child(childId)}/tasks/${enc(taskId)}`), [["tasks", childId]]);
 
 // Shared notes
 export const useCreateNote = (childId: string) =>
-  useWrite((body: CreateChildNoteRequest) => api.post<ChildNoteDto>(`${child(childId)}/notes`, body));
+  useWrite((body: CreateChildNoteRequest) => api.post<ChildNoteDto>(`${child(childId)}/notes`, body), [["notes", childId]]);
 export const useUpdateNote = (childId: string) =>
-  useWrite((v: { noteId: string; body: UpdateChildNoteRequest }) => api.patch<ChildNoteDto>(`${child(childId)}/notes/${enc(v.noteId)}`, v.body));
-export const useDeleteNote = (childId: string) => useWrite((noteId: string) => api.delete<void>(`${child(childId)}/notes/${enc(noteId)}`));
+  useWrite((v: { noteId: string; body: UpdateChildNoteRequest }) => api.patch<ChildNoteDto>(`${child(childId)}/notes/${enc(v.noteId)}`, v.body), [["notes", childId]]);
+export const useDeleteNote = (childId: string) =>
+  useWrite((noteId: string) => api.delete<void>(`${child(childId)}/notes/${enc(noteId)}`), [["notes", childId]]);
 
 // Events
 export const useToggleChecklistItem = (childId: string) =>
@@ -196,13 +234,13 @@ export const useSetPacking = (childId: string) =>
 
 // School timetable
 export const useCreateLesson = (childId: string) =>
-  useWrite((body: CreateSchoolLessonRequest) => api.post<SchoolLessonDto>(`${child(childId)}/school-lessons`, body));
+  useWrite((body: CreateSchoolLessonRequest) => api.post<SchoolLessonDto>(`${child(childId)}/school-lessons`, body), [["lessons", childId]]);
 export const useUpdateLesson = (childId: string) =>
   useWrite((v: { lessonId: string; body: UpdateSchoolLessonRequest }) =>
     api.patch<SchoolLessonDto>(`${child(childId)}/school-lessons/${enc(v.lessonId)}`, v.body),
-  );
+  [["lessons", childId]]);
 export const useDeleteLesson = (childId: string) =>
-  useWrite((lessonId: string) => api.delete<void>(`${child(childId)}/school-lessons/${enc(lessonId)}`));
+  useWrite((lessonId: string) => api.delete<void>(`${child(childId)}/school-lessons/${enc(lessonId)}`), [["lessons", childId]]);
 
 // Custody plan
 export const useSetCustodyPlan = (childId: string) =>

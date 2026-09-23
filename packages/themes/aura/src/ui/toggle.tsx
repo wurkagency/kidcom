@@ -11,6 +11,9 @@ const toggleVariants = cva(
         default: "bg-transparent",
         outline:
           "border border-input bg-transparent shadow-xs hover:bg-accent hover:text-accent-foreground",
+        // DESIGN.md "Segmented Switchers": flat muted tabs, the active one a white pill with ambient shadow.
+        segmented:
+          "rounded-full bg-transparent font-label-md text-label-md text-secondary hover:bg-transparent hover:text-on-surface data-[state=on]:bg-surface-container-lowest data-[state=on]:text-on-surface data-[state=on]:shadow-[0_2px_8px_rgba(0,0,0,0.04)]",
       },
       size: {
         default: "h-9 min-w-9 px-2",

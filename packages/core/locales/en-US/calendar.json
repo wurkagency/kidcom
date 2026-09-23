@@ -61,7 +61,13 @@
     "from": "From {{name}}",
     "sentByYou": "You asked to swap {{date}}",
     "approveFor": "Approve for {{date}}",
-    "discuss": "Discuss"
+    "discuss": "Discuss",
+    "sent": "Swap request sent",
+    "intro": "Ask to swap a custody day. The other parent can approve it or start a conversation.",
+    "dayLabel": "Day to swap",
+    "messageLabel": "Message (optional)",
+    "messagePlaceholder": "Why you'd like to swap",
+    "send": "Send request"
   },
   "appointments": {
     "title": "Appointments",
@@ -75,7 +81,19 @@
     "directions": "View route on Google Maps",
     "note": "Note",
     "packingList": "Packing List",
-    "handledBy": "Handled by {{name}}"
+    "handledBy": "Handled by {{name}}",
+    "notFound": "Appointment not found",
+    "detailTitle": "Appointment",
+    "createTitle": "New appointment",
+    "editTitle": "Edit appointment",
+    "create": "Add appointment",
+    "edit": "Edit",
+    "delete": "Delete",
+    "confirmDeleteTitle": "Delete this appointment?",
+    "confirmDelete": "It will be removed for everyone in the family.",
+    "confirmDeleteSeries": "Every repeat of this appointment will be removed for everyone in the family.",
+    "todos": "To-dos",
+    "handledByYou": "Handled by you"
   },
   "tasks": {
     "title": "Reminders & Tasks",
@@ -86,7 +104,19 @@
     "collapse": "Hide details",
     "due": "Due {{date}}",
     "empty": "No open tasks.",
-    "add": "Add"
+    "add": "Add",
+    "createTitle": "New task",
+    "editTitle": "Edit task",
+    "create": "Add task",
+    "delete": "Delete task",
+    "confirmDelete": "Delete this task?",
+    "titlePlaceholder": "What needs doing?",
+    "note": "Details",
+    "notePlaceholder": "Anything to remember",
+    "hasDue": "Due date",
+    "dueLabel": "Due",
+    "editLink": "Edit",
+    "notFound": "Task not found"
   },
   "notes": {
     "title": "Notes",
@@ -99,14 +129,36 @@
     "edit": "Edit",
     "delete": "Delete",
     "empty": "No notes yet.",
-    "add": "Write one"
+    "add": "Write one",
+    "createTitle": "New note",
+    "editTitle": "Edit note",
+    "share": "Share note",
+    "confirmDelete": "Delete this note?",
+    "titlePlaceholder": "What is it about?",
+    "text": "Note",
+    "textPlaceholder": "Write it down for the family",
+    "notFound": "Note not found"
   },
   "school": {
     "title": "School",
     "seeFull": "See full schema",
     "noLessonsToday": "No lessons today.",
     "reminderTitle": "School Routine Reminder",
-    "reminderBody": "{{item}} required {{days}}"
+    "reminderBody": "{{item}} required {{days}}",
+    "weekday": "Weekday",
+    "noLessons": "No lessons this day.",
+    "addLesson": "Add lesson",
+    "editLesson": "Edit lesson",
+    "deleteLesson": "Delete lesson",
+    "lessonDescription": "A lesson in the weekly timetable",
+    "subject": "Subject",
+    "subjectPlaceholder": "Math & Logic",
+    "subjectRequired": "Enter the subject.",
+    "room": "Room",
+    "roomPlaceholder": "Room 14",
+    "bring": "Bring",
+    "bringHint": "Shown as a school routine reminder.",
+    "bringPlaceholder": "Gym gear"
   },
   "today": {
     "greeting": "Hi {{name}},",
@@ -140,5 +192,34 @@
       "CAREGIVER": "Caregiver",
       "OTHER": "Family member"
     }
+  },
+  "form": {
+    "child": "Child",
+    "title": "Title",
+    "category": "Category",
+    "date": "Date",
+    "allDay": "All day",
+    "start": "Starts",
+    "end": "Ends",
+    "repeat": "Repeats",
+    "repeatNever": "Never",
+    "repeatWeekly": "Every week",
+    "repeatBiweekly": "Every 2 weeks",
+    "place": "Place",
+    "placePlaceholder": "Oakwood Elementary",
+    "address": "Address",
+    "addressPlaceholder": "Street, postcode and city",
+    "handledBy": "Handled by",
+    "nobody": "Nobody in particular",
+    "itemLabel": "Item",
+    "removeItem": "Remove",
+    "addItem": "Add",
+    "addTodo": "Add a to-do",
+    "addPackingItem": "Add something to pack",
+    "eventTitlePlaceholder": "School drop-off",
+    "titleRequired": "Enter a title.",
+    "endAfterStart": "The end time must be after the start.",
+    "saveFailed": "Couldn't save. Please try again.",
+    "saveChanges": "Save changes"
   }
 }

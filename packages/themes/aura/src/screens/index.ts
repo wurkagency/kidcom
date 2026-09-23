@@ -15,6 +15,10 @@ const loadSetup = () => import("../auth/SetupScreens");
 const loadRecovery = () => import("../auth/RecoveryScreens");
 const loadToday = () => import("../calendar/TodayScreen");
 const loadCalendar = () => import("../calendar/CalendarScreen");
+const loadSchool = () => import("../calendar/SchoolScreen");
+const loadEvents = () => import("../calendar/EventScreens");
+const loadEditors = () => import("../calendar/EditorScreens");
+const loadCategories = () => import("../preferences/CategoriesScreen");
 
 // Every screen id → its Aura implementation. Screens are lazy-loaded chunks
 // (`lazy(() => import(...))`) as each build phase lands; PendingScreen marks
@@ -45,12 +49,12 @@ export const screens: ThemeManifest["screens"] = {
   "calendar.agenda": screen(loadCalendar, "AgendaScreen"),
   "calendar.week": screen(loadCalendar, "WeekScreen"),
   "calendar.month": screen(loadCalendar, "MonthScreen"),
-  "calendar.school": PendingScreen,
-  "calendar.eventDetail": PendingScreen,
-  "calendar.eventEdit": PendingScreen,
-  "calendar.swapRequest": PendingScreen,
-  "notes.edit": PendingScreen,
-  "tasks.edit": PendingScreen,
+  "calendar.school": screen(loadSchool, "SchoolScreen"),
+  "calendar.eventDetail": screen(loadEvents, "EventDetailScreen"),
+  "calendar.eventEdit": screen(loadEvents, "EventEditScreen"),
+  "calendar.swapRequest": screen(loadEditors, "SwapRequestScreen"),
+  "notes.edit": screen(loadEditors, "NoteEditScreen"),
+  "tasks.edit": screen(loadEditors, "TaskEditScreen"),
 
   // Phase 4 — moments + media
   "moments.feed": PendingScreen,
@@ -90,6 +94,6 @@ export const screens: ThemeManifest["screens"] = {
   "preferences.language": PendingScreen,
   "preferences.theme": PendingScreen,
   "preferences.notifications": PendingScreen,
-  "preferences.categories": PendingScreen,
+  "preferences.categories": screen(loadCategories, "CategoriesScreen"),
   "preferences.security": PendingScreen,
 };

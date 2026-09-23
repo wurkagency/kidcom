@@ -117,4 +117,11 @@ describe("calendar dates", () => {
     expect(dateKey("2026-07-01T22:30:00Z")).toBe("2026-07-02"); // 00:30 CEST
     expect(timeKey("2026-01-15T13:00:00Z")).toBe("14:00");
   });
+  it("converts Copenhagen wall-clock times to instants, across DST", async () => {
+    const { copenhagenInstant } = await import("./calendar/dates");
+    expect(copenhagenInstant("2026-01-15", "14:00")).toBe("2026-01-15T13:00:00.000Z");
+    expect(copenhagenInstant("2026-07-01", "08:30")).toBe("2026-07-01T06:30:00.000Z");
+    expect(copenhagenInstant("2026-03-29", "12:00")).toBe("2026-03-29T10:00:00.000Z"); // DST start day
+    expect(copenhagenInstant("2026-10-25", "00:00")).toBe("2026-10-24T22:00:00.000Z"); // DST end day
+  });
 });

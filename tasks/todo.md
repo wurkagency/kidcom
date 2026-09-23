@@ -115,6 +115,26 @@ see "Decisions" below.
 - Carried: invite-accept screen (Phase 7); production OAuth callbacks on app.kidcom.org
 
 ## Phase 3 — Categories + Today + Calendar
+- [x] API: global `Category` table (system set + per-user custom; enum data migrated), tasks,
+      shared notes, school timetable, handover packing, custody handover time/place, event
+      address/assignee/checklist kinds, `GET /overview`; 13 new tests (API 28/28, 186/186)
+- [x] Core: Copenhagen date math (`dateKey`, `monthGrid`, `copenhagenInstant` …), overview /
+      category / family / notes / tasks / lessons hooks, optimistic toggles, calendar filters
+- [x] Screens from exports: Today, Agenda, Week, Month — visual diffs vs
+      `kidcom_today_screen_updated_note` 3.2%, `calendar_3` 2.9%, `calendar_2` 4.2%,
+      `calendar_1` 4.1% (remainder: fixture copy / avatars, see notes below)
+- [x] Screens built to DESIGN.md: event detail + create/edit (shadcn Calendar, Select,
+      Switch), swap request, note edit, task edit, School timetable (segmented switcher +
+      lesson sheet), Preferences → Categories; ConfirmDialog for deletes
+- [x] Flow specs (mocked API, request bodies asserted): swap request, swap approve, new
+      appointment (Copenhagen time, category, assignee, to-dos), task tick, note, category
+- Notes / deviations to review:
+  - Stitch inconsistencies resolved to one design: title padding `pt-7` (calendar_1) vs
+    `pt-6` (2, 3) → `pt-6`; Week's `#FFF4ED` swap card vs Month's peach card → peach card;
+    dropdown label "Calendar" (1, 2) → the view's name
+  - "Haven Verified" → "Verified" (no Haven brand in KidCom)
+  - AppShell had a duplicate `pb-28`; removed (pages were 112px too tall)
+  - Tailwind v4 `divide-y` borders sit on the bottom edge (v3: top) — same total height
 ## Phase 4 — Moments + Media + Bookmarks
 ## Phase 5 — Lists + Children + Health
 ## Phase 6 — Messages + Notifications + Search

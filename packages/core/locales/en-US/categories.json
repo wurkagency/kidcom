@@ -12,5 +12,31 @@
     "milestone": "Milestone",
     "outdoor": "Outdoor",
     "creative": "Creative"
+  },
+  "title": "Categories",
+  "intro": "One set of categories for the calendar, moments and media. Everyone in the family sees the categories used on shared items.",
+  "custom": "Your categories",
+  "customEmpty": "You haven't added any yet.",
+  "builtIn": "Built-in",
+  "add": "Add category",
+  "edit": "Edit category",
+  "editTitle": "Edit category",
+  "locked": "Built-in category",
+  "sheetDescription": "Pick a name, a color and an icon.",
+  "name": "Name",
+  "namePlaceholder": "Swimming",
+  "nameRequired": "Enter a name.",
+  "color": "Color",
+  "icon": "Icon",
+  "save": "Save",
+  "saveFailed": "Couldn't save. Please try again.",
+  "delete": "Delete category",
+  "confirmDelete": "Delete this category?",
+  "confirmDeleteBody": "Items already using it keep it; it just won't be offered for new ones.",
+  "tones": {
+    "NEUTRAL": "Neutral",
+    "SAGE": "Sage",
+    "ROSE": "Rose",
+    "SAND": "Sand"
   }
 }
