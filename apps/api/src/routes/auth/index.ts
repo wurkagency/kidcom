@@ -145,6 +145,10 @@ authRouter.post("/phone/verify", authRateLimiter, async (req, res, next) => {
     const { code } = req.body as Partial<VerifyPhoneRequest>;
     if (!code) throw new ApiError(400, "code is required");
     const phone = await consumePhoneCode(userId, "VERIFY_PHONE", code);
+    const taken = await prisma.user.findFirst({ where: { phone, phoneVerifiedAt: { not: null }, id: { not: userId } } });
+    if (taken) {
+      throw new ApiError(409, "This mobile number is already used by another KidCom account");
+    }
     await prisma.user.update({ where: { id: userId }, data: { phone, phoneVerifiedAt: new Date() } });
     req.session.phoneVerified = true;
     res.json(await meResponse(userId));
@@ -197,28 +201,33 @@ authRouter.post("/change-password", authRateLimiter, async (req, res, next) => {
 // not the email exists — anything else would let anyone enumerate accounts.
 authRouter.post("/forgot-password", authRateLimiter, async (req, res, next) => {
   try {
-    const body = req.body as Partial<ForgotPasswordRequest>;
-    const email = body.email?.trim().toLowerCase();
-    if (!email || !isValidEmail(email)) {
-      throw new ApiError(400, "A valid email is required");
-    }
-    const user = await prisma.user.findUnique({ where: { email } });
+    const body = req.body as Partial<{ method: "email" | "sms"; email: string; phone: string }>;
 
     if (body.method === "sms") {
+      const phone = body.phone?.trim();
+      if (!isE164(phone)) throw new ApiError(400, "Please enter a valid mobile number");
       // The code is tied to this browser session; POST /reset-password
       // with { code } completes it here.
-      req.session.pendingResetEmail = email;
-      if (user?.phone && user.phoneVerifiedAt) {
+      req.session.pendingResetPhone = phone;
+      const user = await prisma.user.findFirst({ where: { phone, phoneVerifiedAt: { not: null } } });
+      if (user) {
         try {
-          await sendPhoneCode(user.id, user.phone, "PASSWORD_RESET");
+          await sendPhoneCode(user.id, phone, "PASSWORD_RESET");
         } catch (err) {
           // A throttled resend must look identical to "no such account".
           if (!(err instanceof ApiError && err.status === 429)) throw err;
         }
       }
-    } else if (user) {
-      await sendPasswordResetEmail(user);
+      res.status(204).end();
+      return;
     }
+
+    const email = body.email?.trim().toLowerCase();
+    if (!email || !isValidEmail(email)) {
+      throw new ApiError(400, "A valid email is required");
+    }
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (user) await sendPasswordResetEmail(user);
     res.status(204).end();
   } catch (err) {
     next(err);
@@ -247,8 +256,8 @@ authRouter.post("/reset-password", authRateLimiter, async (req, res, next) => {
       await setPassword(userId, body.password);
       await prisma.passwordResetToken.delete({ where: { id: record.id } }); // single use
     } else if (body.code) {
-      const email = req.session.pendingResetEmail;
-      const user = email ? await prisma.user.findUnique({ where: { email } }) : null;
+      const phone = req.session.pendingResetPhone;
+      const user = phone ? await prisma.user.findFirst({ where: { phone, phoneVerifiedAt: { not: null } } }) : null;
       if (!user) throw new ApiError(400, "This code has expired — request a new one");
       assertStrongPassword(body.password);
       await consumePhoneCode(user.id, "PASSWORD_RESET", body.code);
@@ -288,7 +297,11 @@ authRouter.get("/verify-email", async (req, res, next) => {
       prisma.user.update({ where: { id: record.userId }, data: { emailVerifiedAt: new Date() } }),
       prisma.emailVerificationToken.delete({ where: { id: record.id } }),
     ]);
-    res.json(await meResponse(record.userId));
+    // The link may be opened in a browser that isn't signed in as this user
+    // (another device, a shared computer): report the *session's* user, never
+    // the token owner's profile.
+    const sessionUserId = req.session.userId;
+    res.json(sessionUserId ? await meResponse(sessionUserId) : ({ user: null } satisfies MeResponse));
   } catch (err) {
     next(err);
   }

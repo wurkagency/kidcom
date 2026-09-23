@@ -23,9 +23,9 @@ declare module "express-session" {
     // lookup per request. Undefined on sessions older than the flag: checked
     // against the DB once, then cached.
     phoneVerified?: boolean;
-    // Forgot-password by SMS: the account a reset code was requested for.
-    // Set whether or not the email exists (no account enumeration).
-    pendingResetEmail?: string;
+    // Forgot-password by SMS: the number a reset code was requested for.
+    // Set whether or not an account has it (no account enumeration).
+    pendingResetPhone?: string;
     // Google/Microsoft round trip (lib/oauth.ts).
     oauth?: { provider: "google" | "microsoft"; state: string; verifier: string; next: string; acceptedTerms: boolean };
     // A Google/Microsoft identity with no KidCom account yet, waiting for the

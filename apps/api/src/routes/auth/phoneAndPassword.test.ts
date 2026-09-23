@@ -74,6 +74,15 @@ describe("Signup and mandatory phone verification", () => {
     expect((await agent.post("/auth/phone/verify").send({ code: lastSmsCode("+4520333333") })).status).toBe(400);
   });
 
+  it("a verified number belongs to one account only", async () => {
+    const app = createApp();
+    const { phone } = await signupTestUser(app);
+    const { agent } = await signupWithoutPassword(app, phone);
+    const res = await agent.post("/auth/phone/verify").send({ code: lastSmsCode(phone) });
+    expect(res.status).toBe(409);
+    expect((await agent.get("/auth/me")).body.user.phoneVerifiedAt).toBeNull();
+  });
+
   it("throttles resends", async () => {
     const app = createApp();
     const { agent } = await signupWithoutPassword(app, "+4520444444");
@@ -142,7 +151,7 @@ describe("Password reset by SMS", () => {
     await prisma.phoneVerificationCode.deleteMany({ where: { userId } });
 
     const resetter = request.agent(app);
-    expect((await resetter.post("/auth/forgot-password").send({ email, method: "sms" })).status).toBe(204);
+    expect((await resetter.post("/auth/forgot-password").send({ phone, method: "sms" })).status).toBe(204);
     const code = lastSmsCode(phone);
 
     const reset = await resetter.post("/auth/reset-password").send({ code, password: "fresh-start-9" });
@@ -160,27 +169,46 @@ describe("Password reset by SMS", () => {
     await prisma.phoneVerificationCode.deleteMany({ where: { userId } });
 
     const resetter = request.agent(app);
-    await resetter.post("/auth/forgot-password").send({ email, method: "sms" });
+    await resetter.post("/auth/forgot-password").send({ phone, method: "sms" });
     await resetter.post("/auth/reset-password").send({ code: lastSmsCode(phone), password: "fresh-start-9", signOutOtherDevices: false });
     expect((await otherDevice.get("/auth/me")).body.user?.email).toBe(email);
   });
 
-  it("answers identically for an unknown email and sends nothing", async () => {
+  it("answers identically for an unknown number and sends nothing", async () => {
     const app = createApp();
     const before = (smsSender as MemorySmsSender).sent.length;
-    const res = await request(app).post("/auth/forgot-password").send({ email: "nobody@example.com", method: "sms" });
+    const res = await request(app).post("/auth/forgot-password").send({ phone: "+4599999999", method: "sms" });
     expect(res.status).toBe(204);
     expect((smsSender as MemorySmsSender).sent.length).toBe(before);
   });
 
   it("a code cannot be used from a different browser session", async () => {
     const app = createApp();
-    const { email, phone, userId } = await signupTestUser(app);
+    const { phone, userId } = await signupTestUser(app);
     await prisma.phoneVerificationCode.deleteMany({ where: { userId } });
-    await request.agent(app).post("/auth/forgot-password").send({ email, method: "sms" });
+    await request.agent(app).post("/auth/forgot-password").send({ phone, method: "sms" });
 
     const stranger = await request(app).post("/auth/reset-password").send({ code: lastSmsCode(phone), password: "fresh-start-9" });
     expect(stranger.status).toBe(400);
+  });
+});
+
+describe("Email verification links", () => {
+  beforeEach(async () => {
+    await resetDb();
+  });
+
+  it("verifies the account, but never reveals it to a browser not signed in as it", async () => {
+    const app = createApp();
+    const { agent } = await signupWithoutPassword(app, "+4520888888", "link@example.com");
+    const { MemoryMailSender, mailSender } = await import("../../lib/mailSender");
+    const mail = [...(mailSender as InstanceType<typeof MemoryMailSender>).sent].reverse().find((m) => m.to === "link@example.com");
+    const token = mail!.text.match(/token=([a-f0-9]+)/)![1];
+
+    const elsewhere = await request(app).get(`/auth/verify-email?token=${token}`);
+    expect(elsewhere.status).toBe(200);
+    expect(elsewhere.body.user).toBeNull();
+    expect((await agent.get("/auth/me")).body.user.emailVerifiedAt).not.toBeNull();
   });
 });
 

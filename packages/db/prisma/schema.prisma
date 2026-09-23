@@ -65,7 +65,9 @@ model User {
   email           String    @unique
   // E.164 ("+4520123456"). Only ever set to a number the user proved they
   // control via SMS (PhoneVerificationCode) — a pending change lives on the
-  // code row, not here, until verified.
+  // code row, not here, until verified. Unique among verified numbers
+  // (partial index users_verified_phone_key, raw SQL migration): SMS password
+  // recovery identifies the account by it.
   phone           String?
   phoneVerifiedAt DateTime?
   // Null for accounts that have not set a password yet: signup collects the

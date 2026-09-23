@@ -128,12 +128,11 @@ export type VerifyTwoFactorRequest = {
 // password, no path for a locked-out user). POST /auth/forgot-password
 // always 204s regardless of whether the email exists — no account-
 // enumeration leak.
-export type ForgotPasswordRequest = {
-  email: string;
-  // "email" (default) sends a reset link; "sms" sends a 6-digit code to the
-  // account's verified mobile number.
-  method?: "email" | "sms";
-};
+// "email" (default): a reset link to `email`. "sms": a 6-digit code to the
+// account whose verified mobile number is `phone` (E.164).
+export type ForgotPasswordRequest =
+  | { method?: "email"; email: string }
+  | { method: "sms"; phone: string };
 
 // Either the emailed link's token, or the SMS code from forgot-password
 // (same browser session). Success signs the user in.
