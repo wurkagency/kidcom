@@ -155,6 +155,14 @@ test("a signed-in account with an unverified phone can't reach the app", async (
   await expect(page).toHaveURL(/\/verify-phone$/); // steps can't be skipped
 });
 
+test("someone stuck mid-setup can still reach login and sign-up to start over", async ({ page }) => {
+  fakeServer(page, { ...verifiedUser, phone: null, phoneVerifiedAt: null, pendingPhone: "+4520123456" });
+  await page.goto("/login");
+  await expect(page.getByRole("link", { name: "Google" })).toBeVisible();
+  await page.goto("/signup");
+  await expect(page.getByRole("heading", { name: "Create account" })).toBeVisible();
+});
+
 test("Google/Microsoft buttons start the provider flow, carrying consent from sign-up", async ({ page }) => {
   fakeServer(page, null);
   await page.goto("/signup");

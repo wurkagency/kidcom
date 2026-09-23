@@ -45,7 +45,10 @@ function Guard({ screen, access, children }: { screen: ScreenId; access: RouteAc
   if (isPending) return <theme.Loading />;
 
   if (access === "guest") {
-    if (!me) return <>{children}</>;
+    // Signed out — or signed in but stuck mid-setup (e.g. no SMS arrived):
+    // they may still start over or pick another sign-in method. A new
+    // sign-in replaces the unfinished session.
+    if (!me || pendingSetupStep(me)) return <>{children}</>;
     const next = safeNextPath(new URLSearchParams(location.search).get("next"));
     return <Navigate to={next ?? paths.today()} replace />;
   }
