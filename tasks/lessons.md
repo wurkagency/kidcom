@@ -19,3 +19,14 @@ in `psql`, and `SELECT set_config('app.bypass_rls', 'on', false)` … `'off'`
 around the data statements of a migration. Prove data-moving migrations on a
 scratch database seeded with rows **under RLS** (see the Phase 3 entry in
 `tasks/todo.md`), not on the empty test database.
+
+## Never point Prisma's shadow database at a real database (2026-09-25)
+`prisma migrate diff --shadow-database-url <url>` **wipes** that database to replay migrations.
+Pointing it at `splitkid_test` reset the test DB (recovered with `migrate reset` on the _test
+URL). To check schema ↔ migrations, diff against the migrated test DB with `--from-url`
+instead, or use a throwaway shadow database — never dev.
+
+## Relation filters under RLS: use `is` when the parent can be hidden (2026-09-25)
+`media_assets` RLS doesn't know a moment can be hidden from extended family, so an asset can
+be visible while its moment isn't. `where: { moment: { is: {...} } }` makes Prisma require the
+moment through a subquery that RLS also filters; a bare `moment: {}` doesn't.

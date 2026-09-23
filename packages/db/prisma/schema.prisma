@@ -117,6 +117,8 @@ model User {
   comments       Comment[]
   momentReactions MomentReaction[]
   mediaAssets    MediaAsset[]
+  bookmarks      Bookmark[]
+  downloadLinks  MediaDownloadLink[]
   avatarAsset    MediaAsset?       @relation("UserAvatar")
   listClaims     ListItem[]        @relation("ListItemClaimedBy")
   listAssignments ListItem[]       @relation("ListItemAssignedTo")
@@ -667,6 +669,15 @@ model MediaAsset {
   // Necessity/Wishlist item's single photo.
   listItemImageForId String?        @unique
   listItemImageFor   ListItem?      @relation("ListItemImage", fields: [listItemImageForId], references: [id])
+  // v3.0 Phase 4 — what the download and details screens show. Set at
+  // upload (original) and by the worker (derivative, playable, probe data).
+  mimeType           String?
+  originalBytes      Int?
+  derivedBytes       Int?
+  playableBytes      Int?
+  durationSeconds    Float?
+  codec              String?        // e.g. "hevc", "h264" (videos only)
+  bookmarks          Bookmark[]
   createdAt        DateTime         @default(now())
 
   @@map("media_assets")
@@ -680,14 +691,24 @@ model Moment {
   // Description is optional — only the title is required to post. Empty
   // posts (media-only, or just a title) store this as null rather than "".
   text      String?
+  // v3.0 Phase 4: global category, a typed place name (no GPS), the day it
+  // happened, and whether extended family (AccessRole FAMILY) may see it —
+  // off means parents/guardians and the author only (enforced by RLS).
+  categoryId    String?
+  category      Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  location      String?
+  occurredOn    DateTime? @db.Date
+  familyVisible Boolean   @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  bookmarks Bookmark[]
   children  MomentChild[]
   media     MediaAsset[]
   comments  Comment[]
   reactions MomentReaction[]
 
+  @@index([categoryId])
   @@map("journal_posts")
 }
 
@@ -1085,9 +1106,45 @@ model Category {
   calendarEventRequests CalendarEventRequest[]
   tasks                 Task[]
   notes                 ChildNote[]
+  moments               Moment[]
 
   @@index([ownerId])
   @@map("categories")
+}
+
+// v3.0 Phase 4: a user's saved moments and media (Profile menu → Bookmarks).
+// Exactly one of momentId / mediaAssetId is set. Private to the user (RLS);
+// the bookmarked item must still be visible to them to be listed.
+model Bookmark {
+  id           String      @id @default(cuid())
+  userId       String
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  momentId     String?     @map("journalPostId")
+  moment       Moment?     @relation(fields: [momentId], references: [id], onDelete: Cascade)
+  mediaAssetId String?
+  mediaAsset   MediaAsset? @relation(fields: [mediaAssetId], references: [id], onDelete: Cascade)
+  createdAt    DateTime    @default(now())
+
+  @@unique([userId, momentId])
+  @@unique([userId, mediaAssetId])
+  @@map("bookmarks")
+}
+
+// v3.0 Phase 4: "Email me a download link" from the Download screen. Only
+// the token's SHA-256 is stored; it works for its owner only and expires
+// after 7 days.
+model MediaDownloadLink {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  mediaIds  String[]
+  variant   String   // "original" | "optimized"
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("media_download_links")
 }
 
 // "Reminders & Tasks" for a child. `dueOn` is a calendar date (no time).

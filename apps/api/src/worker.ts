@@ -6,6 +6,7 @@
 import "dotenv/config";
 import { Worker } from "bullmq";
 import path from "node:path";
+import fsp from "node:fs/promises";
 import sharp from "sharp";
 import ffmpeg from "fluent-ffmpeg";
 import ffmpegPath from "ffmpeg-static";
@@ -55,7 +56,8 @@ async function processImage(originalKey: string, assetId: string) {
     .resize({ width: 1600, height: 1600, fit: "inside", withoutEnlargement: true })
     .webp({ quality: 82 })
     .toFile(derivedPath);
-  return { derivedKey, width: metadata.width ?? null, height: metadata.height ?? null };
+  const derivedBytes = (await fsp.stat(derivedPath)).size;
+  return { derivedKey, derivedBytes, width: metadata.width ?? null, height: metadata.height ?? null };
 }
 
 async function processVideo(originalKey: string, assetId: string) {
@@ -65,12 +67,18 @@ async function processVideo(originalKey: string, assetId: string) {
   const derivedPath = mediaStorage.pathFor(derivedKey);
   const outDir = path.dirname(derivedPath);
 
-  const dimensions = await new Promise<{ width: number | null; height: number | null }>(
+  const probe = await new Promise<{ width: number | null; height: number | null; durationSeconds: number | null; codec: string | null }>(
     (resolve, reject) => {
       ffmpeg.ffprobe(originalPath, (err, data) => {
         if (err) return reject(err);
         const stream = data.streams.find((s) => s.width && s.height);
-        resolve({ width: stream?.width ?? null, height: stream?.height ?? null });
+        const duration = Number(data.format?.duration ?? stream?.duration);
+        resolve({
+          width: stream?.width ?? null,
+          height: stream?.height ?? null,
+          durationSeconds: Number.isFinite(duration) ? duration : null,
+          codec: stream?.codec_name ?? null,
+        });
       });
     }
   );
@@ -103,7 +111,8 @@ async function processVideo(originalKey: string, assetId: string) {
       .save(playablePath);
   });
 
-  return { derivedKey, playableKey, ...dimensions };
+  const [derivedBytes, playableBytes] = await Promise.all([fsp.stat(derivedPath), fsp.stat(playablePath)]).then((st) => st.map((x) => x.size));
+  return { derivedKey, playableKey, derivedBytes, playableBytes, ...probe };
 }
 
 const worker = new Worker<ProcessMediaJob>(
@@ -127,6 +136,10 @@ const worker = new Worker<ProcessMediaJob>(
             playablePath: "playableKey" in result ? result.playableKey : undefined,
             width: result.width,
             height: result.height,
+            derivedBytes: result.derivedBytes,
+            ...("playableKey" in result
+              ? { playableBytes: result.playableBytes, durationSeconds: result.durationSeconds, codec: result.codec }
+              : {}),
           },
         })
       );

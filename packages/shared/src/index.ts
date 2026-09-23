@@ -873,7 +873,38 @@ export type MediaAssetDto = {
   status: MediaAssetStatus;
   width: number | null;
   height: number | null;
+  /** Videos: length in seconds */
+  durationSeconds: number | null;
 };
+
+/** GET /media/:id/info — the viewer's details sheet and the download screen. */
+export type MediaInfoDto = MediaAssetDto & {
+  mimeType: string | null;
+  /** e.g. "hevc", "h264" (videos) */
+  codec: string | null;
+  originalBytes: number | null;
+  /** The in-app version: WebP for photos, the H.264 transcode for videos */
+  optimizedBytes: number | null;
+  bookmarkedByMe: boolean;
+  moment: {
+    id: string;
+    childIds: string[];
+    title: string;
+    authorId: string;
+    authorName: string;
+    authorAvatarUrl: string | null;
+    categoryId: string | null;
+    location: string | null;
+    occurredOn: string | null;
+    createdAt: string;
+    /** This asset's position among the moment's media */
+    index: number;
+    mediaIds: string[];
+  } | null;
+};
+
+export type MediaDownloadVariant = "original" | "optimized";
+export type MediaArchiveRequest = { mediaIds: string[]; variant: MediaDownloadVariant };
 
 export type MediaUploadResponse = MediaAssetDto;
 
@@ -884,6 +915,10 @@ export type MomentMediaDto = MediaAssetDto & {
   postId: string;
   postCreatedAt: string;
   childIds: string[];
+  postTitle: string;
+  categoryId: string | null;
+  occurredOn: string | null;
+  bookmarkedByMe: boolean;
 };
 
 export type CommentDto = {
@@ -916,7 +951,27 @@ export type MomentDto = {
   commentCount: number;
   reactionCount: number;
   reactedByMe: boolean;
+  categoryId: string | null;
+  /** Typed place name ("Oakwood Little League Field") */
+  location: string | null;
+  /** "YYYY-MM-DD" — the day it happened (defaults to the posting day) */
+  occurredOn: string | null;
+  /** false = parents/guardians only */
+  familyVisible: boolean;
+  bookmarkedByMe: boolean;
 };
+
+export type MomentsPage = { items: MomentDto[]; nextCursor: string | null };
+
+/** Feed / gallery "Types" filter */
+export type MomentMediaType = "photo" | "video" | "text";
+
+export type UpdateMomentRequest = Partial<
+  Pick<CreateMomentRequest, "title" | "text" | "categoryId" | "location" | "occurredOn" | "familyVisible">
+>;
+
+export type BookmarksResponse = { moments: MomentDto[]; media: MomentMediaDto[] };
+export type CreateBookmarkRequest = { momentId: string } | { mediaAssetId: string };
 
 export type CreateMomentRequest = {
   title: string;
@@ -927,6 +982,14 @@ export type CreateMomentRequest = {
   // Which children this post is tagged to. Defaults to the child in the URL
   // (`/children/:childId/moments`) when omitted, for backward compatibility.
   childIds?: string[];
+  categoryId?: string | null;
+  location?: string | null;
+  /** "YYYY-MM-DD" */
+  occurredOn?: string | null;
+  /** Default true; false hides it from extended family */
+  familyVisible?: boolean;
+  /** Push a friendly notification to the rest of the family */
+  notify?: boolean;
 };
 
 // ---------------------------------------------------------------------------
