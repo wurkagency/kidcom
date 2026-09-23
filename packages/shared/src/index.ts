@@ -1263,6 +1263,15 @@ export type SubscribeRequest = {
   tier: SubscriptionTier;
   // Required for PARENTS/FAMILY, ignored for FREE (there's no period to bill).
   billingPeriod?: BillingPeriod;
+  /** Paid plans: the customer asks to start now and accepts losing the 14-day right of withdrawal. Required. */
+  acceptWithdrawalWaiver?: boolean;
+};
+
+/** GET /billing/plans — prices in øre incl. VAT, so the app never hard-codes them. */
+export type BillingPlansResponse = {
+  currency: "DKK";
+  vatRate: number;
+  plans: { tier: "PARENTS" | "FAMILY"; prices: Record<BillingPeriod, number> }[];
 };
 
 export type SubscribeResponse = {

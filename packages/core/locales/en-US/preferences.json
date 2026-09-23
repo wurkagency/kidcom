@@ -1,0 +1,72 @@
+{
+  "title": "Preferences",
+  "categories": "Categories",
+  "language": {
+    "title": "Language",
+    "names": {
+      "en-US": "English",
+      "da-DK": "Dansk",
+      "nb-NO": "Norsk",
+      "sv-SE": "Svenska"
+    },
+    "more": "Danish, Norwegian and Swedish are on their way."
+  },
+  "region": {
+    "title": "Country formats",
+    "device": "Follow this phone",
+    "deviceUnknown": "This phone doesn't say — Denmark is used",
+    "hint": "Dates, times, numbers and the first day of the week follow the country you choose, whatever the language."
+  },
+  "theme": {
+    "title": "Theme",
+    "names": {
+      "aura": "Aura"
+    },
+    "hints": {
+      "aura": "Calm mint and obsidian"
+    },
+    "more": "More themes are coming."
+  },
+  "notifications": {
+    "title": "Notifications",
+    "thisPhone": "This phone",
+    "push": "Push notifications",
+    "pushState": {
+      "on": "On for this phone",
+      "off": "Off",
+      "denied": "Blocked in the phone's settings",
+      "unsupported": "Add KidCom to your home screen to get notifications"
+    },
+    "about": "Tell me about",
+    "categoryCalendar": "Calendar, swaps and requests",
+    "categoryMoments": "New moments",
+    "categoryLists": "List items being claimed",
+    "categoryMessages": "Messages",
+    "email": "Email too",
+    "emailHint": "A copy of important notices by email",
+    "quiet": "Quiet hours",
+    "quietOn": "Quiet hours",
+    "quietHint": "No pushes at night — they wait in the list",
+    "from": "From",
+    "to": "To",
+    "billingNote": "Payment problems are always sent."
+  },
+  "security": {
+    "title": "Security",
+    "changePassword": "Change password",
+    "current": "Current password",
+    "save": "Update password",
+    "changed": "Your password was changed.",
+    "incomplete": "Fill in your current password and a valid new one.",
+    "noPassword": "You sign in with Google or Microsoft — there's no KidCom password to change.",
+    "devices": "Devices",
+    "otherDevices_zero": "Only this device is signed in",
+    "otherDevices_one": "Signed in on {{count}} other device",
+    "otherDevices_other": "Signed in on {{count}} other devices",
+    "devicesHint": "Lost a phone? Sign it out here.",
+    "signOutOthers": "Sign out all other devices",
+    "signIn": "Sign-in",
+    "codes": "Sign-in codes are always on",
+    "codesHint": "Each new sign-in is confirmed with a one-time code."
+  }
+}

@@ -36,3 +36,6 @@ process.env.NODE_ENV = "test";
 process.env.MEDIA_STORAGE_PATH = path.resolve(__dirname, "../../media-test");
 process.env.MEDIA_ENCRYPTION_KEY = "7e57".repeat(16);
 process.env.SESSION_SECRET = process.env.SESSION_SECRET ?? "test-secret";
+// Never reach the real payment provider from tests; billing tests stub lib/quickpay.
+delete process.env.QUICKPAY_API_KEY;
+delete process.env.QUICKPAY_PRIVATE_KEY;

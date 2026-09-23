@@ -18,7 +18,7 @@ describe("POST /billing/subscribe — D9 VAT receipt", () => {
     const app = createApp();
     const { agent } = await signupTestUser(app); // also sends a verification email — filter it out below
 
-    const res = await agent.post("/billing/subscribe").send({ tier: "PARENTS", billingPeriod: "MONTHLY" });
+    const res = await agent.post("/billing/subscribe").send({ tier: "PARENTS", billingPeriod: "MONTHLY", acceptWithdrawalWaiver: true });
     expect(res.status).toBe(200);
     expect(res.body.redirectUrl).toBeNull();
 
@@ -41,7 +41,7 @@ describe("POST /billing/subscribe — D9 VAT receipt", () => {
     const app = createApp();
     const { agent } = await signupTestUser(app);
 
-    const res = await agent.post("/billing/subscribe").send({ tier: "FAMILY", billingPeriod: "ANNUAL" });
+    const res = await agent.post("/billing/subscribe").send({ tier: "FAMILY", billingPeriod: "ANNUAL", acceptWithdrawalWaiver: true });
     expect(res.status).toBe(200);
 
     const sender = mailSender as MemoryMailSender;

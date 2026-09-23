@@ -4,10 +4,13 @@ export class ApiError extends Error {
   status: number;
   /** Stable machine-readable reason (e.g. "PASSWORD_REUSED"); clients translate by it. */
   code?: string;
-  constructor(status: number, message: string, code?: string) {
+  /** Extra machine-readable context for the client (e.g. which children block an action). */
+  details?: Record<string, unknown>;
+  constructor(status: number, message: string, code?: string, details?: Record<string, unknown>) {
     super(message);
     this.status = status;
     this.code = code;
+    this.details = details;
   }
 }
 
@@ -25,13 +28,14 @@ export function errorHandler(
   // unexpected is logged here and answered generically (no internals leak).
   const message = err instanceof ApiError ? err.message : "Internal server error";
   const code = err instanceof ApiError ? err.code : undefined;
+  const details = err instanceof ApiError ? err.details : undefined;
 
   if (status >= 500) {
     // eslint-disable-next-line no-console
     console.error(err);
   }
 
-  res.status(status).json(code ? { error: message, code } : { error: message });
+  res.status(status).json({ error: message, ...(code ? { code } : {}), ...(details ? { details } : {}) });
 }
 
 export function notFoundHandler(_req: Request, res: Response) {

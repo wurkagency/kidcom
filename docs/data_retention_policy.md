@@ -22,10 +22,19 @@ v2 post-launch GDPR pass; kept current through v3.0 (`tasks/todo.md`).
     "Former member", never with the deleted person's name or photo.
   - The user's own subscription ends with the account; children it covered fall
     back to whatever else covers them (spec §2.2).
-  - **Status: not yet working.** Today the delete fails for every user — 12 `User`
-    relations have no `onDelete` rule, so Postgres refuses it. Fix scheduled for
-    v3.0 Phase 7 (retain-and-anonymise as above, with tests). See
-    `tasks/todo.md` → "Known defects".
+  - **How (v3.0 Phase 7, `apps/api/src/lib/accountDeletion.ts`):** `DELETE /auth/me`
+    with `{ "confirm": true }`. The user row stays as an anonymous tombstone
+    (`users.deletedAt` set; name "Former member"; email, phone, password, photo,
+    preferences cleared) so retained history keeps a valid author. Removed: provider
+    links, codes and tokens, push subscriptions, notification settings and list,
+    personal notes, bookmarks, download links, reactions, conversation memberships,
+    unsent invites, upgrade requests, the profile photo and never-attached uploads
+    (files deleted too), and all child access. The subscription is cancelled. A child
+    only this person could see is soft-deleted (purged after the restore window).
+  - **Refused (409 `LAST_GUARDIAN`)** while the person is the last parent/guardian
+    of a child others still follow — another parent must be invited or promoted first.
+  - Login events are kept for their normal 12 months (fraud and abuse checks, see
+    `docs/management_data.md`), then purged by the daily job.
 
 ## Deleting a complete family circle
 

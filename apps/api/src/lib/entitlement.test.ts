@@ -46,7 +46,7 @@ describe("I-2 (spec §2.2/§4.3) — trialStartedAt is set once, at account crea
     expect(afterSignup.trialEndsAt).not.toBeNull();
     expect(afterSignup.trialEndsAt!.getTime()).toBeGreaterThan(Date.now());
 
-    await agent.post("/billing/subscribe").send({ tier: "FAMILY", billingPeriod: "MONTHLY" });
+    await agent.post("/billing/subscribe").send({ tier: "FAMILY", billingPeriod: "MONTHLY", acceptWithdrawalWaiver: true });
     const afterSubscribe = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
     expect(afterSubscribe.trialStartedAt!.getTime()).toBe(afterSignup.trialStartedAt!.getTime());
     expect(afterSubscribe.trialEndsAt!.getTime()).toBe(afterSignup.trialEndsAt!.getTime());

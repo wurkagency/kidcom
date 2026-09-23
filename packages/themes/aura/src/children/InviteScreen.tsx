@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import { toast } from "sonner";
 import { ALL_RELATIONSHIP_TYPES, type RelationshipType } from "@kidcom/shared";
 import { useActiveChildren, useCreateInvite, useNavigate, useSearchParams, useT } from "@kidcom/core";
@@ -14,8 +14,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 const INVITABLE = ALL_RELATIONSHIP_TYPES.filter((r) => r !== "BROTHER" && r !== "SISTER");
 
 export function InviteScreen() {
-  const { t } = useT("children");
   const navigate = useNavigate();
+  return <InviteForm onDone={() => navigate(-1)} />;
+}
+
+/** Also onboarding's second step. */
+export function InviteForm({ onDone, hideTitle, footer }: { onDone: () => void; hideTitle?: boolean; footer?: ReactNode }) {
+  const { t } = useT("children");
   const [params] = useSearchParams();
   const { children } = useActiveChildren();
   const invitable = children.filter((c) => c.myRole !== "FAMILY");
@@ -35,7 +40,7 @@ export function InviteScreen() {
       {
         onSuccess: () => {
           toast(t("invite.sent", { email: email.trim() }));
-          navigate(-1);
+          onDone();
         },
         onError: (err) => setError(err instanceof Error ? err.message : t("edit.failed")),
       },
@@ -44,8 +49,8 @@ export function InviteScreen() {
 
   return (
     <form onSubmit={submit} noValidate className="flex flex-col w-full pb-6 gap-space-lg">
-      <EditorTitle>{t("invite.title")}</EditorTitle>
-      <p className="font-body-md text-body-md text-secondary -mt-4">{t("invite.intro")}</p>
+      {!hideTitle && <EditorTitle>{t("invite.title")}</EditorTitle>}
+      {!hideTitle && <p className="font-body-md text-body-md text-secondary -mt-4">{t("invite.intro")}</p>}
       <FormCard>
         <ChildField kids={invitable} value={childId} onChange={setChildId} />
         <Field id="email" label={t("invite.email")}>
@@ -70,6 +75,7 @@ export function InviteScreen() {
       <PrimaryButton icon="send" disabled={invite.isPending || !childId}>
         {t("invite.send")}
       </PrimaryButton>
+      {footer}
     </form>
   );
 }

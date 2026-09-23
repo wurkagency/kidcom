@@ -86,6 +86,10 @@ model User {
   // Country formats follow (ISO 3166-1, "DK"): dates, numbers, first day of
   // the week. Null = the device's region. Validated in PATCH /auth/me.
   region          String?
+  // Set when the account was deleted (DELETE /auth/me): the row stays as an
+  // anonymous tombstone so the family's shared history keeps its author
+  // ("Former member"); every personal field is cleared.
+  deletedAt       DateTime?
   emailVerifiedAt DateTime?
   // Set once at signup (POST /auth/signup requires acceptedTerms: true) —
   // a real consent record, not just a UI gate that forgets itself. The
@@ -924,9 +928,17 @@ model Subscription {
   // a PAST_DUE subscription still counts at its pre-failure tier, rather
   // than dropping coverage the instant a charge fails.
   pastDueSince           DateTime?
+  // The customer's express consent to start at once and waive the 14-day
+  // right of withdrawal (Forbrugeraftaleloven §18 stk. 2 nr. 13 / CRD art.
+  // 16(m)), recorded at checkout.
+  withdrawalConsentAt    DateTime?
+  // order_id of the latest recurring charge — matches QuickPay's payment
+  // callbacks back to this subscription.
+  lastChargeOrderId      String?
   createdAt              DateTime           @default(now())
   updatedAt              DateTime           @updatedAt
 
+  @@index([lastChargeOrderId])
   @@map("subscriptions")
 }
 

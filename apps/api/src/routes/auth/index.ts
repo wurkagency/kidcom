@@ -15,6 +15,7 @@ import type {
   VerifyTwoFactorRequest,
 } from "@kidcom/shared";
 import { isLocale, isRegion, isThemeId, isValidEmail } from "@kidcom/shared";
+import { deleteAccount } from "../../lib/accountDeletion";
 
 import { prisma } from "../../db";
 import { config } from "../../config";
@@ -28,7 +29,7 @@ import { createAccount } from "../../lib/accounts";
 import { SALT_ROUNDS, assertStrongPassword, setPassword } from "../../lib/passwordPolicy";
 import { consumePhoneCode, isE164, pendingPhone, sendPhoneCode } from "../../lib/phoneVerification";
 import { recordLogin } from "../../lib/loginEvents";
-import { establishSession, forgetSession, revokeOtherSessions } from "../../lib/sessions";
+import { countOtherSessions, establishSession, forgetSession, revokeOtherSessions } from "../../lib/sessions";
 import { oauthRouter } from "./oauth";
 
 export const authRouter = Router();
@@ -426,6 +427,25 @@ authRouter.post("/logout", (req, res, next) => {
 // ---------------------------------------------------------------------------
 // Account
 // ---------------------------------------------------------------------------
+// Security: how many other devices are signed in, and signing them all out.
+authRouter.get("/sessions", async (req, res, next) => {
+  try {
+    const userId = requireSession(req.session.userId);
+    res.json({ otherSessions: await countOtherSessions(userId, req.sessionID) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+authRouter.post("/sessions/revoke-others", async (req, res, next) => {
+  try {
+    const userId = requireSession(req.session.userId);
+    res.json({ revoked: await revokeOtherSessions(userId, req.sessionID) });
+  } catch (err) {
+    next(err);
+  }
+});
+
 authRouter.get("/me", async (req, res, next) => {
   try {
     const userId = req.session.userId;
@@ -572,7 +592,11 @@ authRouter.get("/export", async (req, res, next) => {
 authRouter.delete("/me", async (req, res, next) => {
   try {
     const userId = requireSession(req.session.userId);
-    await prisma.user.delete({ where: { id: userId } });
+    // An explicit, typed confirmation — this can't be undone.
+    if ((req.body as { confirm?: unknown } | undefined)?.confirm !== true) {
+      throw new ApiError(400, "Confirm the deletion", "CONFIRM_REQUIRED");
+    }
+    await deleteAccount(userId);
     await revokeOtherSessions(userId, req.sessionID);
     req.session.destroy(() => {
       res.clearCookie("kidcom.sid");

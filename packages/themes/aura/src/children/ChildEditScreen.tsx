@@ -30,7 +30,8 @@ export function ChildEditScreen() {
   return <ChildForm key={existing?.id ?? "new"} existing={existing} />;
 }
 
-function ChildForm({ existing }: { existing?: ChildDetail }) {
+/** Also onboarding's first step: `onCreated` replaces the default "open the profile". */
+export function ChildForm({ existing, onCreated, hideTitle }: { existing?: ChildDetail; onCreated?: (childId: string) => void; hideTitle?: boolean }) {
   const { t } = useT("children");
   const navigate = useNavigate();
   const create = useCreateChild();
@@ -72,14 +73,14 @@ function ChildForm({ existing }: { existing?: ChildDetail }) {
         relationship,
         ...(needsParent ? { parentContact: { name: contactName.trim(), email: contactEmail.trim() } } : {}),
       },
-      { onSuccess: (c) => navigate(paths.children.profile(c.id), { replace: true }), onError },
+      { onSuccess: (c) => (onCreated ? onCreated(c.id) : navigate(paths.children.profile(c.id), { replace: true })), onError },
     );
   };
 
   return (
     <form onSubmit={submit} noValidate className="flex flex-col w-full pb-6 gap-space-lg">
-      <EditorTitle>{t(existing ? "edit.editTitle" : "edit.createTitle")}</EditorTitle>
-      {!existing && <p className="font-body-md text-body-md text-secondary -mt-4">{t("edit.intro")}</p>}
+      {!hideTitle && <EditorTitle>{t(existing ? "edit.editTitle" : "edit.createTitle")}</EditorTitle>}
+      {!existing && !hideTitle && <p className="font-body-md text-body-md text-secondary -mt-4">{t("edit.intro")}</p>}
 
       <FormCard>
         <div className="grid grid-cols-2 gap-3">

@@ -78,7 +78,7 @@ const billingWorker = new Worker<RenewSubscriptionsJob>(
       if (!sub.quickpaySubscriptionId || !sub.billingPeriod) continue;
       try {
         const amount = BILLING_PRICES_ORE[sub.tier as "PARENTS" | "FAMILY"][sub.billingPeriod as "MONTHLY" | "ANNUAL"];
-        const orderId = `renew${Date.now().toString(36)}`.slice(0, 20);
+        const orderId = `renew${Date.now().toString(36)}${sub.id.slice(-4)}`.slice(0, 20);
         await quickpay.chargeRecurring({
           subscriptionId: Number(sub.quickpaySubscriptionId),
           amountMinorUnits: amount,
@@ -87,7 +87,8 @@ const billingWorker = new Worker<RenewSubscriptionsJob>(
         const periodDays = BILLING_PERIOD_DAYS[sub.billingPeriod as "MONTHLY" | "ANNUAL"];
         await prisma.subscription.update({
           where: { id: sub.id },
-          data: { currentPeriodEnd: new Date(Date.now() + periodDays * 24 * 60 * 60 * 1000) },
+          // The payment callback finds this subscription by the order_id.
+          data: { currentPeriodEnd: new Date(Date.now() + periodDays * 24 * 60 * 60 * 1000), lastChargeOrderId: orderId },
         });
       } catch (err) {
         // eslint-disable-next-line no-console

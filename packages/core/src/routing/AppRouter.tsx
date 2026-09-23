@@ -3,6 +3,7 @@ import { createBrowserRouter, Navigate, Outlet, RouterProvider, ScrollRestoratio
 import { useTheme, type ScreenId, type ShellKind } from "@kidcom/theme-kit";
 
 import { useMe } from "../auth/hooks";
+import { useChildren } from "../children/hooks";
 import { pendingSetupStep, SETUP_STEP_PATH, type SetupStep } from "../auth/setup";
 import { CurrentScreenContext } from "./currentScreen";
 import { ROUTES, type RouteAccess } from "./routes";
@@ -31,6 +32,9 @@ export function safeNextPath(next: string | null): string | null {
   return next;
 }
 
+// The everyday screens need a child: someone with none starts onboarding.
+const NEEDS_A_CHILD = new Set<ScreenId>(["today", "calendar.agenda", "calendar.week", "calendar.month", "moments.feed", "media.gallery", "lists.overview"]);
+
 const SETUP_SCREEN: Partial<Record<ScreenId, SetupStep>> = {
   "auth.phoneVerify": "phone",
   "auth.createPassword": "password",
@@ -40,6 +44,7 @@ function Guard({ screen, access, children }: { screen: ScreenId; access: RouteAc
   const theme = useTheme();
   const location = useLocation();
   const { data: me, isPending } = useMe();
+  const { data: kids } = useChildren();
 
   if (access === "public") return <>{children}</>;
   if (isPending) return <theme.Loading />;
@@ -65,6 +70,7 @@ function Guard({ screen, access, children }: { screen: ScreenId; access: RouteAc
     return <Navigate to={step ? SETUP_STEP_PATH[step] : paths.today()} replace />;
   }
   if (step) return <Navigate to={SETUP_STEP_PATH[step]} replace />;
+  if (NEEDS_A_CHILD.has(screen) && kids && kids.length === 0) return <Navigate to={paths.onboarding.child()} replace />;
   return <>{children}</>;
 }
 

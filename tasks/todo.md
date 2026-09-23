@@ -208,19 +208,41 @@ see "Decisions" below.
 - Not built (as agreed): blocking, presence ("Active now"), calls, thread details, the
   "Kidcom" announcements row. Push text is English until the locales are translated
 ## Phase 7 — Profile menu areas (Family, Account & Billing, Preferences, onboarding)
-- [ ] Preferences → "Country formats" picker (PATCH /auth/me `region`; "Follow device" = null)
+- [x] **Account deletion fixed** (was failing for every user): retain-and-anonymise tombstone
+      per the 2026-09-23 decision; refused while last parent/guardian of a followed child
+      (409 with the children named); a child only they followed is soft-deleted
+- [x] **Billing defect fixed:** the first period was never charged — the subscription
+      callback only authorised the card and the first recurring charge never ran. Now
+      `activateAfterAuthorization` charges it (deterministic order_id: webhook + app
+      confirm can race without double-charging) and payment callbacks are matched by
+      order_id (declined → past due, accepted → recovered). `POST /billing/confirm` on
+      return from QuickPay (callbacks can't reach a dev machine)
+- [x] QuickPay runs whenever keys are configured (was production-only); test keys in
+      `app/.env`; `BILLING_TEST_MODE=true` still bypasses payment. 14-day withdrawal consent
+      required for paid plans and recorded (`subscriptions.withdrawalConsentAt`)
+- [x] Screens (DESIGN.md): profile menu, account (photo, name, email, change number with SMS
+      code, data export, delete), family circle, plan & billing, checkout (plans from
+      `GET /billing/plans`, prices in country formats), preferences (language + **country
+      formats picker**, theme, notifications incl. push opt-in and quiet hours, security:
+      change password, sign out other devices), invite accept, onboarding (child → invite
+      → plan; users without children are sent there)
+- [x] API 238/238 (10 new: deletion, sessions, checkout), e2e 56/56 (8 new flows)
+- To do by Charlie: a real QuickPay test-card payment (card entry on QuickPay's page is
+  yours — I don't type card numbers); then check the callback on a public URL
+- "Former member" is a fixed English string on the tombstone for now; translate centrally
+  when the other locales go live
 ## Dev database
 - 2026-09-23: all test accounts wiped (4 users, 2 test-only children and their content);
   only `charlie@wurk.dk` + children August and Pige remain. Procedure:
   docs/data_retention_policy.md → "Deleting a complete family circle".
 
 ## Known defects found during the build (owner: phase noted)
-- **Account deletion (`DELETE /auth/me`, GDPR erasure) fails for every user** — 12 User
+- ~~**Account deletion (`DELETE /auth/me`, GDPR erasure) fails for every user** — 12 User
   relations have no onDelete rule (Subscription, Moment, Comment, MediaAsset ×2, Message,
   Invite, SwapRequest, CalendarEventRequest, ListItem ×2, UpgradeRequest), so Postgres
   refuses the delete. Found 2026-09-23 while wiping a test user. **Decided 2026-09-23:**
   the account goes, contributions to a child's shared history stay (shown as "Former
-  member") — see docs/data_retention_policy.md. → Phase 7, with tests.
+  member") — see docs/data_retention_policy.md.~~ **Fixed in Phase 7.**
 
 ## Phase 8 — Hardening, remove legacy/web-v2, full regression, push
 
@@ -230,4 +252,4 @@ see "Decisions" below.
 - Still to register before launch: production OAuth callbacks on app.kidcom.org
 
 ## Needed from Charlie
-- QuickPay test-card credentials (Phase 7)
+- ~~QuickPay test-card credentials~~ (received 2026-09-23; keys in app/.env)

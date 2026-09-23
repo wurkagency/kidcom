@@ -42,6 +42,14 @@ export async function establishSession(req: Request, userId: string, options: { 
   await recordLogin(req, { userId, method: options.method, outcome: "SUCCESS" });
 }
 
+/** Other live sessions of `userId` (index entries whose session still exists). */
+export async function countOtherSessions(userId: string, keepSessionId: string): Promise<number> {
+  const ids = (await redis.smembers(indexKey(userId))).filter((id) => id !== keepSessionId);
+  if (ids.length === 0) return 0;
+  const alive = await redis.exists(...ids.map((id) => `${SESSION_PREFIX}${id}`));
+  return alive;
+}
+
 /** Destroys every session of `userId` except `keepSessionId`. */
 export async function revokeOtherSessions(userId: string, keepSessionId: string): Promise<number> {
   const ids = await redis.smembers(indexKey(userId));

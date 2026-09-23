@@ -4,10 +4,6 @@
     "body": "This screen couldn't be shown. Your data is safe.",
     "retry": "Try again"
   },
-  "pending": {
-    "title": "Coming soon",
-    "body": "This part of KidCom is being rebuilt."
-  },
   "notFound": {
     "title": "Page not found",
     "body": "The page you were looking for doesn't exist.",

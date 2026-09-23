@@ -29,7 +29,7 @@ describe("§4.2 safety floor — custody-plan writes never lapse for a PARENT, a
   it("(a) both parents' custody-plan writes keep working even after the payer's subscription is canceled and both trials expire", async () => {
     const app = createApp();
     const { agent: aAgent, userId: aId } = await signupTestUser(app, { email: "parent-a@example.com" });
-    const sub = await aAgent.post("/billing/subscribe").send({ tier: "PARENTS", billingPeriod: "MONTHLY" });
+    const sub = await aAgent.post("/billing/subscribe").send({ tier: "PARENTS", billingPeriod: "MONTHLY", acceptWithdrawalWaiver: true });
     expect(sub.status).toBe(200);
     const childRes = await aAgent
       .post("/children")
@@ -99,7 +99,7 @@ describe("Phase 8 — grace period + take-over offer (spec 9.12/§4.2 pt.4)", ()
   it("(c) the take-over signal (inGraceWindow) appears while the child is still satisfied, then flips to unsatisfied once the grace period runs out", async () => {
     const app = createApp();
     const { agent: aAgent, userId: aId } = await signupTestUser(app, { email: "payer@example.com" });
-    await aAgent.post("/billing/subscribe").send({ tier: "PARENTS", billingPeriod: "MONTHLY" });
+    await aAgent.post("/billing/subscribe").send({ tier: "PARENTS", billingPeriod: "MONTHLY", acceptWithdrawalWaiver: true });
     const childRes = await aAgent
       .post("/children")
       .send({ firstName: "Kid", gender: "BOY", birthday: "2020-01-01", relationship: "PARENT" });
@@ -149,14 +149,14 @@ describe("Phase 8 — grace period + take-over offer (spec 9.12/§4.2 pt.4)", ()
   it("recovering (webhook accepted:true equivalent) clears the grace window", async () => {
     const app = createApp();
     const { agent } = await signupTestUser(app, { email: "payer2@example.com" });
-    await agent.post("/billing/subscribe").send({ tier: "PARENTS", billingPeriod: "MONTHLY" });
+    await agent.post("/billing/subscribe").send({ tier: "PARENTS", billingPeriod: "MONTHLY", acceptWithdrawalWaiver: true });
     const userId = (await prisma.user.findUniqueOrThrow({ where: { email: "payer2@example.com" } })).id;
 
     await prisma.subscription.update({ where: { ownerId: userId }, data: { status: "PAST_DUE", pastDueSince: new Date() } });
     const midFailure = await prisma.subscription.findUniqueOrThrow({ where: { ownerId: userId } });
     expect(midFailure.pastDueSince).not.toBeNull();
 
-    await agent.post("/billing/subscribe").send({ tier: "PARENTS", billingPeriod: "MONTHLY" });
+    await agent.post("/billing/subscribe").send({ tier: "PARENTS", billingPeriod: "MONTHLY", acceptWithdrawalWaiver: true });
     const recovered = await prisma.subscription.findUniqueOrThrow({ where: { ownerId: userId } });
     expect(recovered.status).toBe("ACTIVE");
     expect(recovered.pastDueSince).toBeNull();

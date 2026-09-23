@@ -1,6 +1,8 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
 import type { PublicUser } from "@kidcom/shared";
 
+import { leo } from "../support/mockApi";
+
 // The auth flows end to end in the UI, against a stateful fake of the API
 // (the real API's side of these flows is covered by apps/api's
 // phoneAndPassword / oauth / passwordReset suites). Proves the screens call
@@ -9,7 +11,7 @@ import type { PublicUser } from "@kidcom/shared";
 
 const CODE = "123456";
 
-function fakeServer(page: Page, initial: PublicUser | null) {
+function fakeServer(page: Page, initial: PublicUser | null, children: unknown[] = []) {
   let me = initial;
   const calls: string[] = [];
   const json = (route: Route, status: number, body: unknown) => route.fulfill({ status, json: body });
@@ -25,7 +27,7 @@ function fakeServer(page: Page, initial: PublicUser | null) {
       case "GET /auth/me":
         return json(route, 200, { user: me });
       case "GET /children":
-        return json(route, 200, { children: [] });
+        return json(route, 200, { children });
       case "POST /auth/signup":
         me = {
           id: "u-new",
@@ -125,13 +127,13 @@ test("sign up → verify phone → create password → confirm email → app", a
   server.confirmEmail();
   await page.getByRole("button", { name: "I've confirmed my email" }).click();
 
-  // In the app.
-  await expect(page.getByRole("navigation", { name: "Main navigation" })).toBeVisible();
+  // In the app: a brand-new account has no children yet, so onboarding starts.
+  await expect(page).toHaveURL(/\/onboarding\/child$/);
   expect(server.calls).toEqual(expect.arrayContaining(["POST /auth/signup", "POST /auth/phone/verify", "POST /auth/password"]));
 });
 
 test("sign in with password, then the emailed code, returns to where the user was going", async ({ page }) => {
-  fakeServer(page, null);
+  fakeServer(page, null, [leo]);
   await page.goto("/lists");
   await expect(page).toHaveURL(/\/login\?next=%2Flists$/);
 

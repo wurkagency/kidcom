@@ -1,7 +1,7 @@
 import { lazy, type ComponentType } from "react";
 import type { ThemeManifest } from "@kidcom/theme-kit";
 
-import { DesktopGateScreen, NotFoundScreen, PendingScreen } from "../system/SystemScreens";
+import { DesktopGateScreen, NotFoundScreen } from "../system/SystemScreens";
 
 /** A screen as its own lazily loaded chunk, from a named export. */
 function screen<M extends Record<string, unknown>>(load: () => Promise<M>, name: keyof M) {
@@ -40,10 +40,15 @@ const loadThread = () => import("../messages/ThreadScreen");
 const loadCompose = () => import("../messages/ComposeScreen");
 const loadNotifications = () => import("../messages/NotificationsScreen");
 const loadSearch = () => import("../messages/SearchScreen");
+const loadInviteAccept = () => import("../auth/InviteAcceptScreen");
+const loadOnboarding = () => import("../onboarding/OnboardingScreens");
+const loadProfileMenu = () => import("../profile/ProfileMenuScreen");
+const loadAccount = () => import("../profile/AccountScreen");
+const loadFamily = () => import("../profile/FamilyScreen");
+const loadBilling = () => import("../billing/BillingScreens");
+const loadPreferences = () => import("../preferences/PreferenceScreens");
 
-// Every screen id → its Aura implementation. Screens are lazy-loaded chunks
-// (`lazy(() => import(...))`) as each build phase lands; PendingScreen marks
-// the ones still to come (tasks/todo.md) and must be gone after Phase 7.
+// Every screen id → its Aura implementation, as lazy-loaded chunks.
 export const screens: ThemeManifest["screens"] = {
   "system.desktopGate": DesktopGateScreen,
   "system.notFound": NotFoundScreen,
@@ -58,12 +63,12 @@ export const screens: ThemeManifest["screens"] = {
   "auth.resetPassword": screen(loadRecovery, "ResetPasswordScreen"),
   "auth.verifyEmail": screen(loadSetup, "VerifyEmailScreen"),
   // Phase 7 — with family invites
-  "auth.inviteAccept": PendingScreen,
+  "auth.inviteAccept": screen(loadInviteAccept, "InviteAcceptScreen"),
 
   // Phase 7 — onboarding
-  "onboarding.child": PendingScreen,
-  "onboarding.invite": PendingScreen,
-  "onboarding.plan": PendingScreen,
+  "onboarding.child": screen(loadOnboarding, "OnboardingChildScreen"),
+  "onboarding.invite": screen(loadOnboarding, "OnboardingInviteScreen"),
+  "onboarding.plan": screen(loadOnboarding, "OnboardingPlanScreen"),
 
   // Phase 3 — today + calendar
   today: screen(loadToday, "TodayScreen"),
@@ -106,16 +111,16 @@ export const screens: ThemeManifest["screens"] = {
   search: screen(loadSearch, "SearchScreen"),
 
   // Phase 7 — profile menu
-  "profile.menu": PendingScreen,
-  "profile.account": PendingScreen,
-  "family.overview": PendingScreen,
+  "profile.menu": screen(loadProfileMenu, "ProfileMenuScreen"),
+  "profile.account": screen(loadAccount, "AccountScreen"),
+  "family.overview": screen(loadFamily, "FamilyScreen"),
   "family.invite": screen(loadInvite, "InviteScreen"),
-  "billing.overview": PendingScreen,
-  "billing.checkout": PendingScreen,
-  "preferences.overview": PendingScreen,
-  "preferences.language": PendingScreen,
-  "preferences.theme": PendingScreen,
-  "preferences.notifications": PendingScreen,
+  "billing.overview": screen(loadBilling, "BillingScreen"),
+  "billing.checkout": screen(loadBilling, "CheckoutScreen"),
+  "preferences.overview": screen(loadPreferences, "PreferencesScreen"),
+  "preferences.language": screen(loadPreferences, "LanguageScreen"),
+  "preferences.theme": screen(loadPreferences, "ThemeScreen"),
+  "preferences.notifications": screen(loadPreferences, "NotificationSettingsScreen"),
   "preferences.categories": screen(loadCategories, "CategoriesScreen"),
-  "preferences.security": PendingScreen,
+  "preferences.security": screen(loadPreferences, "SecurityScreen"),
 };

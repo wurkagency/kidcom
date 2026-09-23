@@ -38,7 +38,7 @@ describe("Entitlement engine — spec §3 scenarios", () => {
 
     // "I buy Parents, invite co-parent to Emma."
     const { agent: meAgent } = await signupTestUser(app, { email: "me@example.com" });
-    const subscribeRes = await meAgent.post("/billing/subscribe").send({ tier: "PARENTS", billingPeriod: "MONTHLY" });
+    const subscribeRes = await meAgent.post("/billing/subscribe").send({ tier: "PARENTS", billingPeriod: "MONTHLY", acceptWithdrawalWaiver: true });
     expect(subscribeRes.status).toBe(200);
 
     const emmaRes = await meAgent
@@ -122,7 +122,7 @@ describe("Entitlement engine — spec §3 scenarios", () => {
       const app = createApp();
 
       const { agent: parentAgent } = await signupTestUser(app, { email: "parent@example.com" });
-      const sub1 = await parentAgent.post("/billing/subscribe").send({ tier: "PARENTS", billingPeriod: "MONTHLY" });
+      const sub1 = await parentAgent.post("/billing/subscribe").send({ tier: "PARENTS", billingPeriod: "MONTHLY", acceptWithdrawalWaiver: true });
       expect(sub1.status).toBe(200);
       const childRes = await parentAgent
         .post("/children")
@@ -163,7 +163,7 @@ describe("Entitlement engine — spec §3 scenarios", () => {
       expect(afterGrandma.status).toBe(403);
 
       // Upgrading to Family (whoever does it) resolves it for everyone.
-      const upgradeRes = await parentAgent.post("/billing/subscribe").send({ tier: "FAMILY", billingPeriod: "MONTHLY" });
+      const upgradeRes = await parentAgent.post("/billing/subscribe").send({ tier: "FAMILY", billingPeriod: "MONTHLY", acceptWithdrawalWaiver: true });
       expect(upgradeRes.status).toBe(200);
       const afterUpgrade = await coParentAgent.post(`/children/${childId}/moments`).send({ title: "After upgrade" });
       expect(afterUpgrade.status).toBe(201);
@@ -174,7 +174,7 @@ describe("Entitlement engine — spec §3 scenarios", () => {
     const app = createApp();
 
     const { agent: parentAgent } = await signupTestUser(app, { email: "parent3@example.com" });
-    const sub = await parentAgent.post("/billing/subscribe").send({ tier: "FAMILY", billingPeriod: "MONTHLY" });
+    const sub = await parentAgent.post("/billing/subscribe").send({ tier: "FAMILY", billingPeriod: "MONTHLY", acceptWithdrawalWaiver: true });
     expect(sub.status).toBe(200);
     const emmaRes = await parentAgent
       .post("/children")

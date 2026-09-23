@@ -63,16 +63,12 @@ export function Field({ id, label, hint, children }: { id?: string; label: React
   );
 }
 
+export const primaryButtonClass =
+  "w-full py-3.5 px-5 rounded-full bg-primary text-on-primary flex items-center justify-center gap-2 font-label-md text-label-md font-medium shadow-sm transition-transform active:scale-95 hover:opacity-90 disabled:opacity-60";
+
 export function PrimaryButton({ children, icon, className, ...props }: React.ComponentProps<"button"> & { icon?: string }) {
   return (
-    <button
-      type="submit"
-      {...props}
-      className={cn(
-        "w-full py-3.5 px-5 rounded-full bg-primary text-on-primary flex items-center justify-center gap-2 font-label-md text-label-md font-medium shadow-sm transition-transform active:scale-95 hover:opacity-90 disabled:opacity-60",
-        className,
-      )}
-    >
+    <button type="submit" {...props} className={cn(primaryButtonClass, className)}>
       {icon && <Icon name={icon} className="text-[18px]" />}
       {children}
     </button>

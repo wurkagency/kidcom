@@ -3,7 +3,6 @@ import QRCode from "qrcode";
 import { Link, paths, useDesktopGateState, useT } from "@kidcom/core";
 
 import { Icon } from "../components/Icon";
-import { ScreenTitle } from "../components/ScreenTitle";
 import { Button } from "../ui/button";
 
 /** Neutral loading state: a quiet sage pulse, no spinner churn. */
@@ -40,16 +39,6 @@ export function ErrorFallback({ reset }: { error: unknown; reset: () => void }) 
  * (see tasks/todo.md). Every use is listed in src/screens/index.ts and all
  * are gone by the end of Phase 7.
  */
-export function PendingScreen() {
-  const { t } = useT("system");
-  return (
-    <>
-      <ScreenTitle>{t("pending.title")}</ScreenTitle>
-      <p className="font-body-md text-body-md text-on-surface-variant">{t("pending.body")}</p>
-    </>
-  );
-}
-
 export function NotFoundScreen() {
   const { t } = useT("system");
   return (

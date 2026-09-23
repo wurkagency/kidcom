@@ -1,0 +1,77 @@
+{
+  "title": "Profile",
+  "sections": {
+    "family": "Family",
+    "account": "Account & Billing"
+  },
+  "family": "Family",
+  "familyHint": "Everyone in your family circle",
+  "children": "Children",
+  "childrenHint": "Profiles, custody and health",
+  "messages": "Messages",
+  "bookmarks": "Bookmarks",
+  "account": "Account",
+  "accountHint": "Name, email, mobile number",
+  "billing": "Plan & billing",
+  "preferences": "Preferences",
+  "preferencesHint": "Language, formats, notifications, security",
+  "plan": {
+    "FREE": "Free",
+    "PARENTS": "Parents",
+    "FAMILY": "Family"
+  },
+  "signOut": "Sign out",
+  "terms": "Terms",
+  "privacy": "Privacy",
+  "familyIntro": "Everyone who follows your children, and what they are to each child.",
+  "noChildren": "Add a child to build your family circle.",
+  "addChild": "Add child",
+  "parents": "Parents & guardians",
+  "extendedFamily": "Extended family",
+  "invite": "Invite family",
+  "you": "(you)",
+  "roleFor": "{{relationship}} to {{child}}",
+  "minor": "Sibling account",
+  "profileCard": {
+    "photo": "Change profile photo",
+    "photoHint": "Your photo is shown to your family.",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "email": "Email",
+    "verified": "Verified",
+    "unverified": "Not verified yet — check your inbox",
+    "nameRequired": "Enter your first and last name.",
+    "save": "Save changes",
+    "saved": "Saved."
+  },
+  "phone": {
+    "title": "Mobile number",
+    "none": "No number yet",
+    "hint": "Used for sign-in codes and recovery.",
+    "change": "Change",
+    "newHint": "We'll text a code to the new number. It only replaces the old one once the code is confirmed.",
+    "sendCode": "Send code",
+    "cancel": "Cancel",
+    "codeHint": "Enter the 6-digit code we sent to {{phone}}.",
+    "verify": "Confirm new number"
+  },
+  "security": {
+    "title": "Security",
+    "password": "Password & devices",
+    "passwordHint": "Change password, sign out other devices"
+  },
+  "data": {
+    "title": "Your data",
+    "export": "Download your data",
+    "exportHint": "Everything your account holds, as a file"
+  },
+  "delete": {
+    "title": "Delete account",
+    "hint": "Permanent — cannot be undone",
+    "confirmTitle": "Delete your account?",
+    "confirmBody": "Your profile, sign-in and access to your children are removed for good. What you shared with the family — moments, photos, messages — stays for them, shown as from a former member.",
+    "confirm": "Delete account",
+    "blocked": "You're the last parent or guardian of {{names}}. Invite or promote another parent first.",
+    "failed": "Couldn't delete the account. Please try again."
+  }
+}

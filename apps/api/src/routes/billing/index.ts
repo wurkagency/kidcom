@@ -1,6 +1,6 @@
 import { Router } from "express";
 import crypto from "node:crypto";
-import type { BillingPeriod, SubscribeRequest, SubscribeResponse, SubscriptionDto } from "@kidcom/shared";
+import type { BillingPeriod, BillingPlansResponse, SubscribeRequest, SubscribeResponse, SubscriptionDto } from "@kidcom/shared";
 import { vatBreakdown } from "@kidcom/shared";
 
 import { prisma } from "../../db";
@@ -12,6 +12,7 @@ import * as quickpay from "../../lib/quickpay";
 import { mailSender } from "../../lib/mailSender";
 import { renderSubscriptionReceiptHtml, renderSubscriptionReceiptText } from "../../lib/emailTemplates/subscriptionReceipt";
 import { notifyPaymentFailure } from "../../lib/paymentFailureNotice";
+import { activateAfterAuthorization } from "../../lib/billingActivation";
 
 export const billingRouter = Router();
 
@@ -59,6 +60,23 @@ function toDto(sub: {
     trialExpired: sub.status === "TRIALING" && sub.trialEndsAt !== null && sub.trialEndsAt.getTime() < Date.now(),
   };
 }
+
+// Real checkout whenever QuickPay is configured (test or live keys) — in
+// production always, unless BILLING_TEST_MODE=true bypasses payment while the
+// deployment is still being tested. Without keys outside production, a paid
+// plan is switched on directly (local development).
+function usesQuickpay(): boolean {
+  if (config.billingTestMode) return false;
+  return config.isProduction || Boolean(config.quickpayApiKey);
+}
+
+billingRouter.get("/plans", (_req, res) => {
+  res.json({
+    currency: "DKK",
+    vatRate: 0.25,
+    plans: (["PARENTS", "FAMILY"] as const).map((tier) => ({ tier, prices: BILLING_PRICES_ORE[tier] })),
+  } satisfies BillingPlansResponse);
+});
 
 billingRouter.get("/status", requireAuth, async (req, res, next) => {
   try {
@@ -130,8 +148,14 @@ billingRouter.post("/subscribe", requireAuth, async (req, res, next) => {
     }
     const tier = body.tier;
     const billingPeriod = body.billingPeriod;
+    // Starting at once means waiving the 14-day withdrawal right — only with
+    // the customer's express, recorded consent.
+    if (body.acceptWithdrawalWaiver !== true) {
+      throw new ApiError(400, "Consent to start now and waive the 14-day right of withdrawal is required", "WITHDRAWAL_CONSENT_REQUIRED");
+    }
+    const withdrawalConsentAt = new Date();
 
-    if (!config.isProduction || config.billingTestMode) {
+    if (!usesQuickpay()) {
       await prisma.subscription.upsert({
         where: { ownerId: userId },
         update: {
@@ -141,6 +165,7 @@ billingRouter.post("/subscribe", requireAuth, async (req, res, next) => {
           currentPeriodEnd: new Date(Date.now() + BILLING_PERIOD_DAYS[billingPeriod] * 24 * 60 * 60 * 1000),
           quickpaySubscriptionId: null,
           pastDueSince: null,
+          withdrawalConsentAt,
         },
         create: {
           ownerId: userId,
@@ -148,6 +173,7 @@ billingRouter.post("/subscribe", requireAuth, async (req, res, next) => {
           status: "ACTIVE",
           billingPeriod,
           currentPeriodEnd: new Date(Date.now() + BILLING_PERIOD_DAYS[billingPeriod] * 24 * 60 * 60 * 1000),
+          withdrawalConsentAt,
         },
       });
       await sendReceiptEmail(userId, tier, billingPeriod);
@@ -172,6 +198,7 @@ billingRouter.post("/subscribe", requireAuth, async (req, res, next) => {
         billingPeriod,
         quickpaySubscriptionId: String(created.id),
         pastDueSince: null,
+        withdrawalConsentAt,
       },
       create: {
         ownerId: userId,
@@ -179,6 +206,7 @@ billingRouter.post("/subscribe", requireAuth, async (req, res, next) => {
         status: "PENDING",
         billingPeriod,
         quickpaySubscriptionId: String(created.id),
+        withdrawalConsentAt,
       },
     });
 
@@ -191,6 +219,25 @@ billingRouter.post("/subscribe", requireAuth, async (req, res, next) => {
     });
 
     res.json({ redirectUrl: link.url } satisfies SubscribeResponse);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// The app calls this when the customer returns from QuickPay's payment
+// window (?checkout=success): if the card was authorised, charge the first
+// period and switch the plan on — without waiting for the callback, which
+// can't reach a development machine and may lag in production.
+billingRouter.post("/confirm", requireAuth, async (req, res, next) => {
+  try {
+    const userId = req.session.userId!;
+    const sub = await prisma.subscription.findUnique({ where: { ownerId: userId } });
+    if (sub?.status === "PENDING" && sub.quickpaySubscriptionId) {
+      const result = await activateAfterAuthorization(sub.id);
+      if (result === "activated") await sendReceiptEmail(userId, sub.tier as "PARENTS" | "FAMILY", sub.billingPeriod as BillingPeriod);
+    }
+    const fresh = await prisma.subscription.upsert({ where: { ownerId: userId }, update: {}, create: { ownerId: userId } });
+    res.json(toDto(fresh));
   } catch (err) {
     next(err);
   }
@@ -227,8 +274,21 @@ billingRouter.post("/webhook", async (req, res, next) => {
       throw new ApiError(401, "Invalid QuickPay webhook signature");
     }
 
-    const body = req.body as { id?: number; accepted?: boolean };
+    const body = req.body as { id?: number; type?: string; accepted?: boolean; order_id?: string };
     if (body.id === undefined) {
+      res.status(200).end();
+      return;
+    }
+
+    // A charge (the first period or a renewal): matched by its order_id.
+    if (body.type === "Payment") {
+      const charged = body.order_id ? await prisma.subscription.findFirst({ where: { lastChargeOrderId: body.order_id } }) : null;
+      if (charged && body.accepted === false) {
+        await prisma.subscription.update({ where: { id: charged.id }, data: { status: "PAST_DUE", pastDueSince: charged.pastDueSince ?? new Date() } });
+        if (!charged.pastDueSince) await notifyPaymentFailure(charged.ownerId);
+      } else if (charged && body.accepted === true && charged.status === "PAST_DUE") {
+        await prisma.subscription.update({ where: { id: charged.id }, data: { status: "ACTIVE", pastDueSince: null } });
+      }
       res.status(200).end();
       return;
     }
@@ -242,7 +302,12 @@ billingRouter.post("/webhook", async (req, res, next) => {
       return;
     }
 
-    if (body.accepted === true) {
+    // The card was authorised: charge the first period and switch the plan on.
+    if (body.accepted === true && sub.status === "PENDING") {
+      if ((await activateAfterAuthorization(sub.id)) === "activated") {
+        await sendReceiptEmail(sub.ownerId, sub.tier as "PARENTS" | "FAMILY", sub.billingPeriod as BillingPeriod);
+      }
+    } else if (body.accepted === true) {
       const periodDays = sub.billingPeriod ? BILLING_PERIOD_DAYS[sub.billingPeriod as "MONTHLY" | "ANNUAL"] : 30;
       await prisma.subscription.update({
         where: { id: sub.id },

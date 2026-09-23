@@ -1,0 +1,16 @@
+{
+  "progress": "Step {{step}} of {{total}}",
+  "skip": "Skip for now",
+  "child": {
+    "title": "Welcome, {{name}}",
+    "intro": "Start with a child you care for. You can add more later."
+  },
+  "invite": {
+    "title": "Invite your family",
+    "intro": "Add the other parent, grandparents or a caregiver so everyone shares one calendar."
+  },
+  "plan": {
+    "title": "Choose a plan",
+    "intro": "Free covers you and one child. Upgrade whenever your family grows."
+  }
+}

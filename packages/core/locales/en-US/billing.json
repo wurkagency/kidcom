@@ -1,0 +1,67 @@
+{
+  "title": "Plan & billing",
+  "yourPlan": "Your plan",
+  "price": "Price",
+  "tiers": {
+    "FREE": "Free",
+    "PARENTS": "Parents",
+    "FAMILY": "Family"
+  },
+  "taglines": {
+    "FREE": "You and one child",
+    "PARENTS": "Both parents, every child",
+    "FAMILY": "The whole family circle"
+  },
+  "status": {
+    "TRIALING": "Trial",
+    "PENDING": "Awaiting payment",
+    "ACTIVE": "Active",
+    "PAST_DUE": "Payment failed",
+    "CANCELED": "Cancelled"
+  },
+  "renewsOn": "Renews on",
+  "endsOn": "Ends on",
+  "trialEnds": "Your trial ends on {{date}}.",
+  "change": "Change plan",
+  "upgrade": "Upgrade",
+  "cancel": "Cancel subscription",
+  "cancelTitle": "Cancel your subscription?",
+  "cancelBody": "Your plan stops renewing and your family falls back to Free.",
+  "cancelConfirm": "Cancel subscription",
+  "confirming": "Confirming your payment…",
+  "welcome": "Welcome to {{plan}} — thank you!",
+  "canceledCheckout": "Payment was cancelled — nothing was charged.",
+  "pastDue": "Your last payment failed. Update your card within 7 days to keep your plan.",
+  "secure": "Payments are handled securely by QuickPay. KidCom never sees your card.",
+  "checkoutTitle": "Choose your plan",
+  "period": "Billing period",
+  "plans": "Plans",
+  "periods": {
+    "MONTHLY": "Monthly",
+    "ANNUAL": "Yearly"
+  },
+  "per": {
+    "MONTHLY": "per month",
+    "ANNUAL": "per year"
+  },
+  "current": "Current",
+  "free": "Free",
+  "save": "Save {{percent}}",
+  "vat": "Prices include {{rate}} VAT.",
+  "features": {
+    "oneChild": "One child",
+    "you": "Just you",
+    "unlimitedChildren": "Unlimited children",
+    "coParent": "Share with the other parent",
+    "extended": "Grandparents, family and caregivers",
+    "everything": "Calendar, moments, lists and messages"
+  },
+  "consentLabel": "Start now and waive the right of withdrawal",
+  "consent": "I want my plan to start straight away, and I understand that I lose my 14-day right of withdrawal once it has started.",
+  "terms": "Terms of service",
+  "consentRequired": "Please confirm you want the plan to start now.",
+  "toPayment": "Continue to secure payment",
+  "chooseFree": "Continue with Free",
+  "quickpay": "You'll enter your card on QuickPay's secure page and return here.",
+  "failed": "Couldn't start checkout. Please try again."
+}
