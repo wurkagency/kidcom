@@ -27,6 +27,9 @@ see "Decisions" below.
 - Not built: @mentions, blocking, presence, calls.
 - One verified mobile number = one account (confirmed 2026-09-23; enforced by a partial
   unique index — SMS password recovery identifies the account by its number).
+- Existing accounts without a verified number must add + verify one at next sign-in;
+  changing number always re-verifies (new number takes effect only once its SMS code is
+  confirmed). Confirmed 2026-09-23. Change-number UI: Phase 7 account settings.
 
 ## Phase 0 — Branch, baseline, cleanup
 
