@@ -25,6 +25,8 @@ see "Decisions" below.
 - Global categories shared by Calendar/Moments/Media, user-maintained in Preferences.
 - Moments: plain-text location; bookmarks (moments + media).
 - Not built: @mentions, blocking, presence, calls.
+- One verified mobile number = one account (confirmed 2026-09-23; enforced by a partial
+  unique index — SMS password recovery identifies the account by its number).
 
 ## Phase 0 — Branch, baseline, cleanup
 
