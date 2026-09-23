@@ -1,0 +1,5 @@
+# LF everywhere: Prisma migration checksums and scripts break on CRLF checkouts.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.woff2 binary
