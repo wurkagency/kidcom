@@ -29,13 +29,20 @@ function toDto(row: {
 
 momentCommentsRouter.get("/", async (req: Request<PostParams>, res, next) => {
   try {
-    const rows = await withRls(req.session.userId!, (tx) =>
-      tx.comment.findMany({
-        where: { momentId: req.params.postId },
+    const rows = await withRls(req.session.userId!, async (tx) => {
+      // The moment itself must be visible (it may be hidden from extended
+      // family); the comments table's own policy only knows the children.
+      const post = await tx.moment.findFirst({
+        where: { id: req.params.postId, children: { some: { childId: req.params.childId } } },
+        select: { id: true },
+      });
+      if (!post) throw new ApiError(404, "Post not found");
+      return tx.comment.findMany({
+        where: { momentId: post.id },
         include: { author: true },
         orderBy: { createdAt: "asc" },
-      })
-    );
+      });
+    });
     res.json({ items: rows.map(toDto) });
   } catch (err) {
     next(err);

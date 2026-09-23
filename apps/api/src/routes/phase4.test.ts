@@ -110,6 +110,8 @@ describe("Moments: category, place, date, family visibility", () => {
     expect((await gran.agent.get(`/children/${leo}/moments/${hidden.id}`)).status).toBe(404);
     expect((await gran.agent.get(`/media/${photo.id}`)).status).toBe(403);
     expect((await gran.agent.get(`/moments/media`)).body.items).toHaveLength(0);
+    expect((await gran.agent.get(`/children/${leo}/moments/${hidden.id}/comments`)).status).toBe(404);
+    expect((await dad.agent.get(`/children/${leo}/moments/${hidden.id}/comments`)).status).toBe(200);
     expect((await dad.agent.get(`/media/${photo.id}`)).status).toBe(200);
     expect(shared.familyVisible).toBe(true);
   });
@@ -216,6 +218,9 @@ describe("Media: details, ranges, downloads", () => {
     // Outsiders get 404: RLS hides the asset entirely, so its existence never leaks.
     expect((await outsider.agent.post("/media/archive").send({ mediaIds: [a.id], variant: "original" })).status).toBe(404);
     expect((await dad.agent.post("/media/archive").send({ mediaIds: [], variant: "original" })).status).toBe(400);
+    const viaGet = await dad.agent.get(`/media/archive?ids=${a.id},${b.id}&variant=optimized`).buffer(true).parse(binary);
+    expect(viaGet.status).toBe(200);
+    expect(viaGet.body.subarray(0, 2).toString()).toBe("PK");
   });
 
   it("emails a 7-day link that serves the zip to its owner only", async () => {

@@ -246,6 +246,17 @@ mediaRouter.post("/archive", requireAuth, async (req, res, next) => {
   }
 });
 
+// The same zip as a plain GET (?ids=a,b&variant=original), so the browser
+// streams it straight to disk instead of buffering it in the page.
+mediaRouter.get("/archive", requireAuth, async (req, res, next) => {
+  try {
+    const ids = typeof req.query.ids === "string" ? req.query.ids.split(",").filter(Boolean) : [];
+    await streamArchive(res, req.session.userId!, parseArchiveRequest({ mediaIds: ids, variant: req.query.variant }));
+  } catch (err) {
+    next(err);
+  }
+});
+
 mediaRouter.post("/archive/email", requireAuth, async (req, res, next) => {
   try {
     const userId = req.session.userId!;
