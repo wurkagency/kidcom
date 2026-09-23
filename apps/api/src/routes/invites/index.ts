@@ -1,7 +1,7 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
-import type { AcceptInviteRequest, CreateInviteRequest, CreateInviteResponse, InvitePreviewResponse, MeResponse, PublicUser } from "@kidcom/shared";
-import { ALL_RELATIONSHIP_TYPES, relationshipTypeToRole, isValidEmail, isSkinId } from "@kidcom/shared";
+import type { AcceptInviteRequest, CreateInviteRequest, CreateInviteResponse, InvitePreviewResponse, MeResponse } from "@kidcom/shared";
+import { ALL_RELATIONSHIP_TYPES, relationshipTypeToRole, isValidEmail } from "@kidcom/shared";
 
 import { prisma } from "../../db";
 import { config } from "../../config";
@@ -14,6 +14,7 @@ import { logAccessGrant } from "../../lib/accessGrantAnalytics";
 import { findClaimableChild, mergeChildAccessInto } from "../../lib/claimMerge";
 import { assertUnderMemberFairUseCap } from "../../lib/fairUseCaps";
 import { bypassRls } from "../../lib/rls";
+import { toPublicUser } from "../../lib/publicUser";
 
 export const invitesRouter = Router();
 
@@ -317,15 +318,7 @@ invitesRouter.post("/:token/accept", async (req, res, next) => {
       console.error(`Failed to send verification email to ${user.email}:`, err);
     }
     res.json({
-      user: {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        avatarUrl: user.avatarUrl,
-        emailVerifiedAt: null,
-        skinId: isSkinId(user.skinId ?? "") ? (user.skinId as PublicUser["skinId"]) : null,
-      },
+      user: toPublicUser({ ...user, emailVerifiedAt: null }),
     } satisfies MeResponse);
   } catch (err) {
     next(err);
@@ -432,15 +425,7 @@ invitesRouter.post(
     }
 
     res.json({
-      user: {
-        id: me.id,
-        email: me.email,
-        firstName: me.firstName,
-        lastName: me.lastName,
-        avatarUrl: me.avatarUrl,
-        emailVerifiedAt: me.emailVerifiedAt ? me.emailVerifiedAt.toISOString() : null,
-        skinId: isSkinId(me.skinId ?? "") ? (me.skinId as PublicUser["skinId"]) : null,
-      },
+      user: toPublicUser(me),
     } satisfies MeResponse);
   } catch (err) {
     next(err);

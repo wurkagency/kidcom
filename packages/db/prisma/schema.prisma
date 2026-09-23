@@ -68,18 +68,16 @@ model User {
   firstName       String
   lastName        String
   avatarUrl       String?
-  // Per-user visual skin choice (v2.0 theming). Nullable, no DB-level
-  // default — resolves client-side as `skinId ?? DEFAULT_SKIN`. Not
-  // validated at the DB layer against the SkinId union; validated in the
-  // PATCH /auth/me handler via packages/shared's isSkinId().
-  skinId          String?
+  // Per-user presentation preferences. Nullable, no DB-level default —
+  // resolved as `themeId ?? DEFAULT_THEME_ID` / `locale ?? DEFAULT_LOCALE`
+  // (packages/shared/src/preferences.ts). Validated in PATCH /auth/me, not
+  // at the DB layer, so adding a theme or locale needs no migration.
+  themeId         String?
+  locale          String?
   emailVerifiedAt DateTime?
   // Set once at signup (POST /auth/signup requires acceptedTerms: true) —
-  // a real consent record, not just a UI gate that forgets itself. There is
-  // no in-app Terms/Privacy document to link the checkbox to yet (see
-  // PRODUCT.md's Evidence on Hand — the privacy notice lives outside this
-  // repo at splitkid.com/privacy), so the checkbox itself is plain text
-  // rather than a link to a page that doesn't demonstrably exist.
+  // a real consent record, not just a UI gate that forgets itself. The
+  // privacy notice and terms live on the marketing site, outside this repo.
   termsAcceptedAt DateTime?
   // I-2 (spec §2.2/§4.3): one 30-day trial per user, ever — granted at
   // account creation regardless of how the account was created (organic

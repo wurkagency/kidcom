@@ -5,14 +5,13 @@ import type {
   ForgotPasswordRequest,
   LoginRequest,
   MeResponse,
-  PublicUser,
   ResetPasswordRequest,
   SignupRequest,
   TwoFactorRequiredResponse,
   UpdateProfileRequest,
   VerifyTwoFactorRequest,
 } from "@kidcom/shared";
-import { isValidEmail, isSkinId } from "@kidcom/shared";
+import { isLocale, isThemeId, isValidEmail } from "@kidcom/shared";
 
 import { prisma } from "../../db";
 import { config } from "../../config";
@@ -21,6 +20,7 @@ import { hashVerificationToken, sendVerificationEmail } from "../../lib/emailVer
 import { hashResetToken, sendPasswordResetEmail } from "../../lib/passwordReset";
 import { TWO_FACTOR_MAX_ATTEMPTS, hashTwoFactorCode, sendLoginTwoFactorCode } from "../../lib/twoFactor";
 import { withRls } from "../../lib/rls";
+import { toPublicUser } from "../../lib/publicUser";
 
 export const authRouter = Router();
 
@@ -49,26 +49,6 @@ const authRateLimiter = rateLimit({
   // everywhere else.
   skip: () => config.nodeEnv === "test",
 });
-
-function toPublicUser(user: {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  avatarUrl: string | null;
-  emailVerifiedAt: Date | null;
-  skinId: string | null;
-}): PublicUser {
-  return {
-    id: user.id,
-    email: user.email,
-    firstName: user.firstName,
-    lastName: user.lastName,
-    avatarUrl: user.avatarUrl,
-    emailVerifiedAt: user.emailVerifiedAt ? user.emailVerifiedAt.toISOString() : null,
-    skinId: isSkinId(user.skinId ?? "") ? (user.skinId as PublicUser["skinId"]) : null,
-  };
-}
 
 authRouter.post("/signup", authRateLimiter, async (req, res, next) => {
   try {
@@ -392,7 +372,7 @@ authRouter.patch("/me", async (req, res, next) => {
       throw new ApiError(401, "Not signed in");
     }
     const body = req.body as Partial<UpdateProfileRequest>;
-    const { avatarMediaAssetId, firstName, lastName, skinId } = body;
+    const { avatarMediaAssetId, firstName, lastName, themeId, locale } = body;
     const email = body.email?.trim().toLowerCase();
 
     if (
@@ -400,7 +380,8 @@ authRouter.patch("/me", async (req, res, next) => {
       firstName === undefined &&
       lastName === undefined &&
       email === undefined &&
-      skinId === undefined
+      themeId === undefined &&
+      locale === undefined
     ) {
       throw new ApiError(400, "Nothing to update");
     }
@@ -413,8 +394,11 @@ authRouter.patch("/me", async (req, res, next) => {
     if (email !== undefined && !isValidEmail(email)) {
       throw new ApiError(400, "Please enter a valid email address");
     }
-    if (skinId !== undefined && !isSkinId(skinId)) {
-      throw new ApiError(400, "Unknown skin");
+    if (themeId !== undefined && !isThemeId(themeId)) {
+      throw new ApiError(400, "Unknown theme");
+    }
+    if (locale !== undefined && !isLocale(locale)) {
+      throw new ApiError(400, "Unsupported language");
     }
 
     let avatarAsset: { id: string; ownerId: string } | null = null;
@@ -455,7 +439,8 @@ authRouter.patch("/me", async (req, res, next) => {
           ...(firstName !== undefined ? { firstName } : {}),
           ...(lastName !== undefined ? { lastName } : {}),
           ...(emailChanged ? { email, emailVerifiedAt: null } : {}),
-          ...(skinId !== undefined ? { skinId } : {}),
+          ...(themeId !== undefined ? { themeId } : {}),
+          ...(locale !== undefined ? { locale } : {}),
         },
       });
     });

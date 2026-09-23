@@ -21,9 +21,17 @@ import type { CustodyPattern } from "./custody";
 export type { ChildMember, OwnerEntitlementData } from "./entitlement";
 export { tierAtLeast, requiredTier, effectiveCoverageTier, isSatisfied, satisfyingOwnerIds } from "./entitlement";
 
-export type { SkinId, SkinDefinition } from "./skins";
-export { SKINS, DEFAULT_SKIN, isSkinId } from "./skins";
-import type { SkinId } from "./skins";
+export type { ThemeId, Locale } from "./preferences";
+export {
+  THEME_IDS,
+  DEFAULT_THEME_ID,
+  isThemeId,
+  SUPPORTED_LOCALES,
+  ENABLED_LOCALES,
+  DEFAULT_LOCALE,
+  isLocale,
+} from "./preferences";
+import type { ThemeId, Locale } from "./preferences";
 
 export type ApiHealthResponse = {
   status: "ok";
@@ -48,7 +56,9 @@ export type PublicUser = {
   lastName: string;
   avatarUrl: string | null;
   emailVerifiedAt: string | null;
-  skinId: SkinId | null;
+  // null = not chosen; resolve with DEFAULT_THEME_ID / DEFAULT_LOCALE.
+  themeId: ThemeId | null;
+  locale: Locale | null;
 };
 
 export type SignupRequest = {
@@ -84,7 +94,8 @@ export type UpdateProfileRequest = {
   lastName?: string;
   email?: string;
   avatarMediaAssetId?: string;
-  skinId?: SkinId;
+  themeId?: ThemeId;
+  locale?: Locale;
 };
 
 // Returned by POST /auth/login once the password check passes — a real
