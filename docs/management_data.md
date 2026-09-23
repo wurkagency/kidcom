@@ -48,7 +48,7 @@ v3.0 schema (`packages/db/prisma/schema.prisma`).
 | Has a password | ✅ | `users.passwordHash IS NOT NULL` | Provider-only accounts |
 | Password changes | ✅ | `password_history` (hashes + dates) | Password changed right after a new-device sign-in (account-takeover pattern) |
 | Language | ✅ | `users.locale` | Weak signal against IP country |
-| Profile photo | ✅ | `media_assets.avatarForUserId` | Same photo on unrelated accounts (needs media hashes, §5) |
+| Profile photo | ✅ | `media_assets.avatarForUserId` | Same photo on unrelated accounts (needs media hashes, §4) |
 | Subscription tier, status, trial dates | ✅ | `subscriptions`, `users.trial*` | Trial farming (new account per trial), payment failures (`pastDueSince`) |
 | QuickPay customer / subscription ids | ✅ | `subscriptions.quickpay*` | Cross-reference with QuickPay's fraud data. **Card data is never stored by KidCom** |
 | Card country, BIN, 3-D Secure result | ⬜ | QuickPay API | Card country vs phone / IP country; stolen-card patterns. Readable from QuickPay per payment |
