@@ -93,3 +93,28 @@ describe("account setup order", () => {
     expect(pendingSetupStep(user({}))).toBeNull();
   });
 });
+
+describe("calendar dates", () => {
+  it("does Monday-first week math", async () => {
+    const { isoWeekday, startOfWeek, weekDays, isoWeek } = await import("./calendar/dates");
+    expect(isoWeekday("2026-09-20")).toBe(7); // Sunday
+    expect(startOfWeek("2026-09-20")).toBe("2026-09-14");
+    expect(weekDays("2026-09-23")[0]).toBe("2026-09-21");
+    expect(isoWeek("2026-09-23")).toBe(39); // the Stitch mock's "Week 39"
+    expect(isoWeek("2027-01-01")).toBe(53);
+  });
+  it("builds whole-week month grids", async () => {
+    const { monthGrid, addMonths } = await import("./calendar/dates");
+    const sept = monthGrid("2026-09-15");
+    expect(sept[0]).toBe("2026-08-31");
+    expect(sept.length % 7).toBe(0);
+    expect(sept.at(-1)).toBe("2026-10-04");
+    expect(addMonths("2026-12-15", 1)).toBe("2027-01-01");
+    expect(addMonths("2026-01-31", -1)).toBe("2025-12-01");
+  });
+  it("uses Copenhagen days and times", async () => {
+    const { dateKey, timeKey } = await import("./calendar/dates");
+    expect(dateKey("2026-07-01T22:30:00Z")).toBe("2026-07-02"); // 00:30 CEST
+    expect(timeKey("2026-01-15T13:00:00Z")).toBe("14:00");
+  });
+});

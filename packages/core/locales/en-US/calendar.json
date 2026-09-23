@@ -1,0 +1,144 @@
+{
+  "views": {
+    "agenda": "Agenda",
+    "week": "Week",
+    "month": "Month",
+    "school": "School",
+    "switch": "Switch View",
+    "default": "Default"
+  },
+  "agenda": {
+    "today": "Today"
+  },
+  "filters": {
+    "categories": "Categories",
+    "types": "Types",
+    "clear": "Show all",
+    "type": {
+      "appointments": "Appointments",
+      "tasks": "Tasks",
+      "notes": "Notes",
+      "school": "School",
+      "holidays": "Holidays"
+    }
+  },
+  "strip": {
+    "week": "Week {{week}}",
+    "prevWeek": "Previous week",
+    "nextWeek": "Next week",
+    "prevMonth": "Previous month",
+    "nextMonth": "Next month",
+    "showMonth": "Show full month",
+    "showWeekly": "Show weekly",
+    "more": "+{{count}}"
+  },
+  "custody": {
+    "possessive": "{{name}}’s",
+    "until": "Until {{day}}",
+    "untilWithTime": "Until {{day}} {{time}}",
+    "day": "Day {{day}}",
+    "today": "Today",
+    "noPlanTitle": "No custody plan yet",
+    "noPlanBody": "A parent can set up who has the child when.",
+    "noPlanBodyEditor": "Set up the custody schedule to see who has the child each day."
+  },
+  "packing": {
+    "title": "Handover Packing",
+    "progress": "{{packed}} of {{total}} items packed",
+    "empty": "Nothing on the list yet",
+    "emptyLong": "Add what should travel with the child at the next handover.",
+    "open": "Open packing checklist",
+    "forHandover": "For the handover on {{date}}",
+    "edit": "Edit list",
+    "itemLabel": "Item",
+    "remove": "Remove item",
+    "addPlaceholder": "Add an item"
+  },
+  "swap": {
+    "request": "Request Swap",
+    "title": "Swap Request",
+    "awaiting": "Awaiting",
+    "from": "From {{name}}",
+    "sentByYou": "You asked to swap {{date}}",
+    "approveFor": "Approve for {{date}}",
+    "discuss": "Discuss"
+  },
+  "appointments": {
+    "title": "Appointments",
+    "scheduled_one": "{{count}} scheduled",
+    "scheduled_other": "{{count}} scheduled",
+    "empty": "Nothing scheduled this day.",
+    "add": "Add"
+  },
+  "event": {
+    "allDay": "All day",
+    "directions": "View route on Google Maps",
+    "note": "Note",
+    "packingList": "Packing List",
+    "handledBy": "Handled by {{name}}"
+  },
+  "tasks": {
+    "title": "Reminders & Tasks",
+    "remaining_one": "{{count}} remaining",
+    "remaining_other": "{{count}} remaining",
+    "complete": "Complete task",
+    "expand": "Show details",
+    "collapse": "Hide details",
+    "due": "Due {{date}}",
+    "empty": "No open tasks.",
+    "add": "Add"
+  },
+  "notes": {
+    "title": "Notes",
+    "count_one": "{{count}} note",
+    "count_other": "{{count}} notes",
+    "metaMine": "{{when}} • Written by {{name}}",
+    "metaShared": "{{when}} • Shared by {{name}}",
+    "today": "Today",
+    "actions": "Note actions",
+    "edit": "Edit",
+    "delete": "Delete",
+    "empty": "No notes yet.",
+    "add": "Write one"
+  },
+  "school": {
+    "title": "School",
+    "seeFull": "See full schema",
+    "noLessonsToday": "No lessons today.",
+    "reminderTitle": "School Routine Reminder",
+    "reminderBody": "{{item}} required {{days}}"
+  },
+  "today": {
+    "greeting": "Hi {{name}},",
+    "subtitle": "Here's your daily overview",
+    "title": "Today",
+    "nothingScheduled": "Nothing scheduled today.",
+    "seeCalendar": "See calendar",
+    "inSync": "Both parents in sync for this week",
+    "verified": "Verified"
+  },
+  "people": {
+    "formerMember": "Former member",
+    "withRelationship": "{{relationship}} ({{name}})",
+    "relationship": {
+      "FATHER": "Dad",
+      "MOTHER": "Mom",
+      "PARENT": "Parent",
+      "STEP_FATHER": "Step-Dad",
+      "STEP_MOTHER": "Step-Mom",
+      "FOSTER_FATHER": "Foster Dad",
+      "FOSTER_MOTHER": "Foster Mom",
+      "GUARDIAN": "Guardian",
+      "GRANDFATHER_PAT": "Grandpa",
+      "GRANDFATHER_MAT": "Grandpa",
+      "GRANDMOTHER_PAT": "Grandma",
+      "GRANDMOTHER_MAT": "Grandma",
+      "UNCLE": "Uncle",
+      "AUNT": "Aunt",
+      "BROTHER": "Brother",
+      "SISTER": "Sister",
+      "CAREGIVER": "Caregiver",
+      "OTHER": "Family member"
+    }
+  }
+}

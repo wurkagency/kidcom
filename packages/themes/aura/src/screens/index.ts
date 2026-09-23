@@ -13,6 +13,8 @@ const loadTwoFactor = () => import("../auth/TwoFactorScreen");
 const loadSignup = () => import("../auth/SignupScreen");
 const loadSetup = () => import("../auth/SetupScreens");
 const loadRecovery = () => import("../auth/RecoveryScreens");
+const loadToday = () => import("../calendar/TodayScreen");
+const loadCalendar = () => import("../calendar/CalendarScreen");
 
 // Every screen id → its Aura implementation. Screens are lazy-loaded chunks
 // (`lazy(() => import(...))`) as each build phase lands; PendingScreen marks
@@ -39,10 +41,10 @@ export const screens: ThemeManifest["screens"] = {
   "onboarding.plan": PendingScreen,
 
   // Phase 3 — today + calendar
-  today: PendingScreen,
-  "calendar.agenda": PendingScreen,
-  "calendar.week": PendingScreen,
-  "calendar.month": PendingScreen,
+  today: screen(loadToday, "TodayScreen"),
+  "calendar.agenda": screen(loadCalendar, "AgendaScreen"),
+  "calendar.week": screen(loadCalendar, "WeekScreen"),
+  "calendar.month": screen(loadCalendar, "MonthScreen"),
   "calendar.school": PendingScreen,
   "calendar.eventDetail": PendingScreen,
   "calendar.eventEdit": PendingScreen,

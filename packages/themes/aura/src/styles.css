@@ -89,6 +89,26 @@
   --aura-slate: #75827d;
   --aura-hairline: rgba(22, 26, 24, 0.04);
 
+  /* Category tones and accents, verbatim from the calendar/today exports
+   * (kidcom_today_screen_updated_note, kidcom_calendar_1-3). */
+  --aura-sage-card: #eff7f4;
+  --aura-sage-card-border: rgb(210 231 222 / 0.6);
+  --aura-sage-chip: #dbeee5;
+  --aura-sage-ink: #1c4b3a;
+  --aura-rose-card: #fdf3f2;
+  --aura-rose-card-border: rgb(248 113 113 / 0.2);
+  --aura-rose-chip: #fdf2f2;
+  --aura-rose-chip-border: rgb(248 113 113 / 0.25);
+  --aura-rose-ink: #991b1b;
+  --aura-sand-card: #faf4ec;
+  --aura-sand-card-border: rgb(238 222 203 / 0.7);
+  --aura-sand-chip: #f1e4d3;
+  --aura-sand-ink: #6d4218;
+  --aura-sand-accent: #845324;
+  --aura-peach: #fff1e5; /* week strip on Agenda, swap-request card */
+  --aura-apricot: #ffa866; /* "Approve for …" swap button */
+  --aura-alert: #d9383a; /* "Handled by …" */
+
   color-scheme: light;
 }
 
@@ -146,6 +166,23 @@
   --color-sage: var(--aura-sage);
   --color-slate: var(--aura-slate);
   --color-hairline: var(--aura-hairline);
+  --color-sage-card: var(--aura-sage-card);
+  --color-sage-card-border: var(--aura-sage-card-border);
+  --color-sage-chip: var(--aura-sage-chip);
+  --color-sage-ink: var(--aura-sage-ink);
+  --color-rose-card: var(--aura-rose-card);
+  --color-rose-card-border: var(--aura-rose-card-border);
+  --color-rose-chip: var(--aura-rose-chip);
+  --color-rose-chip-border: var(--aura-rose-chip-border);
+  --color-rose-ink: var(--aura-rose-ink);
+  --color-sand-card: var(--aura-sand-card);
+  --color-sand-card-border: var(--aura-sand-card-border);
+  --color-sand-chip: var(--aura-sand-chip);
+  --color-sand-ink: var(--aura-sand-ink);
+  --color-sand-accent: var(--aura-sand-accent);
+  --color-peach: var(--aura-peach);
+  --color-apricot: var(--aura-apricot);
+  --color-alert: var(--aura-alert);
 
   /* shadcn/ui semantic aliases, mapped onto Aura roles */
   --color-foreground: var(--aura-on-surface);

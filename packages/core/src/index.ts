@@ -58,3 +58,8 @@ export * from "./i18n";
 // Device
 export { isMobileDevice } from "./device/desktopGate";
 export type { DesktopGate } from "./device/desktopGate";
+
+// Calendar, Today, categories
+export * from "./calendar/dates";
+export * from "./calendar/hooks";
+export * from "./calendar/filters";

@@ -22,6 +22,8 @@ test("app shell header and dock match 000_base_scaffold", async ({ page }) => {
   await mockApi(page, { me: charlie, children: [leo, maya, ida], media: { "m-charlie": userPhoto } });
   await page.goto("/");
   await expect(page.getByRole("navigation", { name: "Main navigation" })).toBeVisible();
+  // Chrome only: the Today screen's own content is hidden (the reference's is a placeholder).
+  await page.addStyleTag({ content: "main > * { visibility: hidden !important; }" });
   await page.evaluate(() => document.fonts.ready);
 
   const shot = await page.screenshot();

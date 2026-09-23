@@ -1,0 +1,16 @@
+{
+  "none": "Uncategorized",
+  "system": {
+    "routine": "Routine",
+    "appointment": "Appointment",
+    "health": "Health",
+    "school": "School",
+    "sport": "Sport",
+    "playdate": "Playdate",
+    "vacation": "Vacation",
+    "holiday": "Holiday",
+    "milestone": "Milestone",
+    "outdoor": "Outdoor",
+    "creative": "Creative"
+  }
+}
