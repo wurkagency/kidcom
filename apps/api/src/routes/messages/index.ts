@@ -1,10 +1,10 @@
 import { Router, type NextFunction, type Request, type Response } from "express";
-import type { CreateMessageRequest, CreateThreadRequest, MessageDto, ThreadDto, ThreadSummaryDto } from "@kidcom/shared";
+import type { CreateMessageRequest, CreateThreadRequest, MessageDto, MessagesResponse, ThreadDto, ThreadSummaryDto } from "@kidcom/shared";
 
 import { prisma } from "../../db";
 import { requireAuth } from "../../middleware/session";
 import { ApiError } from "../../middleware/errorHandler";
-import { pushQueue } from "../../lib/pushQueue";
+import { notify } from "../../lib/notify";
 import { withRls } from "../../lib/rls";
 
 // Top-level (not child-scoped) — Thread/Message have no childId. A caller
@@ -82,8 +82,17 @@ messagesRouter.get("/threads", async (req, res, next) => {
       },
     });
 
+    // Unread = messages from others since this member last read the thread.
+    const unreadCounts = await Promise.all(
+      memberships.map((m) =>
+        prisma.message.count({
+          where: { threadId: m.threadId, senderId: { not: userId }, ...(m.lastReadAt ? { createdAt: { gt: m.lastReadAt } } : {}) },
+        })
+      )
+    );
+
     const summaries: ThreadSummaryDto[] = memberships
-      .map((m) => {
+      .map((m, i) => {
         const lastMessageRow = m.thread.messages[0] ?? null;
         return {
           id: m.thread.id,
@@ -92,9 +101,8 @@ messagesRouter.get("/threads", async (req, res, next) => {
             .filter((tm) => tm.userId !== userId)
             .map((tm) => ({ userId: tm.userId, firstName: tm.user.firstName, lastName: tm.user.lastName, avatarUrl: tm.user.avatarUrl })),
           lastMessage: lastMessageRow ? toMessageDto(lastMessageRow) : null,
-          unread: lastMessageRow
-            ? !m.lastReadAt || lastMessageRow.createdAt > m.lastReadAt
-            : false,
+          unread: unreadCounts[i]! > 0,
+          unreadCount: unreadCounts[i]!,
           _sort: lastMessageRow?.createdAt ?? m.thread.createdAt,
         };
       })
@@ -197,21 +205,27 @@ messagesRouter.get("/threads/:threadId", requireThreadMembership, async (req, re
 messagesRouter.get("/threads/:threadId/messages", requireThreadMembership, async (req, res, next) => {
   try {
     const userId = req.session.userId!;
-    const take = Math.min(Number(req.query.limit ?? 50), 100);
+    const take = Math.min(Math.max(Number(req.query.limit ?? 50) || 50, 1), 100);
+    const before = typeof req.query.before === "string" ? req.query.before : null;
 
+    // The newest `take` messages (older ones page in with `before` = the
+    // oldest id the client has), returned oldest first for display.
     const rows = await prisma.message.findMany({
       where: { threadId: req.params.threadId },
       include: { sender: true },
-      orderBy: { createdAt: "asc" },
-      take,
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: take + 1,
+      ...(before ? { cursor: { id: before }, skip: 1 } : {}),
     });
+    const hasMore = rows.length > take;
+    const page = rows.slice(0, take).reverse();
 
     await prisma.threadMember.update({
       where: { threadId_userId: { threadId: req.params.threadId, userId } },
       data: { lastReadAt: new Date() },
     });
 
-    res.json({ items: rows.map(toMessageDto) });
+    res.json({ items: page.map(toMessageDto), hasMore } satisfies MessagesResponse);
   } catch (err) {
     next(err);
   }
@@ -253,15 +267,14 @@ messagesRouter.post("/threads/:threadId/messages", requireThreadMembership, asyn
       where: { threadId: req.params.threadId, userId: { not: userId } },
       select: { userId: true },
     });
-    await Promise.all(
-      otherMembers.map((m) =>
-        pushQueue.add("send-push", {
-          userId: m.userId,
-          title: row.sender.firstName,
-          body: row.text ?? "Sent a photo",
-          url: `/messages/${req.params.threadId}`,
-        })
-      )
+    await notify(
+      otherMembers.map((m) => m.userId),
+      {
+        kind: "message.received",
+        params: { actor: row.sender.firstName, text: row.text ?? "📷" },
+        url: `/messages/${req.params.threadId}`,
+        actorId: userId,
+      }
     );
 
     res.status(201).json(toMessageDto(row));

@@ -1,0 +1,60 @@
+{
+  "title": "Notifications",
+  "empty": "You're all caught up.",
+  "settings": "Settings",
+  "more": "Show more",
+  "someone": "Someone",
+  "approved": "approved",
+  "declined": "declined",
+  "tiers": {
+    "FREE": "Free",
+    "PARENTS": "Parents",
+    "FAMILY": "Family"
+  },
+  "kinds": {
+    "moment.shared": {
+      "title": "{{actor}} shared a moment",
+      "body": "{{title}}"
+    },
+    "event.created": {
+      "title": "{{actor}} added to the calendar",
+      "body": "{{title}} · {{when}}"
+    },
+    "event.requested": {
+      "title": "{{actor}} asks to add an event",
+      "body": "{{title}}"
+    },
+    "event.decided": {
+      "title": "Your event request was {{status}}",
+      "body": "{{title}}"
+    },
+    "swap.requested": {
+      "title": "{{actor}} asks to swap a day",
+      "body": "{{date}}"
+    },
+    "swap.decided": {
+      "title": "Your swap was {{status}}",
+      "body": "{{date}}"
+    },
+    "appointment.reminder": {
+      "title": "Coming up tomorrow",
+      "body": "{{title}} · {{when}}"
+    },
+    "list.claimed": {
+      "title": "{{actor}} will get it",
+      "body": "{{title}}"
+    },
+    "message.received": {
+      "title": "{{actor}}",
+      "body": "{{text}}"
+    },
+    "upgrade.requested": {
+      "title": "{{actor}} asks you to upgrade",
+      "body": "The {{tier}} plan is needed for this family."
+    },
+    "payment.failed": {
+      "title": "A payment failed",
+      "body": "{{children}}'s plan — take over to keep it active."
+    }
+  }
+}

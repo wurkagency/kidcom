@@ -3,9 +3,9 @@ import type { CreateSwapRequestRequest, SwapRequestDto } from "@kidcom/shared";
 
 import { prisma } from "../../db";
 import { ApiError } from "../../middleware/errorHandler";
-import { pushQueue } from "../../lib/pushQueue";
 import { requireCapability } from "../../lib/permissions";
 import { withRls } from "../../lib/rls";
+import { notify } from "../../lib/notify";
 
 // Mounted at /children/:childId/swap-requests. Requests target a computed
 // custody date (see packages/shared/src/custody.ts), not a stored
@@ -69,19 +69,22 @@ swapRequestsRouter.post("/", requireCapability("swap_request:create"), async (re
 
     // Push to the child's other PARENT-role members (not the requester) —
     // best-effort, doesn't block the response (chunk 8).
-    const otherParents = await prisma.childAccess.findMany({
-      where: { childId: req.params.childId, role: "PARENT", userId: { not: req.session.userId! } },
-      select: { userId: true },
-    });
-    await Promise.all(
-      otherParents.map((a) =>
-        pushQueue.add("send-push", {
-          userId: a.userId,
-          title: "Swap request",
-          body: `A swap was requested for ${row.date.toLocaleDateString()}`,
-          url: `/calendar`,
-        })
-      )
+    const [otherParents, requester] = await Promise.all([
+      prisma.childAccess.findMany({
+        where: { childId: req.params.childId, role: "PARENT", userId: { not: req.session.userId! } },
+        select: { userId: true },
+      }),
+      prisma.user.findUnique({ where: { id: req.session.userId! }, select: { firstName: true } }),
+    ]);
+    await notify(
+      otherParents.map((a) => a.userId),
+      {
+        kind: "swap.requested",
+        params: { actor: requester?.firstName ?? null, date: row.date.toISOString().slice(0, 10) },
+        url: "/calendar",
+        childId: req.params.childId,
+        actorId: req.session.userId!,
+      }
     );
 
     res.status(201).json(toSwapRequestDto(row));
@@ -118,11 +121,13 @@ swapRequestsRouter.patch("/:id", requireCapability("swap_request:approve"), asyn
       return { existing, row, status };
     });
 
-    await pushQueue.add("send-push", {
-      userId: existing.requestedById,
-      title: "Swap request " + (status === "APPROVED" ? "approved" : "declined"),
-      body: `Your swap request for ${row.date.toLocaleDateString()} was ${status.toLowerCase()}`,
-      url: `/calendar`,
+    const decider = await prisma.user.findUnique({ where: { id: req.session.userId! }, select: { firstName: true } });
+    await notify([existing.requestedById], {
+      kind: "swap.decided",
+      params: { actor: decider?.firstName ?? null, date: row.date.toISOString().slice(0, 10), status },
+      url: "/calendar",
+      childId: row.childId,
+      actorId: req.session.userId!,
     });
 
     res.json(toSwapRequestDto(row));

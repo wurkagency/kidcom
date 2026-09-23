@@ -31,7 +31,6 @@ import { can, requireCapability, type Capability } from "../../lib/permissions";
 import { logAccessGrant } from "../../lib/accessGrantAnalytics";
 import { requireChildEntitlement, isChildSatisfied, childInGraceWindow, childSatisfyingParentIds } from "../../lib/entitlement";
 import { assertUnderChildFairUseCap, assertUnderMemberFairUseCap } from "../../lib/fairUseCaps";
-import { pushQueue } from "../../lib/pushQueue";
 import { mailSender } from "../../lib/mailSender";
 import { withRls } from "../../lib/rls";
 import bcrypt from "bcryptjs";
@@ -52,6 +51,7 @@ import { tasksRouter } from "./tasks";
 import { childNotesRouter } from "./notes";
 import { schoolLessonsRouter } from "./schoolLessons";
 import { handoverPackingRouter } from "./handoverPacking";
+import { notify } from "../../lib/notify";
 
 export const childrenRouter = Router();
 
@@ -653,15 +653,9 @@ childrenRouter.post("/:childId/upgrade-requests", requireChildAccess, async (req
     ]);
 
     const otherParents = access.filter((a) => a.role === "PARENT" && a.userId !== req.session.userId);
-    await Promise.all(
-      otherParents.map((p) =>
-        pushQueue.add("send-push", {
-          userId: p.userId,
-          title: "Upgrade requested",
-          body: `${requester.firstName} is asking you to upgrade this child's plan to ${tierNeeded}.`,
-          url: "/billing",
-        })
-      )
+    await notify(
+      otherParents.map((p) => p.userId),
+      { kind: "upgrade.requested", params: { actor: requester.firstName, tier: tierNeeded }, url: "/billing", childId, actorId: req.session.userId! }
     );
 
     res.status(201).json({

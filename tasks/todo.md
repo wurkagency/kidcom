@@ -190,6 +190,23 @@ see "Decisions" below.
       order ("26 Sept 2026"). Typed decimals accept "48,5" and "48.5". Calendar, date
       picker and month grids start on the country's first day
 ## Phase 6 — Messages + Notifications + Search
+- [x] API: `notifications` table + `lib/notify.ts` — one call records the row (kind + params,
+      translated client-side) and pushes **only when the category is on and outside quiet
+      hours** (Copenhagen clock; before this, push ignored preferences entirely). All 7 push
+      sites moved over; new: event created, list item claimed. GET /notifications (cursor),
+      POST /notifications/read; 90-day cleanup in the daily job
+- [x] API: conversations — per-thread `unreadCount`; messages page **newest first** (was the
+      oldest 50, so long threads never showed recent messages); a photo sent in a
+      conversation opens for its members (RLS policy + route check; before, only the sender
+      could see it). Search also covers calendar events (upcoming first). 6 new tests; API 225/225
+- [x] Screens from exports: inbox (4.8%), conversation (19.7% — the export's two colour photos
+      vs grey, no presence line)
+- [x] Built to DESIGN.md: new message (one person or a group), Notifications (inbox layout,
+      read-only rows, tinted until seen, bell dot in the header), Search
+- [x] Flow specs: send, photo with caption, new conversation, notifications read, search → open.
+      e2e 48/48
+- Not built (as agreed): blocking, presence ("Active now"), calls, thread details, the
+  "Kidcom" announcements row. Push text is English until the locales are translated
 ## Phase 7 — Profile menu areas (Family, Account & Billing, Preferences, onboarding)
 - [ ] Preferences → "Country formats" picker (PATCH /auth/me `region`; "Follow device" = null)
 ## Dev database

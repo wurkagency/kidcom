@@ -7,10 +7,10 @@ import { requireCapability } from "../../lib/permissions";
 import { withRls, withRlsBypass } from "../../lib/rls";
 import { assertUsableCategory } from "../../lib/categories";
 import { galleryInclude, galleryWhere, momentInclude, momentWhere, parseMomentFilters, toMomentDto, toMomentMediaDto } from "../../lib/moments";
-import { pushQueue } from "../../lib/pushQueue";
 import { copenhagenToday, optionalDateOnly, optionalText, requiredText } from "../../lib/validation";
 import { momentCommentsRouter } from "./momentComments";
 import { momentReactionsRouter } from "./momentReactions";
+import { notify } from "../../lib/notify";
 
 // Mounted at /children/:childId/moments. The cross-child feed and gallery
 // the Moments tab uses live in routes/moments; these stay for a single
@@ -100,15 +100,15 @@ async function notifyFamily(momentId: string, authorId: string, childIds: string
     ])
   );
   const moment = await withRlsBypass((tx) => tx.moment.findUnique({ where: { id: momentId }, select: { title: true } }));
-  await Promise.all(
-    members.map((m) =>
-      pushQueue.add("send-push", {
-        userId: m.userId,
-        title: `${author?.firstName ?? "Someone"} shared a moment`,
-        body: moment?.title ?? "",
-        url: `/children/${childIds[0]}/moments/${momentId}`,
-      })
-    )
+  await notify(
+    members.map((m) => m.userId),
+    {
+      kind: "moment.shared",
+      params: { actor: author?.firstName ?? null, title: moment?.title ?? "" },
+      url: `/children/${childIds[0]}/moments/${momentId}`,
+      childId: childIds[0],
+      actorId: authorId,
+    }
   );
 }
 

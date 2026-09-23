@@ -69,3 +69,6 @@ export * from "./moments/hooks";
 
 // Children, lists, health
 export * from "./children/familyHooks";
+
+// Messages, notifications, search
+export * from "./messages/hooks";

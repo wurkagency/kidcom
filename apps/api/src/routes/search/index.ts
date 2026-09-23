@@ -24,11 +24,11 @@ searchRouter.get("/", async (req, res, next) => {
     const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
 
     if (q.length < 2) {
-      res.json({ children: [], moments: [], listItems: [] } satisfies SearchResponse);
+      res.json({ children: [], moments: [], listItems: [], events: [] } satisfies SearchResponse);
       return;
     }
 
-    const [children, moments, listItems] = await Promise.all([
+    const [children, moments, listItems, events] = await Promise.all([
       prisma.child.findMany({
         where: {
           deletedAt: null,
@@ -53,6 +53,16 @@ searchRouter.get("/", async (req, res, next) => {
           take: RESULT_LIMIT,
         })
       ),
+      // Upcoming first, then the most recent past ones.
+      withRls(userId, async (tx) => {
+        const match = { OR: [{ title: { contains: q, mode: "insensitive" as const } }, { location: { contains: q, mode: "insensitive" as const } }] };
+        const now = new Date();
+        const upcoming = await tx.calendarEvent.findMany({ where: { ...match, startsAt: { gte: now } }, orderBy: { startsAt: "asc" }, take: RESULT_LIMIT });
+        const past = upcoming.length < RESULT_LIMIT
+          ? await tx.calendarEvent.findMany({ where: { ...match, startsAt: { lt: now } }, orderBy: { startsAt: "desc" }, take: RESULT_LIMIT - upcoming.length })
+          : [];
+        return [...upcoming, ...past];
+      }),
     ]);
 
     res.json({
@@ -72,6 +82,7 @@ searchRouter.get("/", async (req, res, next) => {
           createdAt: p.createdAt.toISOString(),
         })),
       listItems: listItems.map((i) => ({ id: i.id, childId: i.childId, title: i.title, type: i.type })),
+      events: events.map((e) => ({ id: e.id, childId: e.childId, title: e.title, startsAt: e.startsAt.toISOString(), allDay: e.allDay })),
     } satisfies SearchResponse);
   } catch (err) {
     next(err);

@@ -110,6 +110,9 @@
   --aura-alert: #d9383a; /* "Handled by …" */
   --aura-viewer: #0a0d0c; /* media viewer backdrop (kidcom_preview, _video_preview, _media_viewer_player) */
   --aura-viewer-accent: #d8e8e1; /* viewer icons, active dot, scrubber */
+  --aura-unread-card: #eef5f2; /* unread conversation row (kidcom_messages_1) */
+  --aura-unread-card-border: rgb(194 218 208 / 0.5);
+  --aura-unread-ink: #1e4a38; /* unread dot + count badge */
 
   color-scheme: light;
 }
@@ -187,6 +190,9 @@
   --color-alert: var(--aura-alert);
   --color-viewer: var(--aura-viewer);
   --color-viewer-accent: var(--aura-viewer-accent);
+  --color-unread-card: var(--aura-unread-card);
+  --color-unread-card-border: var(--aura-unread-card-border);
+  --color-unread-ink: var(--aura-unread-ink);
 
   /* shadcn/ui semantic aliases, mapped onto Aura roles */
   --color-foreground: var(--aura-on-surface);

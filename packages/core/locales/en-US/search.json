@@ -1,0 +1,11 @@
+{
+  "title": "Search",
+  "close": "Close search",
+  "placeholder": "Search KidCom",
+  "hint": "Children, calendar, moments and lists.",
+  "none": "Nothing found for “{{query}}”.",
+  "children": "Children",
+  "calendar": "Calendar",
+  "moments": "Moments",
+  "lists": "Lists"
+}

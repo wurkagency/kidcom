@@ -1,7 +1,7 @@
 import { prisma } from "../db";
 import { mailSender } from "./mailSender";
-import { pushQueue } from "./pushQueue";
 import { GRACE_PERIOD_DAYS } from "./entitlement";
+import { notify } from "./notify";
 
 // spec 9.12 — "in-app + email notice to every adult on the child" the
 // moment a payment fails (webhook accepted:false), naming what will be
@@ -37,7 +37,7 @@ export async function notifyPaymentFailure(ownerId: string): Promise<void> {
         const childList = Array.from(names).join(", ");
         const body = `A payment failed on ${childList}'s plan. There's a ${GRACE_PERIOD_DAYS}-day grace period before anything is limited — take over the subscription to keep it active.`;
         await Promise.all([
-          pushQueue.add("send-push", { userId, title: "Payment failed", body, url: "/billing" }),
+          notify([userId], { kind: "payment.failed", params: { children: childList }, url: "/billing" }),
           mailSender.send({
             to: email,
             subject: `Payment failed for ${childList}'s KidCom plan`,

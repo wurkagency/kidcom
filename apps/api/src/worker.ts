@@ -16,13 +16,14 @@ import { billingQueue, reconciliationQueue, type RenewSubscriptionsJob, type Rec
 import { BILLING_PERIOD_DAYS, BILLING_PRICES_ORE } from "./lib/billingPricing";
 import * as quickpay from "./lib/quickpay";
 import { reconcilePendingSubscriptions } from "./lib/billingReconciliation";
-import { pushQueue, type PushJob } from "./lib/pushQueue";
+import { type PushJob } from "./lib/pushQueue";
 import { sendPushToUser } from "./lib/webPush";
 import { remindersQueue, type RemindAppointmentsJob } from "./lib/remindersQueue";
 import { childPurgeQueue, type PurgeDeletedChildrenJob } from "./lib/childPurgeQueue";
 import { purgeExpiredDeletedChildren } from "./lib/childPurge";
 import { purgeExpiredLoginEvents } from "./lib/loginEvents";
 import { mediaStorage } from "./lib/mediaStorage";
+import { notify } from "./lib/notify";
 
 
 
@@ -194,15 +195,14 @@ const remindersWorker = new Worker<RemindAppointmentsJob>(
     );
 
     for (const event of dueEvents) {
-      await Promise.all(
-        event.child.access.map((a) =>
-          pushQueue.add("send-push", {
-            userId: a.userId,
-            title: "Upcoming appointment",
-            body: `${event.title} — ${event.startsAt.toLocaleString()}`,
-            url: "/calendar",
-          })
-        )
+      await notify(
+        event.child.access.map((a) => a.userId),
+        {
+          kind: "appointment.reminder",
+          params: { title: event.title, startsAt: event.startsAt.toISOString() },
+          url: `/children/${event.childId}/events/${event.id}`,
+          childId: event.childId,
+        }
       );
       await withRlsBypass((tx) => tx.calendarEvent.update({ where: { id: event.id }, data: { remindedAt: new Date() } }));
     }
@@ -237,6 +237,7 @@ const childPurgeWorker = new Worker<PurgeDeletedChildrenJob>(
     }
     // Same daily run: login events past retention, stray plaintext scratch files.
     const events = await purgeExpiredLoginEvents();
+    await prisma.notification.deleteMany({ where: { createdAt: { lt: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) } } });
     const scratch = await mediaStorage.cleanScratch();
     if (events || scratch) {
       // eslint-disable-next-line no-console

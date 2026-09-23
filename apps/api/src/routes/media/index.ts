@@ -102,6 +102,7 @@ mediaRouter.post("/upload", requireAuth, upload.single("file"), async (req, res,
 //   and they fall through to the owner-only rule below.
 // - A user's avatar: that user, or anyone who shares a child with them.
 // - A child's avatar or cover photo / a list item's photo: anyone with access to that child.
+// - A photo sent in a conversation: that conversation's members.
 // - Anything else (an upload not yet attached): its owner only.
 // Access is checked on every request, so revoking access takes effect at once.
 
@@ -139,7 +140,9 @@ async function loadReadableAsset(userId: string, id: string) {
     const childId = asset.avatarForChildId ?? asset.coverForChildId ?? asset.listItemImageFor!.childId;
     if (!(await prisma.childAccess.count({ where: { childId, userId } }))) throw denied();
   } else if (asset.ownerId !== userId) {
-    throw denied();
+    // A photo sent in a conversation: that conversation's members.
+    const sentToMe = await prisma.message.count({ where: { mediaId: asset.id, thread: { members: { some: { userId } } } } });
+    if (!sentToMe) throw denied();
   }
   return asset;
 }

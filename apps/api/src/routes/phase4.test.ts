@@ -137,12 +137,15 @@ describe("Moments: category, place, date, family visibility", () => {
 
   it("notify pushes to the family who can see it — parents only when hidden from family", async () => {
     const { mom, leo } = await family();
-    const { pushQueue } = await import("../lib/pushQueue");
-    const before = await pushQueue.getJobCountByTypes("waiting", "delayed", "active", "completed", "failed");
     await mom.agent.post(`/children/${leo}/moments`).send({ title: "Private", familyVisible: false, notify: true });
-    await new Promise((r) => setTimeout(r, 300));
-    const after = await pushQueue.getJobCountByTypes("waiting", "delayed", "active", "completed", "failed");
-    expect(after - before).toBe(1); // dad only, not grandma, not the author
+    // Recorded for everyone told (the push itself follows their preferences and quiet hours).
+    // Sent after the response (fire-and-forget), so wait for it.
+    let told: { userId: string }[] = [];
+    for (let i = 0; i < 20 && told.length === 0; i++) {
+      await new Promise((r) => setTimeout(r, 100));
+      told = await prisma.notification.findMany({ where: { kind: "moment.shared" }, select: { userId: true } });
+    }
+    expect(told).toHaveLength(1); // dad only, not grandma, not the author
   });
 });
 

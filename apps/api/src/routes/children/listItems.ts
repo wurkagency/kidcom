@@ -12,6 +12,7 @@ import { ApiError } from "../../middleware/errorHandler";
 import { can, requireCapability } from "../../lib/permissions";
 import { withRls } from "../../lib/rls";
 import { optionalDateOnly, optionalText } from "../../lib/validation";
+import { notify } from "../../lib/notify";
 
 // Mounted at /children/:childId/lists. Necessities + wishlist share one
 // model (ListItem.type) — the frontend splits them into two tabs.
@@ -310,12 +311,30 @@ listItemsRouter.patch("/:itemId/claim", async (req: Request<ItemParams>, res, ne
         throw new ApiError(409, "Someone else already changed this item's claim — refresh and try again");
       }
 
-      return tx.listItem.findUniqueOrThrow({
+      const updated = await tx.listItem.findUniqueOrThrow({
         where: { id: existing.id },
         include: INCLUDE,
       });
+      return { updated, newlyClaimed: claim && !mine };
     });
-    res.json(toDto(row));
+    if (row.newlyClaimed) {
+      // The parents hear who's getting it, so nobody buys it twice.
+      const parents = await prisma.childAccess.findMany({
+        where: { childId: req.params.childId, role: { in: ["PARENT", "GUARDIAN"] } },
+        select: { userId: true },
+      });
+      await notify(
+        parents.map((p) => p.userId),
+        {
+          kind: "list.claimed",
+          params: { actor: row.updated.claimedBy?.firstName ?? null, title: row.updated.title },
+          url: "/lists",
+          childId: req.params.childId,
+          actorId: userId,
+        }
+      );
+    }
+    res.json(toDto(row.updated));
   } catch (err) {
     next(err);
   }

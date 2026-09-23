@@ -35,6 +35,11 @@ const loadHealth = () => import("../children/HealthTimelineScreen");
 const loadCare = () => import("../children/CareScreens");
 const loadCustody = () => import("../children/CustodyPlanScreen");
 const loadInvite = () => import("../children/InviteScreen");
+const loadInbox = () => import("../messages/InboxScreen");
+const loadThread = () => import("../messages/ThreadScreen");
+const loadCompose = () => import("../messages/ComposeScreen");
+const loadNotifications = () => import("../messages/NotificationsScreen");
+const loadSearch = () => import("../messages/SearchScreen");
 
 // Every screen id → its Aura implementation. Screens are lazy-loaded chunks
 // (`lazy(() => import(...))`) as each build phase lands; PendingScreen marks
@@ -94,11 +99,11 @@ export const screens: ThemeManifest["screens"] = {
   "child.custody": screen(loadCustody, "CustodyPlanScreen"),
 
   // Phase 6 — messages, notifications, search
-  "messages.inbox": PendingScreen,
-  "messages.thread": PendingScreen,
-  "messages.compose": PendingScreen,
-  notifications: PendingScreen,
-  search: PendingScreen,
+  "messages.inbox": screen(loadInbox, "InboxScreen"),
+  "messages.thread": screen(loadThread, "ThreadScreen"),
+  "messages.compose": screen(loadCompose, "ComposeScreen"),
+  notifications: screen(loadNotifications, "NotificationsScreen"),
+  search: screen(loadSearch, "SearchScreen"),
 
   // Phase 7 — profile menu
   "profile.menu": PendingScreen,

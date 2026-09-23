@@ -7,6 +7,7 @@ import { requireCapability } from "../../lib/permissions";
 import { withRls } from "../../lib/rls";
 import { assertUsableCategory } from "../../lib/categories";
 import { prisma } from "../../db";
+import { notify } from "../../lib/notify";
 
 // Mounted at /children/:childId/calendar-events. National holidays are
 // system-seeded (the calendar route's ensureHolidaysSeeded) and read-only.
@@ -135,6 +136,20 @@ calendarEventsRouter.post("/", requireCapability("calendar_event:manage"), async
       }
       return tx.calendarEvent.findUniqueOrThrow({ where: { id: created.id }, include: CALENDAR_EVENT_INCLUDE });
     });
+    const [members, creator] = await Promise.all([
+      prisma.childAccess.findMany({ where: { childId: req.params.childId }, select: { userId: true } }),
+      prisma.user.findUnique({ where: { id: req.session.userId! }, select: { firstName: true } }),
+    ]);
+    await notify(
+      members.map((m) => m.userId),
+      {
+        kind: "event.created",
+        params: { actor: creator?.firstName ?? null, title: row.title, startsAt: row.startsAt.toISOString(), allDay: row.allDay ? 1 : 0 },
+        url: `/children/${req.params.childId}/events/${row.id}`,
+        childId: req.params.childId,
+        actorId: req.session.userId!,
+      }
+    );
     res.status(201).json(toCalendarEventDto(row));
   } catch (err) {
     next(err);

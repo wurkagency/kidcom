@@ -134,6 +134,7 @@ model User {
   calendarEventRequestsBy CalendarEventRequest[] @relation("CalendarEventRequestedBy")
   pushSubscriptions PushSubscription[]
   notificationPreferences NotificationPreferences?
+  notifications  Notification[]
   emailVerificationTokens EmailVerificationToken[]
   passwordResetTokens PasswordResetToken[]
   twoFactorCodes LoginTwoFactorCode[]
@@ -1017,6 +1018,26 @@ model PushSubscription {
 // `pushEnabled` field here — Push Notifications stays wired to the real
 // PushSubscription-existing-or-not mechanism, not a boolean that could drift
 // out of sync with actual browser permission state.
+// The in-app notification list (read-only rows). One row per recipient,
+// written by lib/notify.ts alongside the push. `kind` + `params` are
+// rendered by the client in the reader's language; the row never carries
+// display text. Deleted after 90 days by the daily cleanup.
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind      String
+  params    Json      @default("{}")
+  url       String?
+  childId   String?
+  actorId   String?
+  createdAt DateTime  @default(now())
+  readAt    DateTime?
+
+  @@index([userId, createdAt])
+  @@map("notifications")
+}
+
 model NotificationPreferences {
   id                        String   @id @default(cuid())
   userId                    String   @unique

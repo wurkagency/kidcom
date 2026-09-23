@@ -1,4 +1,4 @@
-import { Link, paths, useCurrentUser, useT } from "@kidcom/core";
+import { Link, paths, useCurrentUser, useT, useUnreadNotificationCount } from "@kidcom/core";
 
 import { Icon } from "../components/Icon";
 import { PersonAvatar } from "../components/PersonAvatar";
@@ -7,9 +7,10 @@ import { ChildSelector } from "./ChildSelector";
 // The one app header (docs/design/aura/000_base_scaffold). Every screen with
 // a header uses exactly this; per-screen header variants in other exports
 // are intentionally not reproduced.
-export function AppHeader({ hasUnreadNotifications = false }: { hasUnreadNotifications?: boolean }) {
+export function AppHeader() {
   const { t } = useT("shell");
   const me = useCurrentUser();
+  const hasUnreadNotifications = useUnreadNotificationCount() > 0;
 
   return (
     <header className="fixed top-0 w-full z-50 pt-safe bg-surface/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]">

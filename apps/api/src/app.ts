@@ -15,6 +15,7 @@ import { billingRouter } from "./routes/billing";
 import { pushRouter } from "./routes/push";
 import { notificationPreferencesRouter } from "./routes/notificationPreferences";
 import { searchRouter } from "./routes/search";
+import { notificationsRouter } from "./routes/notifications";
 import { categoriesRouter } from "./routes/categories";
 import { overviewRouter } from "./routes/overview";
 import { momentsFeedRouter } from "./routes/moments";
@@ -93,6 +94,7 @@ export function createApp() {
   app.use("/push", pushRouter);
   app.use("/notification-preferences", notificationPreferencesRouter);
   app.use("/search", searchRouter);
+  app.use("/notifications", notificationsRouter);
   app.use("/categories", categoriesRouter);
   app.use("/overview", overviewRouter);
   app.use("/moments", momentsFeedRouter);

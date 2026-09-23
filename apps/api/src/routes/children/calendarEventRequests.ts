@@ -3,10 +3,10 @@ import type { CalendarEventRequestDto, CreateCalendarEventRequestRequest } from 
 
 import { prisma } from "../../db";
 import { ApiError } from "../../middleware/errorHandler";
-import { pushQueue } from "../../lib/pushQueue";
 import { requireCapability } from "../../lib/permissions";
 import { withRls } from "../../lib/rls";
 import { assertUsableCategory } from "../../lib/categories";
+import { notify } from "../../lib/notify";
 
 // Mounted at /children/:childId/calendar-event-requests. Post-launch backlog
 // Phase C — close sibling of swapRequests.ts, for the FAMILY/Caregiver
@@ -95,15 +95,16 @@ calendarEventRequestsRouter.post(
         where: { childId: req.params.childId, role: { in: ["PARENT", "GUARDIAN"] }, userId: { not: req.session.userId! } },
         select: { userId: true },
       });
-      await Promise.all(
-        approvers.map((a) =>
-          pushQueue.add("send-push", {
-            userId: a.userId,
-            title: "Calendar event requested",
-            body: `A calendar event was requested: "${row.title}"`,
-            url: "/calendar",
-          })
-        )
+      const requester = await prisma.user.findUnique({ where: { id: req.session.userId! }, select: { firstName: true } });
+      await notify(
+        approvers.map((a) => a.userId),
+        {
+          kind: "event.requested",
+          params: { actor: requester?.firstName ?? null, title: row.title },
+          url: "/calendar",
+          childId: req.params.childId,
+          actorId: req.session.userId!,
+        }
       );
 
       res.status(201).json(toDto(row));
@@ -155,11 +156,13 @@ calendarEventRequestsRouter.patch(
         return { existing, row: updated, status };
       });
 
-      await pushQueue.add("send-push", {
-        userId: existing.requestedById,
-        title: "Calendar event request " + (status === "APPROVED" ? "approved" : "declined"),
-        body: `Your request for "${existing.title}" was ${status.toLowerCase()}`,
+      const decider = await prisma.user.findUnique({ where: { id: req.session.userId! }, select: { firstName: true } });
+      await notify([existing.requestedById], {
+        kind: "event.decided",
+        params: { actor: decider?.firstName ?? null, title: existing.title, status },
         url: "/calendar",
+        childId: req.params.childId,
+        actorId: req.session.userId!,
       });
 
       res.json(toDto(row));

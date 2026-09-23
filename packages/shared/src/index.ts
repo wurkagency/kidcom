@@ -1120,6 +1120,8 @@ export type ThreadSummaryDto = {
   members: ThreadMemberDto[];
   lastMessage: MessageDto | null;
   unread: boolean;
+  /** Messages from others since the caller last read the thread */
+  unreadCount: number;
 };
 
 export type ThreadDto = {
@@ -1135,6 +1137,50 @@ export type CreateThreadRequest = {
 export type CreateMessageRequest = {
   text?: string;
   mediaId?: string;
+};
+
+/** GET /threads/:id/messages — oldest first; `hasMore` = older messages exist (pass `before` = the first id). */
+export type MessagesResponse = {
+  items: MessageDto[];
+  hasMore: boolean;
+};
+
+// ---------------------------------------------------------------------------
+// Notifications (the in-app list; rendered from kind + params in the reader's language)
+// ---------------------------------------------------------------------------
+
+export const NOTIFICATION_KINDS = [
+  "moment.shared",
+  "event.created",
+  "event.requested",
+  "event.decided",
+  "swap.requested",
+  "swap.decided",
+  "appointment.reminder",
+  "list.claimed",
+  "message.received",
+  "upgrade.requested",
+  "payment.failed",
+] as const;
+export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
+
+export type NotificationDto = {
+  id: string;
+  kind: NotificationKind;
+  /** actor, title, date ("YYYY-MM-DD"), status, tier … — per kind */
+  params: Record<string, string | number | null>;
+  url: string | null;
+  childId: string | null;
+  actorId: string | null;
+  actorAvatarUrl: string | null;
+  createdAt: string;
+  read: boolean;
+};
+
+export type NotificationsResponse = {
+  items: NotificationDto[];
+  unreadCount: number;
+  nextCursor: string | null;
 };
 
 // ---------------------------------------------------------------------------
@@ -1368,10 +1414,19 @@ export type SearchResultListItem = {
   type: ListItemType;
 };
 
+export type SearchResultEvent = {
+  id: string;
+  childId: string;
+  title: string;
+  startsAt: string;
+  allDay: boolean;
+};
+
 export type SearchResponse = {
   children: SearchResultChild[];
   moments: SearchResultMoment[];
   listItems: SearchResultListItem[];
+  events: SearchResultEvent[];
 };
 
 export * from "./growth";
