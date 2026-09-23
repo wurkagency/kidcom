@@ -56,6 +56,7 @@ export const SCREEN_IDS = [
   "child.medical",
   "child.contacts",
   "child.growth",
+  "child.custody",
 
   // Messages, notifications, search
   "messages.inbox",

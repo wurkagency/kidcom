@@ -43,6 +43,7 @@ export const paths = {
     medical: (childId: string) => `/children/${enc(childId)}/medical`,
     contacts: (childId: string) => `/children/${enc(childId)}/contacts`,
     growth: (childId: string) => `/children/${enc(childId)}/growth`,
+    custody: (childId: string) => `/children/${enc(childId)}/custody`,
   },
   messages: {
     inbox: () => "/messages",

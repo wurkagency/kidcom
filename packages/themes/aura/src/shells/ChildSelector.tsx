@@ -23,20 +23,21 @@ function ChildAvatar({ child }: { child: ChildSummary }) {
 
 export function ChildSelector() {
   const { t } = useT("shell");
-  const { children, filter, selectAll, selectChild } = useActiveChildren();
+  const { children, filter, selectAll, selectChild, isSelected } = useActiveChildren();
   const [pickerOpen, setPickerOpen] = useState(false);
 
   if (children.length === 0) return null;
 
   const allSelected = filter.kind === "all";
-  const isSelected = (id: string) => filter.kind === "one" && filter.childId === id;
-  const toggle = (id: string) => (isSelected(id) ? selectAll() : selectChild(id));
+  // A tap shows just that child; tapping the only selected child again goes back to all.
+  const toggle = (id: string) =>
+    isSelected(id) && filter.kind === "some" && filter.childIds.length === 1 ? selectAll() : selectChild(id);
 
   // With 3+ children, keep a selected child visible among the two avatars.
   let visible = children.slice(0, 2);
-  if (children.length > 2 && filter.kind === "one" && !visible.some((c) => c.id === filter.childId)) {
-    const selected = children.find((c) => c.id === filter.childId);
-    if (selected) visible = [selected, children[0]];
+  const firstSelected = filter.kind === "some" ? children.find((c) => c.id === filter.childIds[0]) : undefined;
+  if (children.length > 2 && firstSelected && !visible.some((c) => c.id === firstSelected.id)) {
+    visible = [firstSelected, children[0]!];
   }
   const showAll = children.length > 2;
 

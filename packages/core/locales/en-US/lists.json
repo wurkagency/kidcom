@@ -1,0 +1,66 @@
+{
+  "title": "Lists",
+  "add": "Add",
+  "percent": "{{pct}}%",
+  "types": {
+    "NECESSITY": "Necessities",
+    "WISHLIST": "Wishlist"
+  },
+  "empty": {
+    "NECESSITY": "Nothing needed right now.",
+    "WISHLIST": "The wishlist is empty."
+  },
+  "progress": {
+    "NECESSITY": "{{claimed}} of {{total}} necessities claimed",
+    "WISHLIST": "{{claimed}} of {{total}} wishes reserved"
+  },
+  "syncNote": "Keeps both homes synchronized and avoids duplicate purchases",
+  "needed": {
+    "NECESSITY": "Needed items",
+    "WISHLIST": "Wishes"
+  },
+  "claimed": {
+    "NECESSITY": "Claimed items",
+    "WISHLIST": "Reserved"
+  },
+  "open_one": "{{count}} open",
+  "open_other": "{{count}} open",
+  "liveNote": "Items update automatically across family members",
+  "size": "Size: {{size}}",
+  "claim": "I'll get it",
+  "providing": "{{name}} is providing this",
+  "providingYou": "You're providing this",
+  "someone": "Someone",
+  "quoted": "“{{note}}”",
+  "editNote": "Edit note",
+  "addNote": "Add a note",
+  "release": "Release",
+  "noteTitle": "Note for the family",
+  "noteHint": "Where you got {{title}}, size, colour, when you'll bring it.",
+  "notePlaceholder": "Bought at Magasin, size 28. Will bring it at the next handover.",
+  "saveNote": "Save note",
+  "edit": {
+    "notFound": "This item isn't available.",
+    "createTitle": "New item",
+    "editTitle": "Edit item",
+    "type": "List",
+    "title": "What",
+    "titlePlaceholder": "Indoor soccer shoes",
+    "wishPlaceholder": "LEGO set",
+    "size": "Size",
+    "sizePlaceholder": "41, 104/110 …",
+    "description": "Details",
+    "descriptionPlaceholder": "Colour, brand, link …",
+    "hasDue": "Needed by",
+    "due": "Date",
+    "assignee": "Assigned to",
+    "assigneeHint": "Anyone in the family can still say “I'll get it”.",
+    "nobody": "Nobody in particular",
+    "titleRequired": "Say what's needed.",
+    "failed": "Couldn't save. Please try again.",
+    "add": "Add item",
+    "save": "Save changes",
+    "delete": "Delete item",
+    "confirmDelete": "Delete this item?"
+  }
+}

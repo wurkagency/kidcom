@@ -286,6 +286,8 @@ export type ChildFamilyMember = {
   // directly (POST /children/:childId/family/minor), never for anyone
   // invited by email. Lets the UI show the reduced-access badge/explanation.
   isMinorMember: boolean;
+  /** Who invited them (from their accepted invite) — "Grandmother • Charlie". */
+  invitedByUserId: string | null;
 };
 
 // Post-launch backlog Phase B — self-correction for a relationship label that

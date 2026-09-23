@@ -72,6 +72,7 @@ export const ROUTES: readonly AppRoute[] = [
   { screen: "child.medical", path: "/children/:childId/medical", shell: "app", access: "authed" },
   { screen: "child.contacts", path: "/children/:childId/contacts", shell: "app", access: "authed" },
   { screen: "child.growth", path: "/children/:childId/growth", shell: "app", access: "authed" },
+  { screen: "child.custody", path: "/children/:childId/custody", shell: "app", access: "authed" },
 
   // Messages, notifications, search
   { screen: "messages.inbox", path: "/messages", shell: "app", access: "authed" },

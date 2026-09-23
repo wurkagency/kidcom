@@ -405,11 +405,19 @@ childrenRouter.patch(
 // the child_profile mockup's "Family & Connections" section).
 childrenRouter.get("/:childId/family", requireChildAccess, async (req, res, next) => {
   try {
-    const access = await prisma.childAccess.findMany({
-      where: { childId: req.params.childId },
-      include: { user: true },
-      orderBy: { createdAt: "asc" },
-    });
+    const [access, invites] = await Promise.all([
+      prisma.childAccess.findMany({
+        where: { childId: req.params.childId },
+        include: { user: true },
+        orderBy: { createdAt: "asc" },
+      }),
+      prisma.invite.findMany({
+        where: { childId: req.params.childId, acceptedAt: { not: null } },
+        select: { email: true, invitedById: true },
+        orderBy: { acceptedAt: "desc" },
+      }),
+    ]);
+    const inviterByEmail = new Map(invites.filter((i) => i.email).map((i) => [i.email!.toLowerCase(), i.invitedById]));
     res.json({
       members: access.map((a) => ({
         userId: a.userId,
@@ -419,6 +427,7 @@ childrenRouter.get("/:childId/family", requireChildAccess, async (req, res, next
         role: a.role,
         relationship: a.relationship,
         isMinorMember: a.isMinorMember,
+        invitedByUserId: inviterByEmail.get(a.user.email.toLowerCase()) ?? null,
       })),
     });
   } catch (err) {

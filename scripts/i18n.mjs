@@ -52,7 +52,7 @@ function loadLocale(locale) {
 const locales = () => readdirSync(LOCALES_DIR).filter((d) => statSync(join(LOCALES_DIR, d)).isDirectory());
 const placeholders = (s) => [...String(s).matchAll(/\{\{\s*([\w.]+)\s*\}\}/g)].map((m) => m[1]).sort();
 // i18next plural/context suffixes resolve to the base key in code.
-const baseKey = (key) => key.replace(/_(zero|one|two|few|many|other)$/, "");
+const baseKey = (key) => key.replace(/(_ordinal)?_(zero|one|two|few|many|other)$/, "");
 
 function sourceFiles(dir, out = []) {
   if (!existsSync(dir)) return out;

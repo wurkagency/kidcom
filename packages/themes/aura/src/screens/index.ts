@@ -26,6 +26,15 @@ const loadBookmarks = () => import("../moments/BookmarksScreen");
 const loadGallery = () => import("../media/GalleryScreen");
 const loadViewer = () => import("../media/ViewerScreen");
 const loadDownload = () => import("../media/DownloadScreen");
+const loadLists = () => import("../lists/ListsScreen");
+const loadListEdit = () => import("../lists/ListItemEditScreen");
+const loadChildren = () => import("../children/ChildrenScreen");
+const loadProfile = () => import("../children/ChildProfileScreen");
+const loadChildEdit = () => import("../children/ChildEditScreen");
+const loadHealth = () => import("../children/HealthTimelineScreen");
+const loadCare = () => import("../children/CareScreens");
+const loadCustody = () => import("../children/CustodyPlanScreen");
+const loadInvite = () => import("../children/InviteScreen");
 
 // Every screen id → its Aura implementation. Screens are lazy-loaded chunks
 // (`lazy(() => import(...))`) as each build phase lands; PendingScreen marks
@@ -73,15 +82,16 @@ export const screens: ThemeManifest["screens"] = {
   bookmarks: screen(loadBookmarks, "BookmarksScreen"),
 
   // Phase 5 — lists, children, health
-  "lists.overview": PendingScreen,
-  "lists.itemEdit": PendingScreen,
-  "children.overview": PendingScreen,
-  "child.profile": PendingScreen,
-  "child.edit": PendingScreen,
-  "child.health": PendingScreen,
-  "child.medical": PendingScreen,
-  "child.contacts": PendingScreen,
-  "child.growth": PendingScreen,
+  "lists.overview": screen(loadLists, "ListsScreen"),
+  "lists.itemEdit": screen(loadListEdit, "ListItemEditScreen"),
+  "children.overview": screen(loadChildren, "ChildrenScreen"),
+  "child.profile": screen(loadProfile, "ChildProfileScreen"),
+  "child.edit": screen(loadChildEdit, "ChildEditScreen"),
+  "child.health": screen(loadHealth, "HealthTimelineScreen"),
+  "child.medical": screen(loadCare, "MedicalScreen"),
+  "child.contacts": screen(loadCare, "ContactsScreen"),
+  "child.growth": screen(loadCare, "GrowthScreen"),
+  "child.custody": screen(loadCustody, "CustodyPlanScreen"),
 
   // Phase 6 — messages, notifications, search
   "messages.inbox": PendingScreen,
@@ -94,7 +104,7 @@ export const screens: ThemeManifest["screens"] = {
   "profile.menu": PendingScreen,
   "profile.account": PendingScreen,
   "family.overview": PendingScreen,
-  "family.invite": PendingScreen,
+  "family.invite": screen(loadInvite, "InviteScreen"),
   "billing.overview": PendingScreen,
   "billing.checkout": PendingScreen,
   "preferences.overview": PendingScreen,

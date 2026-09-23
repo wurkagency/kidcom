@@ -4,11 +4,12 @@ import type { ChildSummary } from "@kidcom/shared";
 import { useMe } from "../auth/hooks";
 import { useChildren } from "./hooks";
 
-// The header's child selector: which children the tab screens are showing.
-// "all" (the default) or a single child. Remembered per account on this
-// device so the app reopens on the same view.
+// Which children the tab screens are showing: "all" (the default) or a
+// chosen set — one child from the header's avatars, several from the
+// Children screen. Remembered per account on this device so the app reopens
+// on the same view.
 
-export type ChildFilter = { kind: "all" } | { kind: "one"; childId: string };
+export type ChildFilter = { kind: "all" } | { kind: "some"; childIds: string[] };
 
 type ActiveChildrenValue = {
   children: ChildSummary[];
@@ -16,7 +17,11 @@ type ActiveChildrenValue = {
   /** The children the current filter selects (all of them for "all"). */
   selected: ChildSummary[];
   selectAll: () => void;
+  /** Just this child. */
   selectChild: (childId: string) => void;
+  /** Exactly these children (none or every one = all). */
+  setSelection: (childIds: string[]) => void;
+  isSelected: (childId: string) => boolean;
   isLoading: boolean;
 };
 
@@ -28,7 +33,8 @@ function readFilter(userId: string | undefined): ChildFilter {
   if (!userId) return { kind: "all" };
   try {
     const raw = localStorage.getItem(storageKey(userId));
-    return raw && raw !== "all" ? { kind: "one", childId: raw } : { kind: "all" };
+    const ids = raw && raw !== "all" ? raw.split(",").filter(Boolean) : [];
+    return ids.length ? { kind: "some", childIds: ids } : { kind: "all" };
   } catch {
     return { kind: "all" };
   }
@@ -50,7 +56,7 @@ export function ActiveChildrenProvider({ children: node }: { children: ReactNode
       setStored({ userId: me?.id, filter: next });
       if (!me) return;
       try {
-        localStorage.setItem(storageKey(me.id), next.kind === "all" ? "all" : next.childId);
+        localStorage.setItem(storageKey(me.id), next.kind === "all" ? "all" : next.childIds.join(","));
       } catch {
         // Not persisted; still applied for this session.
       }
@@ -59,15 +65,22 @@ export function ActiveChildrenProvider({ children: node }: { children: ReactNode
   );
 
   const value = useMemo<ActiveChildrenValue>(() => {
-    // A remembered child that's gone (access removed, deleted) falls back to all.
-    const effective: ChildFilter =
-      filter.kind === "one" && !kids.some((k) => k.id === filter.childId) ? { kind: "all" } : filter;
+    // Children that are gone (access removed, deleted) drop out; an empty or
+    // complete selection means all.
+    const normalize = (ids: string[]): ChildFilter => {
+      const known = [...new Set(ids)].filter((id) => kids.some((k) => k.id === id));
+      return known.length === 0 || known.length === kids.length ? { kind: "all" } : { kind: "some", childIds: known };
+    };
+    const effective = filter.kind === "all" || kids.length === 0 ? filter : normalize(filter.childIds);
+    const selectedIds = effective.kind === "all" ? kids.map((k) => k.id) : effective.childIds;
     return {
       children: kids,
       filter: effective,
-      selected: effective.kind === "all" ? kids : kids.filter((k) => k.id === effective.childId),
+      selected: kids.filter((k) => selectedIds.includes(k.id)),
       selectAll: () => persist({ kind: "all" }),
-      selectChild: (childId: string) => persist({ kind: "one", childId }),
+      selectChild: (childId: string) => persist({ kind: "some", childIds: [childId] }),
+      setSelection: (childIds: string[]) => persist(normalize(childIds)),
+      isSelected: (childId: string) => effective.kind === "some" && effective.childIds.includes(childId),
       isLoading,
     };
   }, [filter, kids, isLoading, persist]);

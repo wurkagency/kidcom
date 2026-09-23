@@ -25,6 +25,7 @@ const member = (userId: string, firstName: string, relationship: ChildFamilyMemb
   role: relationship === "FATHER" || relationship === "MOTHER" ? "PARENT" : "FAMILY",
   relationship,
   isMinorMember: false,
+  invitedByUserId: null,
 });
 
 export const members = [member("u-charlie", "Charlie", "MOTHER"), member("u-dad", "Jonas", "FATHER"), member("u-inger", "Inger", "GRANDMOTHER_MAT")];

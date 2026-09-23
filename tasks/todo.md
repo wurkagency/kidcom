@@ -168,6 +168,20 @@ see "Decisions" below.
     from ⋮ → Details or by tapping the caption
   - Gallery category badges ("Artwork") not shown on every tile — only the video duration
 ## Phase 5 — Lists + Children + Health
+- [x] API: list `dueOn` / claim with note (`PATCH …/claim`, explicit or toggle, note-only edit,
+      409 `ALREADY_CLAIMED`), cross-child `GET /lists`; child cover photo (RLS clause), child
+      summary gains `myRole` / `myRelationship` / `canEdit`; family members carry
+      `invitedByUserId`. WHO height-for-age L/M/S tables (0–19 y) + percentile helpers in
+      shared. 5 new tests; children suites re-run green (52/52)
+- [x] Screens from exports: lists (9.1% — fixture shows 3 claimed cards, export 1),
+      children (7.6%), child profile (20.3% — the export's full-bleed red cover photo vs grey),
+      health timeline (7.4%)
+- [x] Built to DESIGN.md: list item edit, child add/edit, custody plan (presets 7/7, 2-2-3,
+      5-2-2-5, 9/5, 14/2, every other weekend), growth (WHO curve, half-year axis on short
+      spans), medical info, contacts, invite family — reviewed by screenshot
+- [x] Child selector is now multi-select (All / any subset), shared by header and Children
+- [x] Flow specs: claim, claim note, child selection, add measurement, relationship edit,
+      custody 9/5 and 14/2. e2e 40/40
 ## Phase 6 — Messages + Notifications + Search
 ## Phase 7 — Profile menu areas (Family, Account & Billing, Preferences, onboarding)
 ## Dev database

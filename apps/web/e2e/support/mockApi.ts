@@ -39,6 +39,10 @@ const child = (id: string, firstName: string, gender: ChildSummary["gender"], bi
   profileImageUrl: null,
   clothingSize: null,
   shoeSize: null,
+  coverImageUrl: null,
+  myRole: "PARENT",
+  myRelationship: "MOTHER",
+  canEdit: true,
 });
 
 export const leo = child("c-leo", "Leo", "BOY", "2018-05-14");

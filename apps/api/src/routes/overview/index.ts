@@ -112,6 +112,7 @@ overviewRouter.get("/", async (req, res, next) => {
           role: m.role,
           relationship: m.relationship,
           isMinorMember: m.isMinorMember,
+          invitedByUserId: null, // the family screen has it; the calendar never needs it
         })),
         custody: { plan: data.plan ? toCustodyPlanDto(data.plan) : null, byDate, today: custodyToday },
         events: data.events.map(toCalendarEventDto),
