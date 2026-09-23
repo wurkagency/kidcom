@@ -20,7 +20,7 @@ declare global {
 }
 
 // Gates any route with a `:childId` param — every future child-scoped
-// feature (calendar, journal, media, lists) reuses this rather than
+// feature (calendar, moments, media, lists) reuses this rather than
 // re-implementing the ChildAccess check. Must run after requireAuth. Also
 // the source of the fields the permission matrix (lib/permissions.ts)
 // needs — attached here so route handlers don't each run their own lookup.

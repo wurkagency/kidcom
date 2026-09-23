@@ -374,7 +374,7 @@ invitesRouter.post(
         // reference, then move every *other* member's access onto the real
         // child — `me` already holds PARENT access there, nothing to grant.
         await tx.invite.update({ where: { id: invite.id }, data: { childId: claimTargetChildId, acceptedAt: new Date() } });
-        // Reassigns OTHER members' journal/medical/etc. content between two
+        // Reassigns OTHER members' moments/medical/etc. content between two
         // child records — already verified legitimate by findClaimableChild
         // above (me's own real PARENT-access child, matched by name +
         // birthday), not something `me`'s own ChildAccess grants would

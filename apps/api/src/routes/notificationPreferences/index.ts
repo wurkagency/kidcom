@@ -16,7 +16,7 @@ function toDto(row: {
   googleCalendarSyncEnabled: boolean;
   office365SyncEnabled: boolean;
   categoryCalendar: boolean;
-  categoryJournal: boolean;
+  categoryMoments: boolean;
   categoryLists: boolean;
   categoryMessages: boolean;
   doNotDisturb: boolean;
@@ -28,7 +28,7 @@ function toDto(row: {
     googleCalendarSyncEnabled: row.googleCalendarSyncEnabled,
     office365SyncEnabled: row.office365SyncEnabled,
     categoryCalendar: row.categoryCalendar,
-    categoryJournal: row.categoryJournal,
+    categoryMoments: row.categoryMoments,
     categoryLists: row.categoryLists,
     categoryMessages: row.categoryMessages,
     doNotDisturb: row.doNotDisturb,
@@ -60,7 +60,7 @@ notificationPreferencesRouter.patch("/", async (req, res, next) => {
       }),
       ...(body.office365SyncEnabled !== undefined && { office365SyncEnabled: body.office365SyncEnabled }),
       ...(body.categoryCalendar !== undefined && { categoryCalendar: body.categoryCalendar }),
-      ...(body.categoryJournal !== undefined && { categoryJournal: body.categoryJournal }),
+      ...(body.categoryMoments !== undefined && { categoryMoments: body.categoryMoments }),
       ...(body.categoryLists !== undefined && { categoryLists: body.categoryLists }),
       ...(body.categoryMessages !== undefined && { categoryMessages: body.categoryMessages }),
       ...(body.doNotDisturb !== undefined && { doNotDisturb: body.doNotDisturb }),

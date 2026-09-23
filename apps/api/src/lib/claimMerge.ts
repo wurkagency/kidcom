@@ -36,7 +36,7 @@ export async function findClaimableChild(userId: string, candidateChildId: strin
 //   - `childDeletionRequest` — a pending deletion vote on a record that's
 //     about to be deleted is moot; let it cascade-delete too.
 const CHILD_SCOPED_MODELS_TO_MIGRATE = [
-  "journalPostChild",
+  "momentChild",
   "medicalInfo",
   "growthEntry",
   "emergencyContact",
@@ -48,7 +48,7 @@ const CHILD_SCOPED_MODELS_TO_MIGRATE = [
   "upgradeRequest",
 ] as const;
 
-// Moves every OTHER member's ChildAccess, plus all real content (journal
+// Moves every OTHER member's ChildAccess, plus all real content (moments
 // posts via the join table, medical info, growth entries, emergency
 // contacts, custody plans, calendar events, swap requests, lists, upgrade
 // requests), from the duplicate record onto the real one, then deletes the

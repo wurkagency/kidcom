@@ -21,10 +21,10 @@ export const mediaRouter = Router();
 // break their ability to watch any video at all, which isn't what "view
 // only" means. Upload itself also can't be gated here — a freshly uploaded
 // asset has no child association yet (that only happens once it's attached
-// to a journal post, an avatar, etc.), so there's no ChildAccess row to
+// to a moment, an avatar, etc.), so there's no ChildAccess row to
 // check against at this point. The practical effect a Caregiver actually
 // needs blocked — they can't attach new media to a post — is already closed
-// by journal.ts's "journal:post" gate.
+// by moments.ts's "moments:post" gate.
 
 const MAX_UPLOAD_BYTES = 50 * 1024 * 1024; // 50MB — generous for a phone photo/short clip
 
@@ -114,12 +114,12 @@ mediaRouter.post("/upload", requireAuth, upload.single("file"), async (req, res,
 });
 
 // Streams the derivative (falls back to the original if not processed yet)
-// after checking the requester has ChildAccess to the asset's journal
+// after checking the requester has ChildAccess to the asset's moments
 // post's child. An asset not yet attached to a post is only readable by its
 // owner (it's still being composed into a post).
 //
 // Avatars (avatarForUserId / avatarForChildId) get their own access rules
-// since they aren't attached to a journal post:
+// since they aren't attached to a moment:
 // - A user's own avatar: viewable by that user, or by anyone who shares a
 //   child with them (same "family" boundary ChildAccess draws everywhere
 //   else) — checked by counting ChildAccess rows on children the viewer has
@@ -139,7 +139,7 @@ mediaRouter.get("/:id", requireAuth, async (req, res, next) => {
       tx.mediaAsset.findUnique({
         where: { id: req.params.id },
         include: {
-          journalPost: {
+          moment: {
             include: { children: { include: { child: { include: { access: true } } } } },
           },
           listItemImageFor: { select: { childId: true } },
@@ -148,10 +148,10 @@ mediaRouter.get("/:id", requireAuth, async (req, res, next) => {
     );
     if (!asset) throw new ApiError(404, "Media not found");
 
-    if (asset.journalPost) {
-      // A journal post can now be tagged to multiple children (JournalPostChild
+    if (asset.moment) {
+      // A moment can now be tagged to multiple children (MomentChild
       // join table) — viewable if the requester has ChildAccess to ANY of them.
-      const hasAccess = asset.journalPost.children.some((jpc) =>
+      const hasAccess = asset.moment.children.some((jpc) =>
         jpc.child.access.some((a) => a.userId === req.session.userId)
       );
       if (!hasAccess) throw new ApiError(403, "You don't have access to this media");
@@ -174,7 +174,7 @@ mediaRouter.get("/:id", requireAuth, async (req, res, next) => {
       if (!hasAccess) throw new ApiError(403, "You don't have access to this media");
     } else if (asset.listItemImageFor) {
       // A Necessity/Wishlist item's photo — viewable by anyone with
-      // ChildAccess to that item's child, same rule as avatars/journal media.
+      // ChildAccess to that item's child, same rule as avatars/moments media.
       const hasAccess =
         (await prisma.childAccess.count({
           where: { childId: asset.listItemImageFor.childId, userId: req.session.userId! },

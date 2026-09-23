@@ -4,8 +4,8 @@ import type { CommentDto, CreateCommentRequest, UpdateCommentRequest } from "@ki
 import { ApiError } from "../../middleware/errorHandler";
 import { withRls } from "../../lib/rls";
 
-// Mounted at /children/:childId/journal/:postId/comments.
-export const journalCommentsRouter = Router({ mergeParams: true });
+// Mounted at /children/:childId/moments/:postId/comments.
+export const momentCommentsRouter = Router({ mergeParams: true });
 
 type PostParams = { childId: string; postId: string };
 type CommentParams = { childId: string; postId: string; commentId: string };
@@ -27,11 +27,11 @@ function toDto(row: {
   };
 }
 
-journalCommentsRouter.get("/", async (req: Request<PostParams>, res, next) => {
+momentCommentsRouter.get("/", async (req: Request<PostParams>, res, next) => {
   try {
     const rows = await withRls(req.session.userId!, (tx) =>
       tx.comment.findMany({
-        where: { journalPostId: req.params.postId },
+        where: { momentId: req.params.postId },
         include: { author: true },
         orderBy: { createdAt: "asc" },
       })
@@ -42,7 +42,7 @@ journalCommentsRouter.get("/", async (req: Request<PostParams>, res, next) => {
   }
 });
 
-journalCommentsRouter.post("/", async (req: Request<PostParams>, res, next) => {
+momentCommentsRouter.post("/", async (req: Request<PostParams>, res, next) => {
   try {
     const body = req.body as Partial<CreateCommentRequest>;
     if (!body.text?.trim()) {
@@ -50,13 +50,13 @@ journalCommentsRouter.post("/", async (req: Request<PostParams>, res, next) => {
     }
     const text = body.text;
     const row = await withRls(req.session.userId!, async (tx) => {
-      const post = await tx.journalPost.findFirst({
+      const post = await tx.moment.findFirst({
         where: { id: req.params.postId, children: { some: { childId: req.params.childId } } },
       });
       if (!post) throw new ApiError(404, "Post not found");
 
       return tx.comment.create({
-        data: { journalPostId: post.id, authorId: req.session.userId!, text },
+        data: { momentId: post.id, authorId: req.session.userId!, text },
         include: { author: true },
       });
     });
@@ -66,7 +66,7 @@ journalCommentsRouter.post("/", async (req: Request<PostParams>, res, next) => {
   }
 });
 
-journalCommentsRouter.patch("/:commentId", async (req: Request<CommentParams>, res, next) => {
+momentCommentsRouter.patch("/:commentId", async (req: Request<CommentParams>, res, next) => {
   try {
     const body = req.body as Partial<UpdateCommentRequest>;
     if (!body.text?.trim()) {
@@ -74,7 +74,7 @@ journalCommentsRouter.patch("/:commentId", async (req: Request<CommentParams>, r
     }
     const row = await withRls(req.session.userId!, async (tx) => {
       const existing = await tx.comment.findFirst({
-        where: { id: req.params.commentId, journalPostId: req.params.postId },
+        where: { id: req.params.commentId, momentId: req.params.postId },
       });
       if (!existing) throw new ApiError(404, "Comment not found");
       if (existing.authorId !== req.session.userId) {
@@ -93,11 +93,11 @@ journalCommentsRouter.patch("/:commentId", async (req: Request<CommentParams>, r
   }
 });
 
-journalCommentsRouter.delete("/:commentId", async (req: Request<CommentParams>, res, next) => {
+momentCommentsRouter.delete("/:commentId", async (req: Request<CommentParams>, res, next) => {
   try {
     await withRls(req.session.userId!, async (tx) => {
       const existing = await tx.comment.findFirst({
-        where: { id: req.params.commentId, journalPostId: req.params.postId },
+        where: { id: req.params.commentId, momentId: req.params.postId },
       });
       if (!existing) throw new ApiError(404, "Comment not found");
       if (existing.authorId !== req.session.userId) {

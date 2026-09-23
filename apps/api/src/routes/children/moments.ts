@@ -1,21 +1,21 @@
 import { Router, type Request } from "express";
-import type { CreateJournalPostRequest, JournalMediaDto, JournalPostDto, MediaAssetDto } from "@kidcom/shared";
+import type { CreateMomentRequest, MomentMediaDto, MomentDto, MediaAssetDto } from "@kidcom/shared";
 
 import { prisma } from "../../db";
 import { ApiError } from "../../middleware/errorHandler";
 import { requireCapability } from "../../lib/permissions";
 import { withRls } from "../../lib/rls";
-import { journalCommentsRouter } from "./journalComments";
-import { journalReactionsRouter } from "./journalReactions";
+import { momentCommentsRouter } from "./momentComments";
+import { momentReactionsRouter } from "./momentReactions";
 
-// Mounted at /children/:childId/journal.
-export const journalRouter = Router({ mergeParams: true });
+// Mounted at /children/:childId/moments.
+export const momentsRouter = Router({ mergeParams: true });
 
 type ChildParams = { childId: string };
 type PostParams = { childId: string; postId: string };
 
-journalRouter.use("/:postId/comments", journalCommentsRouter);
-journalRouter.use("/:postId/reactions", journalReactionsRouter);
+momentsRouter.use("/:postId/comments", momentCommentsRouter);
+momentsRouter.use("/:postId/reactions", momentReactionsRouter);
 
 function toMediaDto(m: {
   id: string;
@@ -39,7 +39,7 @@ function toPostDto(post: {
   _count: { comments: number; reactions: number };
   reactions: { userId: string }[];
   currentUserId: string;
-}): JournalPostDto {
+}): MomentDto {
   return {
     id: post.id,
     childIds: post.children.map((c) => c.childId),
@@ -59,14 +59,14 @@ function toPostDto(post: {
   };
 }
 
-journalRouter.get("/", async (req: Request<ChildParams>, res, next) => {
+momentsRouter.get("/", async (req: Request<ChildParams>, res, next) => {
   try {
     const userId = req.session.userId!;
     const take = Math.min(Number(req.query.limit ?? 20), 50);
     const cursor = req.query.cursor as string | undefined;
 
     const posts = await withRls(userId, (tx) =>
-      tx.journalPost.findMany({
+      tx.moment.findMany({
         where: { children: { some: { childId: req.params.childId } } },
         orderBy: { createdAt: "desc" },
         take: take + 1,
@@ -94,29 +94,29 @@ journalRouter.get("/", async (req: Request<ChildParams>, res, next) => {
 });
 
 // Flat, month-groupable list of every READY media asset attached to this
-// child's journal posts — backs the Media Gallery screen, which shows all
+// child's moments — backs the Media Gallery screen, which shows all
 // photos/videos across posts rather than one post's media at a time.
 // Registered before "/:postId" below so "media" is never captured as a
 // post id.
-journalRouter.get("/media", async (req: Request<ChildParams>, res, next) => {
+momentsRouter.get("/media", async (req: Request<ChildParams>, res, next) => {
   try {
     const assets = await withRls(req.session.userId!, (tx) =>
       tx.mediaAsset.findMany({
         where: {
           status: "READY",
-          journalPost: { children: { some: { childId: req.params.childId } } },
+          moment: { children: { some: { childId: req.params.childId } } },
         },
-        include: { journalPost: { include: { children: { select: { childId: true } } } } },
-        orderBy: { journalPost: { createdAt: "desc" } },
+        include: { moment: { include: { children: { select: { childId: true } } } } },
+        orderBy: { moment: { createdAt: "desc" } },
       })
     );
-    const items: JournalMediaDto[] = assets
-      .filter((a) => a.journalPost)
+    const items: MomentMediaDto[] = assets
+      .filter((a) => a.moment)
       .map((a) => ({
         ...toMediaDto(a),
-        postId: a.journalPost!.id,
-        postCreatedAt: a.journalPost!.createdAt.toISOString(),
-        childIds: a.journalPost!.children.map((c) => c.childId),
+        postId: a.moment!.id,
+        postCreatedAt: a.moment!.createdAt.toISOString(),
+        childIds: a.moment!.children.map((c) => c.childId),
       }));
     res.json({ items });
   } catch (err) {
@@ -124,20 +124,20 @@ journalRouter.get("/media", async (req: Request<ChildParams>, res, next) => {
   }
 });
 
-// Single-post fetch — added because JournalPostPage previously had no way
+// Single-post fetch — added because MomentPage previously had no way
 // to load a post's own content except carrying it over as router-navigation
 // state from the feed card's link. That broke on a page reload, a deep
 // link, or (the reported bug) any link that forgot to pass that state, such
-// as the dashboard's "Latest Journal Entry" card — the page would silently
+// as the dashboard's "Latest Moment" card — the page would silently
 // show only comments with no post above them, reading as if it had linked
 // to the wrong place. Fetching for real here removes that whole class of
 // bug instead of chasing down every call site that needs to remember to
 // pass state.
-journalRouter.get("/:postId", async (req: Request<PostParams>, res, next) => {
+momentsRouter.get("/:postId", async (req: Request<PostParams>, res, next) => {
   try {
     const userId = req.session.userId!;
     const post = await withRls(userId, (tx) =>
-      tx.journalPost.findFirst({
+      tx.moment.findFirst({
         where: { id: req.params.postId, children: { some: { childId: req.params.childId } } },
         include: {
           author: true,
@@ -155,11 +155,11 @@ journalRouter.get("/:postId", async (req: Request<PostParams>, res, next) => {
   }
 });
 
-// spec 9.5: a Caregiver may comment (see journalComments.ts, ungated) but
+// spec 9.5: a Caregiver may comment (see momentComments.ts, ungated) but
 // not post — everyone else with FAMILY/PARENT access may post.
-journalRouter.post("/", requireCapability("journal:post"), async (req: Request<ChildParams>, res, next) => {
+momentsRouter.post("/", requireCapability("moments:post"), async (req: Request<ChildParams>, res, next) => {
   try {
-    const body = req.body as Partial<CreateJournalPostRequest>;
+    const body = req.body as Partial<CreateMomentRequest>;
     if (!body.title) {
       throw new ApiError(400, "title is required");
     }
@@ -177,25 +177,25 @@ journalRouter.post("/", requireCapability("journal:post"), async (req: Request<C
     }
 
     const post = await withRls(userId, async (tx) => {
-      const created = await tx.journalPost.create({
+      const created = await tx.moment.create({
         data: {
           authorId: userId,
           title: body.title!,
           text: body.text?.trim() || null,
         },
       });
-      await tx.journalPostChild.createMany({
-        data: childIds.map((childId) => ({ journalPostId: created.id, childId })),
+      await tx.momentChild.createMany({
+        data: childIds.map((childId) => ({ momentId: created.id, childId })),
       });
       if (body.mediaAssetIds?.length) {
         // Only attach assets this user owns — prevents attaching someone
         // else's in-flight upload by guessing an id.
         await tx.mediaAsset.updateMany({
-          where: { id: { in: body.mediaAssetIds }, ownerId: userId, journalPostId: null },
-          data: { journalPostId: created.id },
+          where: { id: { in: body.mediaAssetIds }, ownerId: userId, momentId: null },
+          data: { momentId: created.id },
         });
       }
-      return tx.journalPost.findUniqueOrThrow({
+      return tx.moment.findUniqueOrThrow({
         where: { id: created.id },
         include: {
           author: true,
@@ -213,17 +213,17 @@ journalRouter.post("/", requireCapability("journal:post"), async (req: Request<C
   }
 });
 
-journalRouter.delete("/:postId", async (req: Request<PostParams>, res, next) => {
+momentsRouter.delete("/:postId", async (req: Request<PostParams>, res, next) => {
   try {
     await withRls(req.session.userId!, async (tx) => {
-      const post = await tx.journalPost.findFirst({
+      const post = await tx.moment.findFirst({
         where: { id: req.params.postId, children: { some: { childId: req.params.childId } } },
       });
       if (!post) throw new ApiError(404, "Post not found");
       if (post.authorId !== req.session.userId) {
         throw new ApiError(403, "Only the author can delete this post");
       }
-      await tx.journalPost.delete({ where: { id: post.id } });
+      await tx.moment.delete({ where: { id: post.id } });
     });
     res.status(204).end();
   } catch (err) {

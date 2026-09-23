@@ -96,9 +96,9 @@ model User {
   ownedSubscription Subscription?
 
   childAccess    ChildAccess[]
-  journalPosts   JournalPost[]
+  moments        Moment[]
   comments       Comment[]
-  journalReactions JournalReaction[]
+  momentReactions MomentReaction[]
   mediaAssets    MediaAsset[]
   avatarAsset    MediaAsset?       @relation("UserAvatar")
   listClaims     ListItem[]        @relation("ListItemClaimedBy")
@@ -227,7 +227,7 @@ model Child {
   calendarEvents     CalendarEvent[]
   swapRequests       SwapRequest[]
   calendarEventRequests CalendarEventRequest[]
-  journalPostTags    JournalPostChild[]
+  momentTags         MomentChild[]
   listItems          ListItem[]
   invites            Invite[]
   emergencyContacts  EmergencyContact[]
@@ -583,7 +583,7 @@ model CalendarEventRequest {
 }
 
 // ---------------------------------------------------------------------------
-// Journal / media
+// Moments / media
 // ---------------------------------------------------------------------------
 
 enum MediaType {
@@ -603,7 +603,7 @@ model MediaAsset {
   owner            User             @relation(fields: [ownerId], references: [id])
   type             MediaType
   status           MediaAssetStatus @default(PROCESSING)
-  originalPath     String           // lossless original, local disk path (see DEPLOYMENT.md storage note)
+  originalPath     String           // lossless original, local disk path (see docs/plesk_deployment.md)
   derivedPath      String?          // compressed WebP derivative (or JPEG poster for video) for in-app viewing
   // Bug fix — videos weren't playing in most browsers: originalPath is
   // whatever codec/container the uploading phone produced (iPhones commonly
@@ -616,8 +616,8 @@ model MediaAsset {
   playablePath     String?
   width            Int?
   height           Int?
-  journalPostId    String?
-  journalPost      JournalPost?     @relation(fields: [journalPostId], references: [id])
+  momentId         String?          @map("journalPostId")
+  moment           Moment?          @relation(fields: [momentId], references: [id])
   // At most one of these two is set at a time — the asset currently in use
   // as a given user's/child's profile photo. @unique enforces "at most one
   // current avatar asset per user/child"; swapping to a new photo clears the
@@ -635,7 +635,7 @@ model MediaAsset {
   @@map("media_assets")
 }
 
-model JournalPost {
+model Moment {
   id        String   @id @default(cuid())
   authorId  String
   author    User     @relation(fields: [authorId], references: [id])
@@ -646,31 +646,32 @@ model JournalPost {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  children  JournalPostChild[]
+  children  MomentChild[]
   media     MediaAsset[]
   comments  Comment[]
-  reactions JournalReaction[]
+  reactions MomentReaction[]
 
   @@map("journal_posts")
 }
 
-// Join table letting one journal post tag several children — they share one
-// comment/reaction thread and each tagged child's journal shows the post.
-model JournalPostChild {
+// Join table letting one moment tag several children — they share one
+// comment/reaction thread and each tagged child's Moments feed shows it.
+// (Tables keep their original journal_* names; "Journal" became "Moments".)
+model MomentChild {
   id            String      @id @default(cuid())
-  journalPostId String
-  journalPost   JournalPost @relation(fields: [journalPostId], references: [id], onDelete: Cascade)
+  momentId      String      @map("journalPostId")
+  moment        Moment      @relation(fields: [momentId], references: [id], onDelete: Cascade)
   childId       String
   child         Child       @relation(fields: [childId], references: [id], onDelete: Cascade)
 
-  @@unique([journalPostId, childId])
+  @@unique([momentId, childId])
   @@map("journal_post_children")
 }
 
 model Comment {
   id            String      @id @default(cuid())
-  journalPostId String
-  journalPost   JournalPost @relation(fields: [journalPostId], references: [id], onDelete: Cascade)
+  momentId      String      @map("journalPostId")
+  moment        Moment      @relation(fields: [momentId], references: [id], onDelete: Cascade)
   authorId      String
   author        User        @relation(fields: [authorId], references: [id])
   text          String
@@ -679,16 +680,16 @@ model Comment {
   @@map("comments")
 }
 
-// Toggleable "Love" reaction on a journal post — one per user per post.
-model JournalReaction {
+// Toggleable "Love" reaction on a moment — one per user per moment.
+model MomentReaction {
   id            String      @id @default(cuid())
-  journalPostId String
-  journalPost   JournalPost @relation(fields: [journalPostId], references: [id], onDelete: Cascade)
+  momentId      String      @map("journalPostId")
+  moment        Moment      @relation(fields: [momentId], references: [id], onDelete: Cascade)
   userId        String
   user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt     DateTime    @default(now())
 
-  @@unique([journalPostId, userId])
+  @@unique([momentId, userId])
   @@map("journal_reactions")
 }
 
@@ -936,7 +937,7 @@ model NotificationPreferences {
   googleCalendarSyncEnabled Boolean  @default(false)
   office365SyncEnabled      Boolean  @default(false)
   categoryCalendar          Boolean  @default(true)
-  categoryJournal           Boolean  @default(true)
+  categoryMoments           Boolean  @default(true) @map("categoryJournal")
   categoryLists             Boolean  @default(false)
   categoryMessages          Boolean  @default(true)
   doNotDisturb              Boolean  @default(true)

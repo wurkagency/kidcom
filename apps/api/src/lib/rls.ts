@@ -37,7 +37,7 @@ export async function withRls<T>(userId: string, run: (tx: Prisma.TransactionCli
 // System-level escape hatch for operations that are already fully
 // authorized by application logic but don't map onto "the current user has
 // ChildAccess to this row" — e.g. claimMerge.ts's duplicate-child
-// reconciliation, which reassigns OTHER members' journal/medical/etc.
+// reconciliation, which reassigns OTHER members' moments/medical/etc.
 // content onto a record the accepting user was never meant to hold
 // ChildAccess to themselves (that's the whole point of the merge). Mirrors
 // Prisma's own documented bypassRLS() client-extension recipe

@@ -46,8 +46,8 @@ describe("§4.2 safety floor — custody-plan writes never lapse for a PARENT, a
 
     // Prove the child really is unsatisfied for an ordinary route first —
     // otherwise this test would trivially pass for the wrong reason.
-    const journalAttempt = await bAgent.post(`/children/${childId}/journal`).send({ title: "Should be blocked" });
-    expect(journalAttempt.status).toBe(403);
+    const momentAttempt = await bAgent.post(`/children/${childId}/moments`).send({ title: "Should be blocked" });
+    expect(momentAttempt.status).toBe(403);
 
     // Both parents can still write the custody plan, unconditionally.
     const aCustody = await aAgent.put(`/children/${childId}/custody-plan`).send(custodyPlanBody(aId));
@@ -86,8 +86,8 @@ describe("§4.2 safety floor — custody-plan writes never lapse for a PARENT, a
 
     const afterTrialCustody = await guardianAgent.put(`/children/${childId}/custody-plan`).send(custodyPlanBody(guardianId));
     expect(afterTrialCustody.status).toBe(403);
-    const afterTrialJournal = await guardianAgent.post(`/children/${childId}/journal`).send({ title: "Should be blocked" });
-    expect(afterTrialJournal.status).toBe(403);
+    const afterTrialMoment = await guardianAgent.post(`/children/${childId}/moments`).send({ title: "Should be blocked" });
+    expect(afterTrialMoment.status).toBe(403);
   });
 });
 
@@ -124,7 +124,7 @@ describe("Phase 8 — grace period + take-over offer (spec 9.12/§4.2 pt.4)", ()
     expect(duringGrace.body.inGraceWindow).toBe(true);
     expect(duringGrace.body.satisfyingParentIds).toContain(aId);
 
-    const writeDuringGrace = await bAgent.post(`/children/${childId}/journal`).send({ title: "Still fine" });
+    const writeDuringGrace = await bAgent.post(`/children/${childId}/moments`).send({ title: "Still fine" });
     expect(writeDuringGrace.status).toBe(201);
 
     // Past the 7-day grace period: unsatisfied for real.
@@ -137,7 +137,7 @@ describe("Phase 8 — grace period + take-over offer (spec 9.12/§4.2 pt.4)", ()
     expect(afterGrace.body.satisfied).toBe(false);
     expect(afterGrace.body.inGraceWindow).toBe(false);
 
-    const writeAfterGrace = await bAgent.post(`/children/${childId}/journal`).send({ title: "Should be blocked" });
+    const writeAfterGrace = await bAgent.post(`/children/${childId}/moments`).send({ title: "Should be blocked" });
     expect(writeAfterGrace.status).toBe(403);
 
     // ...but the safety floor still holds even now — proving the two

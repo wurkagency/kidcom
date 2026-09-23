@@ -9,7 +9,7 @@ import { withRls } from "./rls";
 // v2.0 Phase 5 — spot-checks the full RLS rollout across a representative
 // sample of the newly-protected tables (a direct-childId one, and a
 // two-hop-transitive one), the same "app-layer check deliberately absent"
-// shape as rls.medicalInfoJournalPost.test.ts's Phase 4 proof. Not
+// shape as rls.medicalInfoMoment.test.ts's Phase 4 proof. Not
 // exhaustive over every one of the ~13 tables the migration touches — the
 // policies all share one of two predicate shapes (direct childId, or
 // transitive via journal_post_children), already proven correct by the
@@ -76,16 +76,16 @@ describe("RLS full rollout — transitive-via-journal_post_children table (comme
     await resetDb();
   });
 
-  it("an outsider gets zero comment rows on a journal post about a child they have no access to", async () => {
+  it("an outsider gets zero comment rows on a moment about a child they have no access to", async () => {
     const { parentA, parentB, childAId } = await twoParentsTwoChildren();
     const post = await withRls(parentA, async (tx) => {
-      const created = await tx.journalPost.create({ data: { authorId: parentA, title: "Milestone" } });
-      await tx.journalPostChild.create({ data: { journalPostId: created.id, childId: childAId } });
-      await tx.comment.create({ data: { journalPostId: created.id, authorId: parentA, text: "Wonderful!" } });
+      const created = await tx.moment.create({ data: { authorId: parentA, title: "Milestone" } });
+      await tx.momentChild.create({ data: { momentId: created.id, childId: childAId } });
+      await tx.comment.create({ data: { momentId: created.id, authorId: parentA, text: "Wonderful!" } });
       return created;
     });
 
-    expect(await withRls(parentA, (tx) => tx.comment.findMany({ where: { journalPostId: post.id } }))).toHaveLength(1);
-    expect(await withRls(parentB, (tx) => tx.comment.findMany({ where: { journalPostId: post.id } }))).toHaveLength(0);
+    expect(await withRls(parentA, (tx) => tx.comment.findMany({ where: { momentId: post.id } }))).toHaveLength(1);
+    expect(await withRls(parentB, (tx) => tx.comment.findMany({ where: { momentId: post.id } }))).toHaveLength(0);
   });
 });

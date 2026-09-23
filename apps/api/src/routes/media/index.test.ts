@@ -15,12 +15,12 @@ import { withRls } from "../../lib/rls";
 // actually matter: revoking access blocks the very next request (no
 // caching, no independent expiry window to wait out), and a user who never
 // had access is denied too.
-async function createReadyImageAsset(_childId: string, ownerId: string, journalPostId: string) {
+async function createReadyImageAsset(_childId: string, ownerId: string, momentId: string) {
   const key = `original/${Math.random().toString(36).slice(2)}.jpg`;
   await mediaStorage.save(key, Buffer.from("not a real jpeg, just needs to exist on disk"));
   return withRls(ownerId, (tx) =>
     tx.mediaAsset.create({
-      data: { ownerId, type: "IMAGE", status: "READY", originalPath: key, derivedPath: key, journalPostId },
+      data: { ownerId, type: "IMAGE", status: "READY", originalPath: key, derivedPath: key, momentId },
     })
   );
 }
@@ -42,8 +42,8 @@ describe("GET /media/:id — revocation and outsider denial (v2.0 Phase 5)", () 
     });
 
     const post = await withRls(parentId, async (tx) => {
-      const created = await tx.journalPost.create({ data: { authorId: parentId, title: "Beach day" } });
-      await tx.journalPostChild.create({ data: { journalPostId: created.id, childId } });
+      const created = await tx.moment.create({ data: { authorId: parentId, title: "Beach day" } });
+      await tx.momentChild.create({ data: { momentId: created.id, childId } });
       return created;
     });
     const asset = await createReadyImageAsset(childId, parentId, post.id);
@@ -67,8 +67,8 @@ describe("GET /media/:id — revocation and outsider denial (v2.0 Phase 5)", () 
     await prisma.childAccess.create({ data: { childId: childRes.id, userId: parentId, role: "PARENT", relationship: "PARENT" } });
 
     const post = await withRls(parentId, async (tx) => {
-      const created = await tx.journalPost.create({ data: { authorId: parentId, title: "Private moment" } });
-      await tx.journalPostChild.create({ data: { journalPostId: created.id, childId: childRes.id } });
+      const created = await tx.moment.create({ data: { authorId: parentId, title: "Private moment" } });
+      await tx.momentChild.create({ data: { momentId: created.id, childId: childRes.id } });
       return created;
     });
     const asset = await createReadyImageAsset(childRes.id, parentId, post.id);

@@ -63,7 +63,7 @@ describe("Minor sibling accounts (spec 9.16)", () => {
     expect(res.status).toBe(403);
   });
 
-  it("a minor member gets journal/lists access but not swap-requests or medical info, even with medicalInfoAccess opted in", async () => {
+  it("a minor member gets moments/lists access but not swap-requests or medical info, even with medicalInfoAccess opted in", async () => {
     const app = createApp();
     const { agent: parentAgent } = await signupTestUser(app, { email: "sib-parent4@example.com" });
     const childRes = await parentAgent.post("/children").send({ firstName: "Kai", gender: "BOY", birthday: "2020-01-01" });
@@ -89,7 +89,7 @@ describe("Minor sibling accounts (spec 9.16)", () => {
       where: { childId_userId: { childId, userId: minorUserId } },
     });
 
-    expect(can(access, "journal:post")).toBe(true);
+    expect(can(access, "moments:post")).toBe(true);
     expect(can(access, "list_item:manage")).toBe(true);
     expect(can(access, "swap_request:create")).toBe(false);
     expect(can(access, "calendar_event:manage")).toBe(false);

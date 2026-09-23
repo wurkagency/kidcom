@@ -651,7 +651,7 @@ export type ResolveCalendarEventRequestRequest = {
 };
 
 // ---------------------------------------------------------------------------
-// Journal + media
+// Moments + media
 // ---------------------------------------------------------------------------
 
 export type MediaAssetStatus = "PROCESSING" | "READY" | "FAILED";
@@ -666,10 +666,10 @@ export type MediaAssetDto = {
 
 export type MediaUploadResponse = MediaAssetDto;
 
-// One READY media asset attached to some journal post the requester can see,
+// One READY media asset attached to some moment the requester can see,
 // flattened out of its post for the Media Gallery screen — carries just
 // enough of the parent post to group by month and jump back to it.
-export type JournalMediaDto = MediaAssetDto & {
+export type MomentMediaDto = MediaAssetDto & {
   postId: string;
   postCreatedAt: string;
   childIds: string[];
@@ -692,7 +692,7 @@ export type UpdateCommentRequest = {
   text: string;
 };
 
-export type JournalPostDto = {
+export type MomentDto = {
   id: string;
   childIds: string[];
   authorId: string;
@@ -707,14 +707,14 @@ export type JournalPostDto = {
   reactedByMe: boolean;
 };
 
-export type CreateJournalPostRequest = {
+export type CreateMomentRequest = {
   title: string;
   // Optional — only the title is required to post. Media-only or
   // title-only posts are both valid.
   text?: string;
   mediaAssetIds?: string[];
   // Which children this post is tagged to. Defaults to the child in the URL
-  // (`/children/:childId/journal`) when omitted, for backward compatibility.
+  // (`/children/:childId/moments`) when omitted, for backward compatibility.
   childIds?: string[];
 };
 
@@ -742,7 +742,7 @@ export type ListItemDto = {
   // More than one item can share the same event id.
   calendarEventId: string | null;
   // Single optional photo — id of a MediaAsset, fetched via GET /media/:id
-  // the same way Journal media is (see MediaAssetDto).
+  // the same way Moments media is (see MediaAssetDto).
   imageAssetId: string | null;
   createdAt: string;
 };
@@ -938,7 +938,7 @@ export type NotificationPreferencesDto = {
   googleCalendarSyncEnabled: boolean;
   office365SyncEnabled: boolean;
   categoryCalendar: boolean;
-  categoryJournal: boolean;
+  categoryMoments: boolean;
   categoryLists: boolean;
   categoryMessages: boolean;
   doNotDisturb: boolean;
@@ -1042,7 +1042,7 @@ export type SearchResultChild = {
   profileImageUrl: string | null;
 };
 
-export type SearchResultJournalPost = {
+export type SearchResultMoment = {
   id: string;
   childId: string;
   title: string;
@@ -1059,6 +1059,6 @@ export type SearchResultListItem = {
 
 export type SearchResponse = {
   children: SearchResultChild[];
-  journalPosts: SearchResultJournalPost[];
+  moments: SearchResultMoment[];
   listItems: SearchResultListItem[];
 };

@@ -59,7 +59,7 @@ describe("Entitlement engine — spec §3 scenarios", () => {
 
     // "Emma requiredTier = PARENTS, covered by my plan, satisfied. Co-parent
     // writes freely, forever, pays nothing."
-    const emmaWrite1 = await coParentAgent.post(`/children/${emmaId}/journal`).send({ title: "From co-parent" });
+    const emmaWrite1 = await coParentAgent.post(`/children/${emmaId}/moments`).send({ title: "From co-parent" });
     expect(emmaWrite1.status).toBe(201);
 
     // "Co-parent creates Noah (her child with someone else) — a new,
@@ -87,7 +87,7 @@ describe("Entitlement engine — spec §3 scenarios", () => {
 
     // Noah now needs PARENTS tier (2 adults) — co-parent's own subscription
     // is FREE, but she's still within her trial, which covers it.
-    const noahWriteWithinTrial = await coParentAgent.post(`/children/${noahId}/journal`).send({ title: "Noah update" });
+    const noahWriteWithinTrial = await coParentAgent.post(`/children/${noahId}/moments`).send({ title: "Noah update" });
     expect(noahWriteWithinTrial.status).toBe(201);
 
     // "Day 31 — Emma stays satisfied by my plan (her access to Emma is
@@ -100,17 +100,17 @@ describe("Entitlement engine — spec §3 scenarios", () => {
       data: { trialEndsAt: new Date(Date.now() - 24 * 60 * 60 * 1000) },
     });
 
-    const emmaWriteAfterDay31 = await coParentAgent.post(`/children/${emmaId}/journal`).send({ title: "Still fine" });
+    const emmaWriteAfterDay31 = await coParentAgent.post(`/children/${emmaId}/moments`).send({ title: "Still fine" });
     expect(emmaWriteAfterDay31.status).toBe(201);
 
-    const noahWriteAfterDay31 = await coParentAgent.post(`/children/${noahId}/journal`).send({ title: "Should be blocked" });
+    const noahWriteAfterDay31 = await coParentAgent.post(`/children/${noahId}/moments`).send({ title: "Should be blocked" });
     expect(noahWriteAfterDay31.status).toBe(403);
 
     // Invariant: reads never gate on billing (brief §1). Proven here, not
     // just read from requireChildEntitlement's early GET return — the exact
     // same now-unsatisfied Noah whose write just got a 403 above still
     // serves every read normally.
-    const noahReadAfterDay31 = await coParentAgent.get(`/children/${noahId}/journal`);
+    const noahReadAfterDay31 = await coParentAgent.get(`/children/${noahId}/moments`);
     expect(noahReadAfterDay31.status).toBe(200);
     const noahDetailAfterDay31 = await coParentAgent.get(`/children/${noahId}`);
     expect(noahDetailAfterDay31.status).toBe(200);
@@ -138,7 +138,7 @@ describe("Entitlement engine — spec §3 scenarios", () => {
 
       // Two adults, requiredTier=PARENTS, satisfied by the original parent's
       // plan — both can write freely.
-      const beforeGrandma = await coParentAgent.post(`/children/${childId}/journal`).send({ title: "Before" });
+      const beforeGrandma = await coParentAgent.post(`/children/${childId}/moments`).send({ title: "Before" });
       expect(beforeGrandma.status).toBe(201);
 
       // Either the original parent or the co-parent invites the grandmother
@@ -159,13 +159,13 @@ describe("Entitlement engine — spec §3 scenarios", () => {
       // requiredTier is now FAMILY (a FAMILY-role member exists) regardless
       // of who sent the invite — nobody's plan meets that bar, so the child
       // is unsatisfied for both paths identically.
-      const afterGrandma = await coParentAgent.post(`/children/${childId}/journal`).send({ title: "After" });
+      const afterGrandma = await coParentAgent.post(`/children/${childId}/moments`).send({ title: "After" });
       expect(afterGrandma.status).toBe(403);
 
       // Upgrading to Family (whoever does it) resolves it for everyone.
       const upgradeRes = await parentAgent.post("/billing/subscribe").send({ tier: "FAMILY", billingPeriod: "MONTHLY" });
       expect(upgradeRes.status).toBe(200);
-      const afterUpgrade = await coParentAgent.post(`/children/${childId}/journal`).send({ title: "After upgrade" });
+      const afterUpgrade = await coParentAgent.post(`/children/${childId}/moments`).send({ title: "After upgrade" });
       expect(afterUpgrade.status).toBe(201);
     }
   });
@@ -199,14 +199,14 @@ describe("Entitlement engine — spec §3 scenarios", () => {
     // even if she later buys Family for herself (which she hasn't here —
     // she's FREE/trialing). Emma's coverage is untouched by anything about
     // grandma's own plan; it comes entirely from the original parent.
-    const grandmaWrite = await grandmaAgent.post(`/children/${emmaId}/journal`).send({ title: "From grandma" });
-    expect(grandmaWrite.status).toBe(201); // full app access — journal:post is FAMILY-role allowed
+    const grandmaWrite = await grandmaAgent.post(`/children/${emmaId}/moments`).send({ title: "From grandma" });
+    expect(grandmaWrite.status).toBe(201); // full app access — moments:post is FAMILY-role allowed
 
     // Even after grandma's own trial lapses, Emma stays satisfied — her
     // trial/subscription state was never what covered Emma in the first
     // place (the original parent's Family plan is).
     await prisma.user.update({ where: { id: grandmaId }, data: { trialEndsAt: new Date(Date.now() - 1000) } });
-    const grandmaWriteAfterTrial = await grandmaAgent.post(`/children/${emmaId}/journal`).send({ title: "Still fine" });
+    const grandmaWriteAfterTrial = await grandmaAgent.post(`/children/${emmaId}/moments`).send({ title: "Still fine" });
     expect(grandmaWriteAfterTrial.status).toBe(201);
 
     // NOTE: "she creates 5 grandchildren and gets GUARDIAN (bootstrap, not

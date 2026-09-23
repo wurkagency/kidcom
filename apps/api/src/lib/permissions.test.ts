@@ -21,7 +21,7 @@ const ALL_CAPABILITIES: Capability[] = [
   "child:edit_basic_info",
   "medical_info:edit",
   "growth_entry:manage",
-  "journal:post",
+  "moments:post",
   "list_item:manage",
   "member:invite_family_or_caregiver",
   "member:remove_family_or_caregiver",
@@ -40,7 +40,7 @@ describe("permission matrix (spec §1.4) — PARENT/GUARDIAN/FAMILY columns", ()
     { capability: "child:edit_basic_info", parent: true, guardian: true, family: false },
     { capability: "medical_info:edit", parent: true, guardian: true, family: false },
     { capability: "growth_entry:manage", parent: true, guardian: true, family: false },
-    { capability: "journal:post", parent: true, guardian: true, family: true },
+    { capability: "moments:post", parent: true, guardian: true, family: true },
     { capability: "list_item:manage", parent: true, guardian: true, family: true },
     { capability: "member:invite_family_or_caregiver", parent: true, guardian: true, family: false },
     { capability: "member:remove_family_or_caregiver", parent: true, guardian: true, family: false },
@@ -79,7 +79,7 @@ describe("Guardian — full parity with Parent on the child's own record, except
       "child:edit_basic_info",
       "medical_info:edit",
       "growth_entry:manage",
-      "journal:post",
+      "moments:post",
       "list_item:manage",
     ];
     for (const capability of recordCapabilities) {
@@ -113,9 +113,9 @@ describe("Caregiver restrictions (spec 9.5) — a strict subset of FAMILY", () =
     expect(can(CAREGIVER, "calendar_event_request:create")).toBe(false);
   });
 
-  it("denies journal:post (comment-only, not post)", () => {
-    expect(can(FAMILY, "journal:post")).toBe(true);
-    expect(can(CAREGIVER, "journal:post")).toBe(false);
+  it("denies moments:post (comment-only, not post)", () => {
+    expect(can(FAMILY, "moments:post")).toBe(true);
+    expect(can(CAREGIVER, "moments:post")).toBe(false);
   });
 
   it("denies list_item:manage (claim-only, not add/manage)", () => {
@@ -138,14 +138,14 @@ describe("Caregiver restrictions (spec 9.5) — a strict subset of FAMILY", () =
   it("a PARENT is never restricted by relationship (the field is meaningless for PARENT)", () => {
     const parentWithType = { role: "PARENT" as const, relationship: "CAREGIVER" as const };
     expect(can(parentWithType, "swap_request:create")).toBe(true);
-    expect(can(parentWithType, "journal:post")).toBe(true);
+    expect(can(parentWithType, "moments:post")).toBe(true);
     expect(can(parentWithType, "list_item:manage")).toBe(true);
   });
 
   it("a GUARDIAN is never restricted by relationship either (CAREGIVER_DENIED only applies to role FAMILY)", () => {
     const guardianWithType = { role: "GUARDIAN" as const, relationship: "CAREGIVER" as const };
     expect(can(guardianWithType, "swap_request:create")).toBe(true);
-    expect(can(guardianWithType, "journal:post")).toBe(true);
+    expect(can(guardianWithType, "moments:post")).toBe(true);
     expect(can(guardianWithType, "list_item:manage")).toBe(true);
   });
 });

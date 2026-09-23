@@ -10,7 +10,7 @@ export function renderConfirmEmailHtml(options: { email: string; confirmUrl: str
 
   const valueProps = [
     { icon: "\u{1F4C5}", title: "Custody & Sync", desc: "Shared calendars that stay in sync." },
-    { icon: "\u{1F4D6}", title: "Living Journal", desc: "Memories, milestones, and photos." },
+    { icon: "\u{1F4D6}", title: "Moments", desc: "Memories, milestones, and photos." },
     { icon: "\u{1F4CF}", title: "Growth & Sizing", desc: "Sizes and stats everyone can see." },
   ]
     .map(

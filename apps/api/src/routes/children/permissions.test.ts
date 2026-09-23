@@ -142,22 +142,22 @@ describe("Permission matrix (spec §1.4) — wired into real routes", () => {
     expect(parentAttempt.status).toBe(201);
   });
 
-  it("journal: FAMILY may post, Caregiver may only comment", async () => {
+  it("moments: FAMILY may post, Caregiver may only comment", async () => {
     const { parentAgent, familyAgent, caregiverAgent, childId } = await setupChildWithRoles();
 
-    const caregiverPost = await caregiverAgent.post(`/children/${childId}/journal`).send({ title: "Hi" });
+    const caregiverPost = await caregiverAgent.post(`/children/${childId}/moments`).send({ title: "Hi" });
     expect(caregiverPost.status).toBe(403);
 
-    const familyPost = await familyAgent.post(`/children/${childId}/journal`).send({ title: "Grandma's visit" });
+    const familyPost = await familyAgent.post(`/children/${childId}/moments`).send({ title: "Grandma's visit" });
     expect(familyPost.status).toBe(201);
     const postId = familyPost.body.id;
 
-    // Caregiver can still comment (spec 9.5) — journalComments.ts is
+    // Caregiver can still comment (spec 9.5) — momentComments.ts is
     // deliberately ungated.
-    const caregiverComment = await caregiverAgent.post(`/children/${childId}/journal/${postId}/comments`).send({ text: "Lovely!" });
+    const caregiverComment = await caregiverAgent.post(`/children/${childId}/moments/${postId}/comments`).send({ text: "Lovely!" });
     expect(caregiverComment.status).toBe(201);
 
-    const parentPost = await parentAgent.post(`/children/${childId}/journal`).send({ title: "From dad" });
+    const parentPost = await parentAgent.post(`/children/${childId}/moments`).send({ title: "From dad" });
     expect(parentPost.status).toBe(201);
   });
 

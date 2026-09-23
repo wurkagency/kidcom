@@ -511,7 +511,7 @@ authRouter.post("/change-password", authRateLimiter, async (req, res, next) => {
 });
 
 // Privacy & Security screen — "Export My Data". A real, scoped export (the
-// caller's own profile, the children they have access to, journal posts
+// caller's own profile, the children they have access to, moments
 // they authored, their personal notes, and growth entries for children they
 // can see — GrowthEntry has no per-entry author, so this is "visible to
 // you", not "logged by you"), not a raw table dump.
@@ -522,10 +522,10 @@ authRouter.get("/export", async (req, res, next) => {
     }
     const userId = req.session.userId;
 
-    const [user, access, journalPosts, notes] = await Promise.all([
+    const [user, access, moments, notes] = await Promise.all([
       prisma.user.findUniqueOrThrow({ where: { id: userId } }),
       prisma.childAccess.findMany({ where: { userId }, include: { child: true } }),
-      withRls(userId, (tx) => tx.journalPost.findMany({ where: { authorId: userId }, include: { media: true } })),
+      withRls(userId, (tx) => tx.moment.findMany({ where: { authorId: userId }, include: { media: true } })),
       prisma.personalNote.findMany({ where: { userId } }),
     ]);
     const childIds = access.map((a) => a.childId);
@@ -543,7 +543,7 @@ authRouter.get("/export", async (req, res, next) => {
         birthday: a.child.birthday.toISOString(),
         role: a.role,
       })),
-      journalPosts: journalPosts.map((p) => ({
+      moments: moments.map((p) => ({
         id: p.id,
         title: p.title,
         text: p.text,
@@ -575,7 +575,7 @@ authRouter.get("/export", async (req, res, next) => {
 
 // Privacy & Security screen — "Delete Account". Cascades via the existing
 // onDelete: Cascade relations on User's child models (ChildAccess,
-// JournalPost, Comment, PersonalNote, etc.) — no per-model cleanup code
+// Moment, Comment, PersonalNote, etc.) — no per-model cleanup code
 // needed. Does not delete a Child itself (co-parents may still need it);
 // only this user's access/content is removed.
 authRouter.delete("/me", async (req, res, next) => {

@@ -224,12 +224,12 @@ describe("Claim/merge (spec 9.9)", () => {
   });
 
   // Post-launch backlog Phase A — mergeChildAccessInto used to move
-  // ChildAccess only; everything else authored on the duplicate (journal,
+  // ChildAccess only; everything else authored on the duplicate (moments,
   // medical, custody plan, avatar) was lost to cascade delete. Also proves
   // the fix for a latent FK-constraint bug: MediaAsset.avatarForChildId has
   // no onDelete clause, so a duplicate with an avatar set would have thrown
   // on tx.child.delete() before this fix.
-  it("claim/merge moves the duplicate's content (journal, medical, custody plan) onto the real child, not just access", async () => {
+  it("claim/merge moves the duplicate's content (moments, medical, custody plan) onto the real child, not just access", async () => {
     const app = createApp();
     const { agent: parentAgent, userId: parentId } = await signupTestUser(app, { email: "content-parent@example.com" });
     const realRes = await parentAgent
@@ -253,8 +253,8 @@ describe("Claim/merge (spec 9.9)", () => {
     // have accumulated), plus a fabricated avatar row — fabricated directly
     // since exercising the real multipart upload isn't what this test is
     // proving.
-    const journalRes = await grandmaAgent.post(`/children/${dupId}/journal`).send({ title: "First smile" });
-    expect(journalRes.status).toBe(201);
+    const momentRes = await grandmaAgent.post(`/children/${dupId}/moments`).send({ title: "First smile" });
+    expect(momentRes.status).toBe(201);
     const medicalRes = await grandmaAgent.post(`/children/${dupId}/medical-info`).send({ category: "ALLERGY", condition: "Peanuts" });
     expect(medicalRes.status).toBe(201);
     const custodyRes = await grandmaAgent.put(`/children/${dupId}/custody-plan`).send({
@@ -278,8 +278,8 @@ describe("Claim/merge (spec 9.9)", () => {
     // v2.0: journal_post_children/medical_info are now RLS-protected — read
     // through withRls (parentId legitimately holds PARENT access to realId,
     // unchanged by the merge) rather than the bare prisma client.
-    const journalOnReal = await withRls(parentId, (tx) => tx.journalPostChild.findMany({ where: { childId: realId } }));
-    expect(journalOnReal).toHaveLength(1);
+    const momentOnReal = await withRls(parentId, (tx) => tx.momentChild.findMany({ where: { childId: realId } }));
+    expect(momentOnReal).toHaveLength(1);
     // Post-launch backlog Phase G landed after this test was first written —
     // condition is now stored encrypted, so decrypt before asserting on it.
     const medicalOnReal = await withRls(parentId, (tx) => tx.medicalInfo.findMany({ where: { childId: realId } }));
@@ -318,7 +318,7 @@ describe("Scenario 3 (full, Phase 9) — grandmother bootstrap-creates children 
 
     // Within her own 30-day trial: a GUARDIAN write succeeds (her trial
     // satisfies the child, since she's its only covering member).
-    const writeWithinTrial = await grandmaAgent.post(`/children/${childId}/journal`).send({ title: "First photo" });
+    const writeWithinTrial = await grandmaAgent.post(`/children/${childId}/moments`).send({ title: "First photo" });
     expect(writeWithinTrial.status).toBe(201);
 
     // GUARDIAN cannot invite a PARENT directly (member:invite_or_remove_parent
@@ -342,7 +342,7 @@ describe("Scenario 3 (full, Phase 9) — grandmother bootstrap-creates children 
     // (9.10, 10 children/15 members) instead, tested separately there.
     await prisma.user.update({ where: { id: grandmaId }, data: { trialEndsAt: new Date(Date.now() - 1000) } });
 
-    const writeAfterLapse = await grandmaAgent.post(`/children/${childId}/journal`).send({ title: "Still fine, solo child" });
+    const writeAfterLapse = await grandmaAgent.post(`/children/${childId}/moments`).send({ title: "Still fine, solo child" });
     expect(writeAfterLapse.status).toBe(201);
 
     const custodyWriteAfterLapse = await grandmaAgent.put(`/children/${childId}/custody-plan`).send({

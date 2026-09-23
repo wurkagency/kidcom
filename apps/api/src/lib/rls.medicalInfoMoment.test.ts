@@ -6,7 +6,7 @@ import { resetDb } from "../testUtils/db";
 import { signupTestUser } from "../testUtils/auth";
 import { withRls } from "./rls";
 
-// v2.0 RLS pilot (plan §3.2) proof — MedicalInfo and JournalPost, the two
+// v2.0 RLS pilot (plan §3.2) proof — MedicalInfo and Moment, the two
 // highest-sensitivity tables per the plan. These tests go through
 // withRls() directly rather than HTTP routes, deliberately bypassing
 // requireChildAccess/requireCapability entirely — the whole point of RLS as
@@ -73,15 +73,15 @@ describe("RLS pilot — medical_info / journal_posts, app-layer check deliberate
     const { agent, userId: parentA } = await signupTestUser(app, { email: "rls-jp-author@example.com" });
     const childRes = await agent.post("/children").send({ firstName: "Kid", gender: "BOY", birthday: "2020-01-01" });
     const childId = childRes.body.id;
-    const postRes = await agent.post(`/children/${childId}/journal`).send({ title: "First steps" });
+    const postRes = await agent.post(`/children/${childId}/moments`).send({ title: "First steps" });
     expect(postRes.status).toBe(201);
 
     const { userId: outsider } = await signupTestUser(app, { email: "rls-jp-outsider@example.com" });
-    const outsiderRead = await withRls(outsider, (tx) => tx.journalPost.findMany({ where: { id: postRes.body.id } }));
+    const outsiderRead = await withRls(outsider, (tx) => tx.moment.findMany({ where: { id: postRes.body.id } }));
     expect(outsiderRead).toHaveLength(0);
 
     // Confirmed via the real author's own session too, for contrast.
-    const authorRead = await withRls(parentA, (tx) => tx.journalPost.findMany({ where: { id: postRes.body.id } }));
+    const authorRead = await withRls(parentA, (tx) => tx.moment.findMany({ where: { id: postRes.body.id } }));
     expect(authorRead).toHaveLength(1);
   });
 

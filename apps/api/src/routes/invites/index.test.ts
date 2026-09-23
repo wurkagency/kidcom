@@ -99,12 +99,12 @@ describe("D3: organic and invited signups land in equivalent gated states", () =
       data: { trialEndsAt: new Date(Date.now() - 24 * 60 * 60 * 1000) },
     });
 
-    // A journal post, not a child-basic-info PATCH: as of Phase 3's
+    // A moment, not a child-basic-info PATCH: as of Phase 3's
     // permission matrix, editing basic info is PARENT-only regardless of
-    // trial state — posting to the journal is a capability her FAMILY role
+    // trial state — posting to the moments is a capability her FAMILY role
     // actually has (spec §1.4), so it's the right mutation to prove D3's
     // fix with.
-    const postRes = await grandmaAgent.post(`/children/${childId}/journal`).send({ title: "Hello from Grandma" });
+    const postRes = await grandmaAgent.post(`/children/${childId}/moments`).send({ title: "Hello from Grandma" });
     expect(postRes.status).toBe(201);
   });
 

@@ -105,7 +105,7 @@ export async function childInGraceWindow(childId: string, now: Date = new Date()
 const PENDING_PARENT_LOCK_DAYS = 30;
 
 // spec 9.8 — "at least one parent must be invited" is enforced narrowly: not
-// by blocking anything else (the child stays fully usable — journal, media,
+// by blocking anything else (the child stays fully usable — moments, media,
 // everything §1.4 grants), only by locking the custody plan once a child
 // has gone 30 days with *exactly one* PARENT-role member and no second one
 // ever having joined. The point is specifically to stop one parent

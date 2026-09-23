@@ -18,7 +18,7 @@ export type Capability =
   | "child:edit_basic_info"
   | "medical_info:edit"
   | "growth_entry:manage"
-  | "journal:post"
+  | "moments:post"
   | "list_item:manage"
   | "member:invite_family_or_caregiver"
   | "member:remove_family_or_caregiver"
@@ -54,7 +54,7 @@ const MATRIX: Record<Capability, Record<AccessRole, boolean>> = {
   "child:edit_basic_info": { PARENT: true, GUARDIAN: true, FAMILY: false },
   "medical_info:edit": { PARENT: true, GUARDIAN: true, FAMILY: false },
   "growth_entry:manage": { PARENT: true, GUARDIAN: true, FAMILY: false },
-  "journal:post": { PARENT: true, GUARDIAN: true, FAMILY: true },
+  "moments:post": { PARENT: true, GUARDIAN: true, FAMILY: true },
   "list_item:manage": { PARENT: true, GUARDIAN: true, FAMILY: true },
   // The asymmetry (spec §1.4, "confirmed 10 Sep"): a guardian can bring in
   // Family/Caregiver members and remove them, but cannot invite or remove a
@@ -68,7 +68,7 @@ const MATRIX: Record<Capability, Record<AccessRole, boolean>> = {
 
 // Capabilities where a Caregiver (AccessRole FAMILY + relationship
 // CAREGIVER) has a stricter default than a general FAMILY member (spec
-// 9.5): journal comment-only (not post), media view-only (not
+// 9.5): moments comment-only (not post), media view-only (not
 // upload/download-original — not enforced at the /media route, see its own
 // comment for why), lists claim-only (not add/manage). A capability absent
 // from this set behaves identically for every FAMILY-role holder regardless
@@ -76,15 +76,15 @@ const MATRIX: Record<Capability, Record<AccessRole, boolean>> = {
 const CAREGIVER_DENIED: ReadonlySet<Capability> = new Set<Capability>([
   "swap_request:create",
   "calendar_event_request:create",
-  "journal:post",
+  "moments:post",
   "list_item:manage",
 ]);
 
 // spec 9.16 — a sibling's own account (ChildAccess.isMinorMember) gets
-// "journal, media and lists only" — narrower even than a plain FAMILY
+// "moments, media and lists only" — narrower even than a plain FAMILY
 // member's default. Most of the matrix's other rows are already FAMILY:false
 // and so already deny a minor member too; this set only needs to name the
-// one FAMILY-allowed capability that isn't on that "journal/media/lists"
+// one FAMILY-allowed capability that isn't on that "moments/media/lists"
 // list — requesting a custody-day swap is calendar-adjacent, not one of the
 // three things a minor is meant to be able to do here.
 const MINOR_MEMBER_DENIED: ReadonlySet<Capability> = new Set<Capability>(["swap_request:create", "calendar_event_request:create"]);

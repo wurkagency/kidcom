@@ -24,11 +24,11 @@ searchRouter.get("/", async (req, res, next) => {
     const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
 
     if (q.length < 2) {
-      res.json({ children: [], journalPosts: [], listItems: [] } satisfies SearchResponse);
+      res.json({ children: [], moments: [], listItems: [] } satisfies SearchResponse);
       return;
     }
 
-    const [children, journalPosts, listItems] = await Promise.all([
+    const [children, moments, listItems] = await Promise.all([
       prisma.child.findMany({
         where: {
           deletedAt: null,
@@ -39,7 +39,7 @@ searchRouter.get("/", async (req, res, next) => {
         orderBy: { firstName: "asc" },
       }),
       withRls(userId, (tx) =>
-        tx.journalPost.findMany({
+        tx.moment.findMany({
           where: { OR: [{ title: { contains: q, mode: "insensitive" } }, { text: { contains: q, mode: "insensitive" } }] },
           orderBy: { createdAt: "desc" },
           take: RESULT_LIMIT,
@@ -62,7 +62,7 @@ searchRouter.get("/", async (req, res, next) => {
         lastName: c.lastName,
         profileImageUrl: c.profileImageUrl,
       })),
-      journalPosts: journalPosts
+      moments: moments
         .filter((p) => p.children.length > 0)
         .map((p) => ({
           id: p.id,
