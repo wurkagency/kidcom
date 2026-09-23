@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
+import { useMutation, useQueries, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import type {
   CalendarEventDto,
   CategoriesResponse,
@@ -90,6 +90,24 @@ export function useChildFamily(childId: string | undefined) {
     enabled: Boolean(childId),
     staleTime: 60_000,
   });
+}
+
+/** Family members for several children at once: childId → members. */
+export function useFamilies(childIds: string[]): Map<string, ChildFamilyMember[]> {
+  const ids = [...new Set(childIds)].sort();
+  const results = useQueries({
+    queries: ids.map((id) => ({
+      queryKey: ["family", id],
+      queryFn: async () => (await api.get<{ members: ChildFamilyMember[] }>(`${child(id)}/family`)).members,
+      staleTime: 60_000,
+    })),
+  });
+  const idKey = ids.join(",");
+  const dataKey = results.map((r) => r.dataUpdatedAt).join(",");
+  const lists = results.map((r) => r.data ?? []);
+  // Stable while neither the children nor their data change.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  return useMemo(() => new Map(ids.map((id, i) => [id, lists[i] ?? []])), [idKey, dataKey]);
 }
 
 export function useChildNotes(childId: string | undefined) {

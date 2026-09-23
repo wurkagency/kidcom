@@ -136,6 +136,29 @@ see "Decisions" below.
   - AppShell had a duplicate `pb-28`; removed (pages were 112px too tall)
   - Tailwind v4 `divide-y` borders sit on the bottom edge (v3: top) — same total height
 ## Phase 4 — Moments + Media + Bookmarks
+- [x] API: moment category / typed location / date / `familyVisible` (RLS: hidden moments are
+      parents, guardians and the author only; comments and media follow), notify → push,
+      author-only edit; cross-child `GET /moments` + `/moments/media` with child/category/type
+      filters; bookmarks (private, drop out when no longer visible); media details (codec,
+      duration, sizes), Range reads (iOS video seeking), `?variant=source` downloads, zip
+      archive (GET/POST, streamed) and 7-day owner-only emailed link. 9 new tests (API 29/29,
+      195/195, each file run on its own — the Node 24 worker crash persists in one-pass runs)
+- [x] Screens from exports: feed (1.7%), post + comments (3.3%), download (10.7% — fixture
+      has all six ticked, the export three), video viewer with details drawer (14.6% — the
+      scaffold header is 16px taller than the export's); gallery, create moment and photo
+      viewer from their code.html (no PNG), reviewed by screenshot
+- [x] Built to DESIGN.md: Bookmarks (Profile menu) — segmented Moments / Photos & videos
+- [x] Flow specs: create (upload, children, category, place, parents-only, notify), love,
+      bookmark, comment, gallery long-press select → download to device / by email
+- Notes / deviations to review:
+  - View switch reads "Feed / Media" (export: "Journal / Media" — Journal became Moments)
+  - "All moments are encrypted and private" → "All moments are private" (media isn't
+    encrypted at rest; only medical info is)
+  - Comment attachments (paperclip in the composer) and GPS coordinates on the details sheet
+    left out — no backing feature (no @mentions either, as agreed)
+  - The details sheet is inline under the media (as in kidcom_media_viewer_player), opened
+    from ⋮ → Details or by tapping the caption
+  - Gallery category badges ("Artwork") not shown on every tile — only the video duration
 ## Phase 5 — Lists + Children + Health
 ## Phase 6 — Messages + Notifications + Search
 ## Phase 7 — Profile menu areas (Family, Account & Billing, Preferences, onboarding)

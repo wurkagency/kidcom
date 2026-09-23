@@ -919,6 +919,10 @@ export type MomentMediaDto = MediaAssetDto & {
   categoryId: string | null;
   occurredOn: string | null;
   bookmarkedByMe: boolean;
+  /** As uploaded */
+  originalBytes: number | null;
+  /** The in-app version (WebP photo / H.264 video) */
+  optimizedBytes: number | null;
 };
 
 export type CommentDto = {

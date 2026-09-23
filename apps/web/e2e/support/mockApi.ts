@@ -56,7 +56,7 @@ export async function mockApi(page: Page, fixture: Fixture) {
     if (key === "GET /auth/me") return route.fulfill({ json: { user: fixture.me } });
     if (key === "GET /children") return route.fulfill({ json: { children: fixture.children } });
 
-    const media = path.match(/^\/media\/([^/]+)$/);
+    const media = route.request().method() === "GET" && !(key in (fixture.routes ?? {})) ? path.match(/^\/media\/([^/]+)$/) : null;
     if (media) {
       const body = fixture.media[decodeURIComponent(media[1])];
       return body ? route.fulfill({ body, contentType: "image/png" }) : route.fulfill({ status: 404 });

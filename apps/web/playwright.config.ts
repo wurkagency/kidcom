@@ -10,6 +10,9 @@ export default defineConfig({
   outputDir: "./e2e/.results",
   fullyParallel: true,
   reporter: [["list"]],
+  // A cold dev server compiles each lazy screen chunk on first request;
+  // under parallel workers that can outlast the 5s default.
+  expect: { timeout: 10_000 },
   use: {
     baseURL: "http://localhost:5173",
     trace: "retain-on-failure",

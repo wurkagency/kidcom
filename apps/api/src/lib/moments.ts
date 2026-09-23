@@ -74,6 +74,8 @@ export function toMomentMediaDto(a: GalleryRow): MomentMediaDto {
     categoryId: m.categoryId,
     occurredOn: dateOnly(m.occurredOn),
     bookmarkedByMe: a.bookmarks.length > 0,
+    originalBytes: a.originalBytes,
+    optimizedBytes: a.type === "VIDEO" ? a.playableBytes : a.derivedBytes,
   };
 }
 

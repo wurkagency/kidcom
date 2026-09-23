@@ -19,6 +19,13 @@ const loadSchool = () => import("../calendar/SchoolScreen");
 const loadEvents = () => import("../calendar/EventScreens");
 const loadEditors = () => import("../calendar/EditorScreens");
 const loadCategories = () => import("../preferences/CategoriesScreen");
+const loadFeed = () => import("../moments/MomentsFeedScreen");
+const loadPost = () => import("../moments/MomentPostScreen");
+const loadCreateMoment = () => import("../moments/CreateMomentScreen");
+const loadBookmarks = () => import("../moments/BookmarksScreen");
+const loadGallery = () => import("../media/GalleryScreen");
+const loadViewer = () => import("../media/ViewerScreen");
+const loadDownload = () => import("../media/DownloadScreen");
 
 // Every screen id → its Aura implementation. Screens are lazy-loaded chunks
 // (`lazy(() => import(...))`) as each build phase lands; PendingScreen marks
@@ -57,13 +64,13 @@ export const screens: ThemeManifest["screens"] = {
   "tasks.edit": screen(loadEditors, "TaskEditScreen"),
 
   // Phase 4 — moments + media
-  "moments.feed": PendingScreen,
-  "moments.post": PendingScreen,
-  "moments.create": PendingScreen,
-  "media.gallery": PendingScreen,
-  "media.viewer": PendingScreen,
-  "media.download": PendingScreen,
-  bookmarks: PendingScreen,
+  "moments.feed": screen(loadFeed, "MomentsFeedScreen"),
+  "moments.post": screen(loadPost, "MomentPostScreen"),
+  "moments.create": screen(loadCreateMoment, "CreateMomentScreen"),
+  "media.gallery": screen(loadGallery, "GalleryScreen"),
+  "media.viewer": screen(loadViewer, "ViewerScreen"),
+  "media.download": screen(loadDownload, "DownloadScreen"),
+  bookmarks: screen(loadBookmarks, "BookmarksScreen"),
 
   // Phase 5 — lists, children, health
   "lists.overview": PendingScreen,

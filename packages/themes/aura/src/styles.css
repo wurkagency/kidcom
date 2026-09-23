@@ -108,6 +108,8 @@
   --aura-peach: #fff1e5; /* week strip on Agenda, swap-request card */
   --aura-apricot: #ffa866; /* "Approve for …" swap button */
   --aura-alert: #d9383a; /* "Handled by …" */
+  --aura-viewer: #0a0d0c; /* media viewer backdrop (kidcom_preview, _video_preview, _media_viewer_player) */
+  --aura-viewer-accent: #d8e8e1; /* viewer icons, active dot, scrubber */
 
   color-scheme: light;
 }
@@ -183,6 +185,8 @@
   --color-peach: var(--aura-peach);
   --color-apricot: var(--aura-apricot);
   --color-alert: var(--aura-alert);
+  --color-viewer: var(--aura-viewer);
+  --color-viewer-accent: var(--aura-viewer-accent);
 
   /* shadcn/ui semantic aliases, mapped onto Aura roles */
   --color-foreground: var(--aura-on-surface);
