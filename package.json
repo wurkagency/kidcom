@@ -5,7 +5,8 @@
   "description": "KidCom — a well-being and communication app for separated parents and families.",
   "workspaces": [
     "apps/*",
-    "packages/*"
+    "packages/*",
+    "packages/themes/*"
   ],
   "scripts": {
     "prepare": "npm run build --workspace=packages/shared",
@@ -21,13 +22,27 @@
     "prisma:generate": "dotenv -e .env -- npm run generate --workspace=packages/db",
     "prisma:migrate": "dotenv -e .env -- npm run migrate:dev --workspace=packages/db",
     "prisma:studio": "dotenv -e .env -- npm run studio --workspace=packages/db",
-    "prisma:db:seed": "dotenv -e .env -- npm run db:seed --workspace=packages/db"
+    "prisma:db:seed": "dotenv -e .env -- npm run db:seed --workspace=packages/db",
+    "lint": "eslint .",
+    "i18n:check": "node scripts/i18n.mjs check",
+    "i18n:export": "node scripts/i18n.mjs export",
+    "i18n:import": "node scripts/i18n.mjs import"
   },
   "engines": {
     "node": ">=20"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
     "concurrently": "^10.0.5",
-    "dotenv-cli": "^11.0.0"
+    "dotenv-cli": "^11.0.0",
+    "eslint": "^10.11.0",
+    "eslint-plugin-i18next": "^6.1.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.12.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "typescript-eslint": "^8.70.1"
   }
 }

@@ -1,0 +1,37 @@
+{
+  "name": "@kidcom/core",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Headless app core: API client, data hooks, routing table, i18n. Themes consume this; it never imports a theme.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./locales/*": "./locales/*"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@kidcom/shared": "*",
+    "@kidcom/theme-kit": "*",
+    "@tanstack/react-query": "^5.103.2",
+    "date-fns": "^4.4.0",
+    "i18next": "^26.4.2",
+    "react-i18next": "^17.0.15",
+    "react-router": "^7.18.4"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.3.3",
+    "@types/react": "^19.2.0",
+    "jsdom": "^30.0.1",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "typescript": "~5.9.3",
+    "vite": "^8.3.0",
+    "vitest": "^5.0.1"
+  }
+}

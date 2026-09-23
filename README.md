@@ -7,7 +7,8 @@ and `docs/plesk_deployment.md` describes the production Plesk VM.
 
 ## Stack
 
-- **Web**: Vite + React + TypeScript, Tailwind + shadcn/ui (Aura theme), PWA via `vite-plugin-pwa`
+- **Web**: React 19 + Vite 8 + TypeScript PWA (`vite-plugin-pwa`); TanStack Query, React Router 7,
+  i18next; themes built with Tailwind v4 + shadcn/ui (Aura is theme #1)
 - **API**: Express + TypeScript
 - **DB**: PostgreSQL via Prisma
 - **Jobs**: BullMQ + Redis
@@ -63,13 +64,33 @@ DATABASE_URL="<your DATABASE_URL, with _test appended to the db name>" npx prism
 ## Project layout
 
 ```
-apps/web/      Vite + React PWA
-apps/api/      Express API
-packages/db/   Prisma schema + generated client
-packages/shared/  Shared TS types between web and api
-tasks/todo.md  v3.0 build plan / progress tracker
-docs/          Deployment, retention policy, Aura design exports
+apps/web/              Host app: boots @kidcom/core with the installed themes (no UI of its own)
+apps/api/              Express API
+packages/core/         Headless app: API client, data hooks, route table + guards, i18n
+packages/core/locales/ Translation catalogues (en-US source; da-DK, nb-NO, sv-SE scaffolded)
+packages/theme-kit/    Core ↔ theme contract: screen ids, shells, defineTheme, ThemeProvider
+packages/themes/aura/  Aura theme: tokens, shadcn/ui components, shells, every screen
+packages/db/           Prisma schema + generated client
+packages/shared/       Shared TS types and rules between web and api
+docs/design/aura/      Google Stitch exports — the UI source of truth
+tasks/todo.md          v3.0 build plan / progress tracker
+legacy/web-v2/         Pre-v3.0 web app, read-only reference (removed in v3.0 Phase 8)
 ```
+
+### Theme architecture
+
+A theme owns every pixel: tokens, fonts, icons, the four shells (`app`, `stack`, `auth`,
+`blank`) and a component for every screen id in `packages/theme-kit/src/screens.ts`
+(`defineTheme` rejects a theme missing any). Routes, access rules and data live in
+`@kidcom/core`; themes consume core hooks and never touch the router, fetch or i18next
+directly — `npm run lint` enforces this, and forbids hard-coded UI strings in themes.
+
+- Add shadcn components to a theme: `npm run ui:add --workspace=packages/themes/aura -- <name>`
+- Translations: `npm run i18n:check`, `npm run i18n:export` (→ `i18n/export/`),
+  `npm run i18n:import` (← `i18n/import/`)
+- Design fidelity: `npx playwright test --project=visual` (in `apps/web`) diffs screens
+  against `docs/design/aura/*/screen.png`; side-by-side diffs land in
+  `apps/web/e2e/.results/design-diffs/`
 
 ## Build order
 

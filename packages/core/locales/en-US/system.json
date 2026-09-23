@@ -1,0 +1,23 @@
+{
+  "error": {
+    "title": "Something went wrong",
+    "body": "This screen couldn't be shown. Your data is safe.",
+    "retry": "Try again"
+  },
+  "pending": {
+    "title": "Coming soon",
+    "body": "This part of KidCom is being rebuilt."
+  },
+  "notFound": {
+    "title": "Page not found",
+    "body": "The page you were looking for doesn't exist.",
+    "home": "Go to Today"
+  },
+  "desktopGate": {
+    "title": "KidCom lives on your phone",
+    "body": "KidCom is designed for mobile. Scan the code with your phone's camera to continue there.",
+    "qrLabel": "QR code linking to this page",
+    "scan": "Point your phone camera at the code",
+    "continue": "Continue on this computer"
+  }
+}

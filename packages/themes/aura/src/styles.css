@@ -1,0 +1,290 @@
+/* Aura ("Haven Aura") — design tokens and base styles.
+ *
+ * Source of truth: docs/design/aura/ (Google Stitch exports). Color, type,
+ * radius and spacing values are copied verbatim from the Stitch Tailwind
+ * config (identical across every export) so classes ported from the
+ * exports render exactly as designed. Named prose colors from DESIGN.md that
+ * the exports hard-code as hex are promoted to tokens (obsidian, mint, sage,
+ * slate, hairline). Nothing here is invented.
+ *
+ * Tokens are scoped to [data-theme="aura"] (set by theme-kit's
+ * ThemeProvider) so another theme's tokens can coexist without leaking.
+ */
+@import "tailwindcss" source(none);
+@source "./";
+@import "tw-animate-css";
+@import "@fontsource-variable/plus-jakarta-sans";
+/* Layered so Tailwind size/color utilities (text-[18px]) win over the
+ * package default of 24px — unlayered CSS beats every @layer. */
+@import "material-symbols/outlined.css" layer(base);
+
+/* The material-symbols package ships font-display: block, which paints the
+ * dock blank for up to ~3s on a slow first load of this ~4MB font (a v2
+ * production incident). swap shows the ligature text briefly instead. */
+@font-face {
+  font-family: "Material Symbols Outlined";
+  font-style: normal;
+  font-weight: 100 700;
+  font-display: swap;
+  src: url("material-symbols/material-symbols-outlined.woff2") format("woff2");
+}
+
+@custom-variant dark (&:is(.dark *));
+
+:root[data-theme="aura"] {
+  /* Stitch color tokens (Material 3 roles) */
+  --aura-surface: #f8faf9;
+  --aura-surface-dim: #d8dada;
+  --aura-surface-bright: #f8faf9;
+  --aura-surface-container-lowest: #ffffff;
+  --aura-surface-container-low: #f2f4f3;
+  --aura-surface-container: #eceeed;
+  --aura-surface-container-high: #e6e9e8;
+  --aura-surface-container-highest: #e1e3e2;
+  --aura-surface-variant: #e1e3e2;
+  --aura-on-surface: #191c1c;
+  --aura-on-surface-variant: #434845;
+  --aura-inverse-surface: #2e3131;
+  --aura-inverse-on-surface: #eff1f0;
+  --aura-outline: #747875;
+  --aura-outline-variant: #c4c7c4;
+  --aura-surface-tint: #5b5f5d;
+  --aura-background: #f8faf9;
+  --aura-on-background: #191c1c;
+  --aura-primary: #000000;
+  --aura-on-primary: #ffffff;
+  --aura-primary-container: #181c1a;
+  --aura-on-primary-container: #818582;
+  --aura-inverse-primary: #c4c7c4;
+  --aura-primary-fixed: #e0e3e0;
+  --aura-primary-fixed-dim: #c4c7c4;
+  --aura-on-primary-fixed: #181c1a;
+  --aura-on-primary-fixed-variant: #444845;
+  --aura-secondary: #55615d;
+  --aura-on-secondary: #ffffff;
+  --aura-secondary-container: #d8e5e0;
+  --aura-on-secondary-container: #5b6763;
+  --aura-secondary-fixed: #d8e5e0;
+  --aura-secondary-fixed-dim: #bcc9c5;
+  --aura-on-secondary-fixed: #121e1b;
+  --aura-on-secondary-fixed-variant: #3d4946;
+  --aura-tertiary: #000000;
+  --aura-on-tertiary: #ffffff;
+  --aura-tertiary-container: #022018;
+  --aura-on-tertiary-container: #6b8a7e;
+  --aura-tertiary-fixed: #c9eadc;
+  --aura-tertiary-fixed-dim: #adcec0;
+  --aura-on-tertiary-fixed: #022018;
+  --aura-on-tertiary-fixed-variant: #2f4c42;
+  --aura-error: #ba1a1a;
+  --aura-on-error: #ffffff;
+  --aura-error-container: #ffdad6;
+  --aura-on-error-container: #93000a;
+
+  /* DESIGN.md prose colors the exports hard-code as hex */
+  --aura-obsidian: #161a18;
+  --aura-mint: #e2efea;
+  --aura-sage: #8fafa2;
+  --aura-slate: #75827d;
+  --aura-hairline: rgba(22, 26, 24, 0.04);
+
+  color-scheme: light;
+}
+
+@theme inline {
+  --color-surface: var(--aura-surface);
+  --color-surface-dim: var(--aura-surface-dim);
+  --color-surface-bright: var(--aura-surface-bright);
+  --color-surface-container-lowest: var(--aura-surface-container-lowest);
+  --color-surface-container-low: var(--aura-surface-container-low);
+  --color-surface-container: var(--aura-surface-container);
+  --color-surface-container-high: var(--aura-surface-container-high);
+  --color-surface-container-highest: var(--aura-surface-container-highest);
+  --color-surface-variant: var(--aura-surface-variant);
+  --color-on-surface: var(--aura-on-surface);
+  --color-on-surface-variant: var(--aura-on-surface-variant);
+  --color-inverse-surface: var(--aura-inverse-surface);
+  --color-inverse-on-surface: var(--aura-inverse-on-surface);
+  --color-outline: var(--aura-outline);
+  --color-outline-variant: var(--aura-outline-variant);
+  --color-surface-tint: var(--aura-surface-tint);
+  --color-background: var(--aura-background);
+  --color-on-background: var(--aura-on-background);
+  --color-primary: var(--aura-primary);
+  --color-on-primary: var(--aura-on-primary);
+  --color-primary-container: var(--aura-primary-container);
+  --color-on-primary-container: var(--aura-on-primary-container);
+  --color-inverse-primary: var(--aura-inverse-primary);
+  --color-primary-fixed: var(--aura-primary-fixed);
+  --color-primary-fixed-dim: var(--aura-primary-fixed-dim);
+  --color-on-primary-fixed: var(--aura-on-primary-fixed);
+  --color-on-primary-fixed-variant: var(--aura-on-primary-fixed-variant);
+  --color-secondary: var(--aura-secondary);
+  --color-on-secondary: var(--aura-on-secondary);
+  --color-secondary-container: var(--aura-secondary-container);
+  --color-on-secondary-container: var(--aura-on-secondary-container);
+  --color-secondary-fixed: var(--aura-secondary-fixed);
+  --color-secondary-fixed-dim: var(--aura-secondary-fixed-dim);
+  --color-on-secondary-fixed: var(--aura-on-secondary-fixed);
+  --color-on-secondary-fixed-variant: var(--aura-on-secondary-fixed-variant);
+  --color-tertiary: var(--aura-tertiary);
+  --color-on-tertiary: var(--aura-on-tertiary);
+  --color-tertiary-container: var(--aura-tertiary-container);
+  --color-on-tertiary-container: var(--aura-on-tertiary-container);
+  --color-tertiary-fixed: var(--aura-tertiary-fixed);
+  --color-tertiary-fixed-dim: var(--aura-tertiary-fixed-dim);
+  --color-on-tertiary-fixed: var(--aura-on-tertiary-fixed);
+  --color-on-tertiary-fixed-variant: var(--aura-on-tertiary-fixed-variant);
+  --color-error: var(--aura-error);
+  --color-on-error: var(--aura-on-error);
+  --color-error-container: var(--aura-error-container);
+  --color-on-error-container: var(--aura-on-error-container);
+  --color-obsidian: var(--aura-obsidian);
+  --color-mint: var(--aura-mint);
+  --color-sage: var(--aura-sage);
+  --color-slate: var(--aura-slate);
+  --color-hairline: var(--aura-hairline);
+
+  /* shadcn/ui semantic aliases, mapped onto Aura roles */
+  --color-foreground: var(--aura-on-surface);
+  --color-card: var(--aura-surface-container-lowest);
+  --color-card-foreground: var(--aura-on-surface);
+  --color-popover: var(--aura-surface-container-lowest);
+  --color-popover-foreground: var(--aura-on-surface);
+  --color-primary-foreground: var(--aura-on-primary);
+  --color-secondary-foreground: var(--aura-on-secondary);
+  --color-muted: var(--aura-surface-container-low);
+  --color-muted-foreground: var(--aura-on-surface-variant);
+  --color-accent: var(--aura-secondary-container);
+  --color-accent-foreground: var(--aura-on-secondary-fixed);
+  --color-destructive: var(--aura-error);
+  --color-border: var(--aura-outline-variant);
+  --color-input: var(--aura-outline-variant);
+  --color-ring: var(--aura-primary);
+}
+
+@theme {
+  /* Typography: Plus Jakarta Sans only (DESIGN.md) */
+  --font-sans: "Plus Jakarta Sans Variable", "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-headline-lg: var(--font-sans);
+  --font-headline-lg-mobile: var(--font-sans);
+  --font-headline-md: var(--font-sans);
+  --font-headline-sm: var(--font-sans);
+  --font-title-md: var(--font-sans);
+  --font-body-lg: var(--font-sans);
+  --font-body-md: var(--font-sans);
+  --font-label-md: var(--font-sans);
+  --font-label-sm: var(--font-sans);
+  --font-micro-meta: var(--font-sans);
+
+  --text-headline-lg: 34px;
+  --text-headline-lg--line-height: 42px;
+  --text-headline-lg--letter-spacing: -0.03em;
+  --text-headline-lg--font-weight: 700;
+  --text-headline-lg-mobile: 28px;
+  --text-headline-lg-mobile--line-height: 34px;
+  --text-headline-lg-mobile--letter-spacing: -0.025em;
+  --text-headline-lg-mobile--font-weight: 700;
+  --text-headline-md: 24px;
+  --text-headline-md--line-height: 30px;
+  --text-headline-md--letter-spacing: -0.02em;
+  --text-headline-md--font-weight: 700;
+  --text-headline-sm: 20px;
+  --text-headline-sm--line-height: 26px;
+  --text-headline-sm--letter-spacing: -0.015em;
+  --text-headline-sm--font-weight: 600;
+  --text-title-md: 17px;
+  --text-title-md--line-height: 22px;
+  --text-title-md--letter-spacing: -0.01em;
+  --text-title-md--font-weight: 600;
+  --text-body-lg: 16px;
+  --text-body-lg--line-height: 24px;
+  --text-body-lg--letter-spacing: 0em;
+  --text-body-lg--font-weight: 400;
+  --text-body-md: 14px;
+  --text-body-md--line-height: 20px;
+  --text-body-md--letter-spacing: 0em;
+  --text-body-md--font-weight: 400;
+  --text-label-md: 13px;
+  --text-label-md--line-height: 18px;
+  --text-label-md--letter-spacing: 0.01em;
+  --text-label-md--font-weight: 600;
+  --text-label-sm: 11px;
+  --text-label-sm--line-height: 14px;
+  --text-label-sm--letter-spacing: 0.04em;
+  --text-label-sm--font-weight: 600;
+  --text-micro-meta: 10px;
+  --text-micro-meta--line-height: 12px;
+  --text-micro-meta--letter-spacing: 0.08em;
+  --text-micro-meta--font-weight: 700;
+
+  /* Radii (DESIGN.md rounded scale; sm/md were missing from the exports' config) */
+  --radius-sm: 0.5rem;
+  --radius: 1rem;
+  --radius-md: 1.5rem;
+  --radius-lg: 2rem;
+  --radius-xl: 3rem;
+
+  /* Named spacing (DESIGN.md) */
+  --spacing-gutter: 1rem;
+  --spacing-margin: 1.25rem;
+  --spacing-space-xs: 0.375rem;
+  --spacing-space-sm: 0.75rem;
+  --spacing-space-md: 1rem;
+  --spacing-space-lg: 1.5rem;
+  --spacing-space-xl: 2.25rem;
+
+  /* Elevation tiers (DESIGN.md "Elevation & Depth") */
+  --shadow-float: 0 8px 24px -4px rgba(22, 26, 24, 0.04);
+  --shadow-dock: 0 12px 32px -6px rgba(22, 26, 24, 0.22);
+  --shadow-segment: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+@layer base {
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+  }
+  body {
+    @apply bg-surface font-body-md text-body-md text-on-surface antialiased;
+    overscroll-behavior: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  ::-webkit-scrollbar {
+    display: none;
+  }
+  /* Stitch exports were authored against Tailwind v3, whose bare `border`
+   * defaulted to gray-200 (v4 uses currentColor). Keep v3 behaviour so
+   * ported markup renders as designed. */
+  *,
+  ::before,
+  ::after,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentColor);
+  }
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
+@utility pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+@utility pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+/* The Stitch exports load Material Symbols at fixed axes
+ * (opsz 24, wght 400, FILL 0, GRAD 0) and scale that design to 18–26px.
+ * The variable font would otherwise auto-match opsz to the rendered size,
+ * drawing visibly thinner glyphs than designed. */
+@layer base {
+  .material-symbols-outlined {
+    font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+  }
+}
+@utility icon-fill {
+  font-variation-settings: "FILL" 1, "wght" 400, "GRAD" 0, "opsz" 24;
+}
