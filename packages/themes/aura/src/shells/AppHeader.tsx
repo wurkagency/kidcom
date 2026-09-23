@@ -1,6 +1,7 @@
-import { Link, mediaUrl, paths, useCurrentUser, useT } from "@kidcom/core";
+import { Link, paths, useCurrentUser, useT } from "@kidcom/core";
 
 import { Icon } from "../components/Icon";
+import { PersonAvatar } from "../components/PersonAvatar";
 import { ChildSelector } from "./ChildSelector";
 
 // The one app header (docs/design/aura/000_base_scaffold). Every screen with
@@ -9,7 +10,6 @@ import { ChildSelector } from "./ChildSelector";
 export function AppHeader({ hasUnreadNotifications = false }: { hasUnreadNotifications?: boolean }) {
   const { t } = useT("shell");
   const me = useCurrentUser();
-  const avatar = mediaUrl(me.avatarUrl);
 
   return (
     <header className="fixed top-0 w-full z-50 pt-safe bg-surface/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]">
@@ -20,13 +20,7 @@ export function AppHeader({ hasUnreadNotifications = false }: { hasUnreadNotific
             aria-label={t("header.profile")}
             className="relative flex items-center justify-center w-11 h-11 rounded-full"
           >
-            {avatar ? (
-              <img alt="" className="w-8 h-8 rounded-full object-cover" src={avatar} />
-            ) : (
-              <span className="flex w-8 h-8 items-center justify-center rounded-full bg-surface-container-high font-label-sm text-label-sm text-on-surface">
-                {`${me.firstName.charAt(0)}${me.lastName.charAt(0)}`.toUpperCase()}
-              </span>
-            )}
+            <PersonAvatar mediaId={me.avatarUrl} initials={`${me.firstName.charAt(0)}${me.lastName.charAt(0)}`} />
             <span className="absolute bottom-1 right-1 w-2.5 h-2.5 rounded-full bg-tertiary-fixed-dim ring-2 ring-surface-container-lowest" />
           </Link>
         </div>

@@ -31,6 +31,8 @@ export const SCREEN_IDS = [
   "calendar.eventDetail",
   "calendar.eventEdit",
   "calendar.swapRequest",
+  "notes.edit",
+  "tasks.edit",
 
   // Moments + media
   "moments.feed",

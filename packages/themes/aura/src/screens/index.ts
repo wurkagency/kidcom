@@ -33,6 +33,8 @@ export const screens: ThemeManifest["screens"] = {
   "calendar.eventDetail": PendingScreen,
   "calendar.eventEdit": PendingScreen,
   "calendar.swapRequest": PendingScreen,
+  "notes.edit": PendingScreen,
+  "tasks.edit": PendingScreen,
 
   // Phase 4 — moments + media
   "moments.feed": PendingScreen,

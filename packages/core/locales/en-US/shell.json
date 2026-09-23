@@ -21,10 +21,13 @@
   },
   "quickActions": {
     "title": "Create",
-    "description": "Start something new",
-    "moment": "New moment",
-    "event": "New event",
-    "listItem": "Add to list",
-    "message": "New message"
+    "description": "What would you like to add?",
+    "appointment": "Appointment",
+    "message": "Message",
+    "note": "Note",
+    "task": "Task",
+    "moment": "Moment",
+    "listItem": "List item",
+    "swap": "Swap request"
   }
 }

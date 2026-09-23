@@ -43,6 +43,8 @@ export const ROUTES: readonly AppRoute[] = [
   { screen: "calendar.eventDetail", path: "/children/:childId/events/:eventId", shell: "app", access: "authed" },
   { screen: "calendar.eventEdit", path: "/children/:childId/events/:eventId/edit", shell: "app", access: "authed" },
   { screen: "calendar.swapRequest", path: "/swaps/new", shell: "app", access: "authed" },
+  { screen: "notes.edit", path: "/notes/new", shell: "app", access: "authed" },
+  { screen: "tasks.edit", path: "/tasks/new", shell: "app", access: "authed" },
 
   // Moments + media
   { screen: "moments.feed", path: "/moments", shell: "app", access: "authed" },

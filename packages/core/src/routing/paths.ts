@@ -16,6 +16,8 @@ export const paths = {
     edit: (childId: string, eventId: string) => `/children/${enc(childId)}/events/${enc(eventId)}/edit`,
   },
   swapRequest: () => "/swaps/new",
+  notes: { create: () => "/notes/new" },
+  tasks: { create: () => "/tasks/new" },
   moments: {
     feed: () => "/moments",
     create: () => "/moments/new",

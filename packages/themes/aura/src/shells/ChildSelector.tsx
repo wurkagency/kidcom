@@ -1,7 +1,8 @@
 import { useState } from "react";
 import type { ChildSummary } from "@kidcom/shared";
-import { mediaUrl, useActiveChildren, useT } from "@kidcom/core";
+import { useActiveChildren, useT } from "@kidcom/core";
 
+import { PersonAvatar } from "../components/PersonAvatar";
 import { cn } from "../lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 
@@ -16,20 +17,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 const avatarButton =
   "relative inline-block h-8 w-8 rounded-full ring-2 overflow-hidden shadow-sm hover:z-20 transition-transform active:scale-95";
 
-function ChildAvatar({ child, className }: { child: ChildSummary; className?: string }) {
-  const src = mediaUrl(child.profileImageUrl);
-  return src ? (
-    <img alt="" src={src} className={cn("h-full w-full object-cover", className)} />
-  ) : (
-    <span
-      className={cn(
-        "flex h-full w-full items-center justify-center bg-surface-container-high font-label-sm text-label-sm text-on-surface",
-        className,
-      )}
-    >
-      {child.firstName.charAt(0).toUpperCase()}
-    </span>
-  );
+function ChildAvatar({ child }: { child: ChildSummary }) {
+  return <PersonAvatar mediaId={child.profileImageUrl} initials={child.firstName.charAt(0)} className="size-full" />;
 }
 
 export function ChildSelector() {

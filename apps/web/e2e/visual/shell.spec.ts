@@ -55,3 +55,19 @@ test("dock marks only the active tab", async ({ page }) => {
   await expect(dock.getByRole("link", { name: "Calendar" })).toHaveAttribute("aria-current", "page");
   await expect(dock.locator('[aria-current="page"]')).toHaveCount(1);
 });
+
+test("quick action opens a right-hand create sidebar", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await mockApi(page, { me: charlie, children: [leo, maya], media: {} });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Quick Action" }).click();
+  const sidebar = page.getByRole("dialog", { name: "Create" });
+  await expect(sidebar).toBeVisible();
+  for (const label of ["Appointment", "Message", "Note", "Task", "Moment", "List item", "Swap request"]) {
+    await expect(sidebar.getByRole("link", { name: label })).toBeVisible();
+  }
+  await page.waitForTimeout(600); // let the slide-in finish
+  const box = await sidebar.boundingBox();
+  expect(box!.x + box!.width).toBeCloseTo(390, 0); // anchored to the right edge
+  await page.screenshot({ path: "e2e/.results/quick-action-sidebar.png" });
+});
