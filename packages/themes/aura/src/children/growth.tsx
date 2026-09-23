@@ -109,11 +109,11 @@ export function GrowthChart({ summary, gender }: { summary: GrowthSummary; gende
         <circle cx={x(last.months)} cy={y(last.heightCm)} fill="#191c1c" opacity="0.2" r="8" />
       </svg>
       <div className="flex justify-between items-center pt-1 font-micro-meta text-micro-meta text-secondary px-1">
-        <span>{t("growth.ageWithHeight", { age: firstAge, cm: Math.round(first.heightCm) })}</span>
+        <span>{t("growth.ageWithHeight", { age: firstAge, cm: fmt.number(Math.round(first.heightCm)) })}</span>
         {middle.map((a) => (
           <span key={a}>{t("growth.age", { age: a })}</span>
         ))}
-        <span className="font-bold text-on-surface">{t("growth.ageWithHeight", { age: lastAge, cm: Math.round(last.heightCm) })}</span>
+        <span className="font-bold text-on-surface">{t("growth.ageWithHeight", { age: lastAge, cm: fmt.number(Math.round(last.heightCm)) })}</span>
       </div>
     </div>
   );

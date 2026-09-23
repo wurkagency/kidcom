@@ -146,7 +146,7 @@
     "original": "Original",
     "originalHint": "Lossless files as uploaded originally.",
     "optimized": "Optimized",
-    "optimizedHint": "Compressed WebP / H.264, {{percent}}% smaller.",
+    "optimizedHint": "Compressed WebP / H.264, {{percent}} smaller.",
     "destination": "Delivery Destination",
     "device": "Device",
     "deviceHint": "Save to Camera Roll and Files",

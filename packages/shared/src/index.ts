@@ -35,6 +35,7 @@ export {
   ENABLED_LOCALES,
   DEFAULT_LOCALE,
   isLocale,
+  isRegion,
 } from "./preferences";
 import type { ThemeId, Locale } from "./preferences";
 
@@ -74,6 +75,8 @@ export type PublicUser = {
   // null = not chosen; resolve with DEFAULT_THEME_ID / DEFAULT_LOCALE.
   themeId: ThemeId | null;
   locale: Locale | null;
+  /** Country formats follow (ISO 3166-1, "DK"); null = the device's */
+  region: string | null;
 };
 
 export type OAuthProviderId = "google" | "microsoft";
@@ -117,6 +120,8 @@ export type UpdateProfileRequest = {
   avatarMediaAssetId?: string;
   themeId?: ThemeId;
   locale?: Locale;
+  /** null = follow the device again */
+  region?: string | null;
 };
 
 // Returned by POST /auth/login once the password check passes — a real

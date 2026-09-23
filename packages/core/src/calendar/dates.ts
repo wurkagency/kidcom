@@ -24,11 +24,11 @@ export function isoWeekday(key: DateKey): number {
   return d === 0 ? 7 : d;
 }
 
-/** Monday of the key's week. */
-export const startOfWeek = (key: DateKey): DateKey => addDays(key, 1 - isoWeekday(key));
+/** First day of the key's week; `weekStart` is ISO (1 = Monday, 7 = Sunday — `useFormat().weekStart`). */
+export const startOfWeek = (key: DateKey, weekStart = 1): DateKey => addDays(key, -((isoWeekday(key) - weekStart + 7) % 7));
 
-/** The seven days (Mon–Sun) of the key's week. */
-export const weekDays = (key: DateKey): DateKey[] => Array.from({ length: 7 }, (_, i) => addDays(startOfWeek(key), i));
+/** The seven days of the key's week, from `weekStart`. */
+export const weekDays = (key: DateKey, weekStart = 1): DateKey[] => Array.from({ length: 7 }, (_, i) => addDays(startOfWeek(key, weekStart), i));
 
 /** ISO-8601 week number. */
 export function isoWeek(key: DateKey): number {
@@ -47,14 +47,14 @@ export function addMonths(key: DateKey, months: number): DateKey {
 }
 
 /**
- * The month grid for the key's month: whole Monday-first weeks covering it
- * (5 or 6 rows), including the trailing/leading days of neighbour months.
+ * The month grid for the key's month: whole weeks from `weekStart` covering
+ * it (5 or 6 rows), including the trailing/leading days of neighbour months.
  */
-export function monthGrid(key: DateKey): DateKey[] {
+export function monthGrid(key: DateKey, weekStart = 1): DateKey[] {
   const first = firstOfMonth(key);
   const last = addDays(addMonths(key, 1), -1);
   const days: DateKey[] = [];
-  for (let d = startOfWeek(first); d <= last || isoWeekday(d) !== 1; d = addDays(d, 1)) days.push(d);
+  for (let d = startOfWeek(first, weekStart); d <= last || isoWeekday(d) !== weekStart; d = addDays(d, 1)) days.push(d);
   return days;
 }
 

@@ -83,6 +83,9 @@ model User {
   // at the DB layer, so adding a theme or locale needs no migration.
   themeId         String?
   locale          String?
+  // Country formats follow (ISO 3166-1, "DK"): dates, numbers, first day of
+  // the week. Null = the device's region. Validated in PATCH /auth/me.
+  region          String?
   emailVerifiedAt DateTime?
   // Set once at signup (POST /auth/signup requires acceptedTerms: true) —
   // a real consent record, not just a UI gate that forgets itself. The

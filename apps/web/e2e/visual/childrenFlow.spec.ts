@@ -106,3 +106,13 @@ for (const [name, days] of [
     ]);
   });
 }
+
+test("formats follow the account's country, not the language", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.clock.setFixedTime(FIXTURE_NOW);
+  await mockApi(page, { me: { ...charlie, region: "DK" }, children: stenbecks, media: {}, routes: { "GET /lists": { items: listItems } } });
+  await page.goto("/lists");
+  await expect(page.getByText("3 of 5 necessities claimed")).toBeVisible(); // still English
+  await expect(page.getByText("26.09.2026")).toBeVisible();
+  await expect(page.getByText("60 %")).toBeVisible();
+});

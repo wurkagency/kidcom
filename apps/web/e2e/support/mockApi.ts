@@ -28,6 +28,7 @@ export const charlie: PublicUser = {
   oauthProviders: [],
   themeId: "aura",
   locale: "en-US",
+  region: null,
 };
 
 const child = (id: string, firstName: string, gender: ChildSummary["gender"], birthday: string): ChildSummary => ({

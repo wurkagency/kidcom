@@ -202,7 +202,7 @@ function CalendarView({ view }: { view: "agenda" | "week" | "month" }) {
   const navigate = useNavigate();
   const filters = useCalendarFilters();
   const [selected, select] = useSelectedDay(dateKey());
-  const days = view === "month" ? monthGrid(selected) : weekDays(selected);
+  const days = view === "month" ? monthGrid(selected, fmt.weekStart) : weekDays(selected, fmt.weekStart);
   const range = { from: days[0]!, to: days[days.length - 1]! };
   const data = useCalendarData(range, filters);
   const { kids, today } = data;

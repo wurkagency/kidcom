@@ -6,7 +6,9 @@ import { charlie, ida, leo, maya, mockApi } from "../support/mockApi";
 
 // Today + calendar views vs docs/design/aura, with the export's sample
 // content (support/calendarFixture.ts) and Leo selected in the header.
-// Thresholds sit just above the measured values so regressions fail.
+// Thresholds sit just above the measured values so regressions fail. The
+// family is in Copenhagen, so formats follow Denmark (Monday-first weeks,
+// as the exports draw them).
 
 async function open(page: Page, folder: string, path: string, swaps = false) {
   const ref = loadReference(folder);
@@ -14,7 +16,7 @@ async function open(page: Page, folder: string, path: string, swaps = false) {
   await page.clock.setFixedTime(FIXTURE_NOW);
   await page.addInitScript(() => localStorage.setItem("kidcom.childFilter.u-charlie", "c-leo"));
   await mockApi(page, {
-    me: charlie,
+    me: { ...charlie, region: "DK" },
     children: [leo, maya, ida],
     media: {},
     routes: {
@@ -58,6 +60,6 @@ test("week matches kidcom_calendar_2", async ({ page }) => {
 
 test("month matches kidcom_calendar_1", async ({ page }) => {
   await open(page, "kidcom_calendar_1", "/calendar/month", true);
-  await expect(page.getByText("Approve for June 7")).toBeVisible();
+  await expect(page.getByText("Approve for 7 June")).toBeVisible();
   await check(page, "kidcom_calendar_1", 0.05);
 });

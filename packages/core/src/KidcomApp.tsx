@@ -9,7 +9,9 @@ import { createQueryClient } from "./api/queryClient";
 import { useMe } from "./auth/hooks";
 import { ActiveChildrenProvider } from "./children/ActiveChildren";
 import { useDesktopGate, type DesktopGate } from "./device/desktopGate";
+import { RegionContext } from "./i18n/format";
 import { applyLocale, createI18n } from "./i18n/i18n";
+import { resolveRegion } from "./i18n/region";
 import { AppRouter } from "./routing/AppRouter";
 import { CurrentScreenContext } from "./routing/currentScreen";
 
@@ -29,6 +31,13 @@ function LocaleSync({ i18n }: { i18n: ReturnType<typeof createI18n> }) {
     void applyLocale(i18n, me?.locale);
   }, [i18n, me?.locale]);
   return null;
+}
+
+/** Formats follow the account's country, else the device's (see i18n/region.ts). */
+function RegionSync({ children }: { children: ReactNode }) {
+  const { data: me } = useMe();
+  const [detected] = useState(() => resolveRegion(null));
+  return <RegionContext.Provider value={me?.region ?? detected}>{children}</RegionContext.Provider>;
 }
 
 function GatedApp() {
@@ -84,7 +93,9 @@ export function KidcomApp({ registry, apiBaseUrl, splash }: KidcomAppProps) {
     <QueryClientProvider client={queryClient}>
       <I18nextProvider i18n={i18n}>
         <LocaleSync i18n={i18n} />
-        <ThemedApp registry={registry} splash={splash} />
+        <RegionSync>
+          <ThemedApp registry={registry} splash={splash} />
+        </RegionSync>
       </I18nextProvider>
     </QueryClientProvider>
   );

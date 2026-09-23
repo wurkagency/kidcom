@@ -58,7 +58,7 @@ function ChooseDownload({ ids }: { ids: string[] }) {
   const total = (key: "originalBytes" | "optimizedBytes") => chosen.reduce((sum, f) => sum + (f[key] ?? f.originalBytes ?? 0), 0);
   const originalTotal = total("originalBytes");
   const optimizedTotal = total("optimizedBytes");
-  const saving = originalTotal ? Math.max(0, Math.round((1 - optimizedTotal / originalTotal) * 100)) : 0;
+  const saving = originalTotal ? Math.max(0, 1 - optimizedTotal / originalTotal) : 0;
   const size = variant === "original" ? originalTotal : optimizedTotal;
 
   const go = () => {
@@ -137,7 +137,7 @@ function ChooseDownload({ ids }: { ids: string[] }) {
                     </span>
                   </div>
                   <p className="font-body-md text-body-md text-on-surface-variant mt-0.5 text-xs">
-                    {v === "original" ? t("download.originalHint") : t("download.optimizedHint", { percent: saving })}
+                    {v === "original" ? t("download.originalHint") : t("download.optimizedHint", { percent: fmt.percent(saving) })}
                   </p>
                 </div>
               </label>

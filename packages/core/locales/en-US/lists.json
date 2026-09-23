@@ -1,7 +1,6 @@
 {
   "title": "Lists",
   "add": "Add",
-  "percent": "{{pct}}%",
   "types": {
     "NECESSITY": "Necessities",
     "WISHLIST": "Wishlist"

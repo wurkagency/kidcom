@@ -72,4 +72,23 @@ describe("PATCH /auth/me — themeId and locale", () => {
     expect(res.body.user.themeId).toBeNull();
     expect(res.body.user.locale).toBeNull();
   });
+
+  it("the formats country is separate from the language, validated, and clearable", async () => {
+    const app = createApp();
+    const { agent } = await signupTestUser(app);
+    expect((await agent.get("/auth/me")).body.user.region).toBeNull();
+
+    const set = await agent.patch("/auth/me").send({ locale: "en-US", region: "DK" });
+    expect(set.status).toBe(200);
+    expect(set.body.user).toMatchObject({ locale: "en-US", region: "DK" });
+
+    for (const bad of ["dk", "XX", "EU", "DNK", 45]) {
+      expect((await agent.patch("/auth/me").send({ region: bad })).status).toBe(400);
+    }
+    expect((await agent.get("/auth/me")).body.user.region).toBe("DK");
+
+    const cleared = await agent.patch("/auth/me").send({ region: null });
+    expect(cleared.status).toBe(200);
+    expect(cleared.body.user.region).toBeNull();
+  });
 });

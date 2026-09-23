@@ -29,14 +29,14 @@ const MAX_DOTS = 2;
 export function DateStrip({ mode, agenda, selected, today, custody, marks, onSelect, onPrev, onNext, onToggleMode }: Props) {
   const { t } = useT("calendar");
   const fmt = useFormat();
-  const days = mode === "month" ? monthGrid(selected) : weekDays(selected);
+  const days = mode === "month" ? monthGrid(selected, fmt.weekStart) : weekDays(selected, fmt.weekStart);
   const month = monthOf(selected);
   const holder = custody?.[selected] ?? null;
   const inBand = (day: DateKey) => holder !== null && custody?.[day] === holder;
 
   const title =
     mode === "month" || agenda ? fmt.monthYear(`${selected}T12:00:00Z`) : t("strip.week", { week: isoWeek(selected) });
-  const headers = weekDays(selected).map((d) => fmt.date(`${d}T12:00:00Z`, { weekday: "short" }).slice(0, 2));
+  const headers = weekDays(selected, fmt.weekStart).map((d) => fmt.date(`${d}T12:00:00Z`, { weekday: "short" }).slice(0, 2));
 
   return (
     <section

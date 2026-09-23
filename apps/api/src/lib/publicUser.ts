@@ -1,5 +1,5 @@
 import type { OAuthProviderId, PublicUser } from "@kidcom/shared";
-import { isLocale, isThemeId } from "@kidcom/shared";
+import { isLocale, isRegion, isThemeId } from "@kidcom/shared";
 
 import { prisma } from "../db";
 
@@ -15,6 +15,7 @@ type UserRow = {
   passwordHash: string | null;
   themeId: string | null;
   locale: string | null;
+  region: string | null;
   oauthAccounts: { provider: "GOOGLE" | "MICROSOFT" }[];
   phoneCodes: { phone: string }[];
 };
@@ -38,6 +39,7 @@ export function toPublicUser(user: UserRow): PublicUser {
     oauthProviders: user.oauthAccounts.map((a) => a.provider.toLowerCase() as OAuthProviderId),
     themeId: isThemeId(user.themeId) ? user.themeId : null,
     locale: isLocale(user.locale) ? user.locale : null,
+    region: isRegion(user.region) ? user.region : null,
   };
 }
 

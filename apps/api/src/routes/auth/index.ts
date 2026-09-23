@@ -14,7 +14,7 @@ import type {
   VerifyPhoneRequest,
   VerifyTwoFactorRequest,
 } from "@kidcom/shared";
-import { isLocale, isThemeId, isValidEmail } from "@kidcom/shared";
+import { isLocale, isRegion, isThemeId, isValidEmail } from "@kidcom/shared";
 
 import { prisma } from "../../db";
 import { config } from "../../config";
@@ -447,10 +447,10 @@ authRouter.patch("/me", async (req, res, next) => {
   try {
     const userId = requireSession(req.session.userId);
     const body = req.body as Partial<UpdateProfileRequest>;
-    const { avatarMediaAssetId, firstName, lastName, themeId, locale } = body;
+    const { avatarMediaAssetId, firstName, lastName, themeId, locale, region } = body;
     const email = body.email?.trim().toLowerCase();
 
-    if ([avatarMediaAssetId, firstName, lastName, email, themeId, locale].every((v) => v === undefined)) {
+    if ([avatarMediaAssetId, firstName, lastName, email, themeId, locale, region].every((v) => v === undefined)) {
       throw new ApiError(400, "Nothing to update");
     }
     if (firstName !== undefined && !firstName.trim()) {
@@ -467,6 +467,9 @@ authRouter.patch("/me", async (req, res, next) => {
     }
     if (locale !== undefined && !isLocale(locale)) {
       throw new ApiError(400, "Unsupported language");
+    }
+    if (region !== undefined && region !== null && !isRegion(region)) {
+      throw new ApiError(400, "Unknown country");
     }
 
     if (avatarMediaAssetId !== undefined) {
@@ -497,6 +500,7 @@ authRouter.patch("/me", async (req, res, next) => {
           ...(emailChanged ? { email, emailVerifiedAt: null } : {}),
           ...(themeId !== undefined ? { themeId } : {}),
           ...(locale !== undefined ? { locale } : {}),
+          ...(region !== undefined ? { region } : {}),
         },
       });
     });

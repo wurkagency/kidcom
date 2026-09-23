@@ -308,14 +308,18 @@ function MeasureRow({
 }) {
   const { t } = useT("children");
   const fmt = useFormat();
-  const [draft, setDraft] = useState(value === null ? "" : String(value));
+  // Numbers are edited as the country writes them: "48,5" in DK, "48.5" in the US.
+  const [draft, setDraft] = useState(value === null ? "" : numeric ? fmt.number(Number(value), { useGrouping: false, maximumFractionDigits: 2 }) : String(value));
   const [state, setState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const shown = value === null || value === "" ? "—" : unit ? `${fmt.number(Number(value))} ${unit}` : String(value);
 
   const commit = async () => {
-    const v = draft.trim().replace(",", ".");
-    if (!v || v === String(value ?? "")) return;
-    if (numeric && !(Number(v) > 0)) return setState("error");
+    const typed = draft.trim();
+    if (!typed) return;
+    const n = numeric ? fmt.parseNumber(typed) : Number.NaN;
+    if (numeric && !(n > 0)) return setState("error");
+    const v = numeric ? String(n) : typed;
+    if (v === String(value ?? "")) return;
     setState("saving");
     try {
       await save(v);

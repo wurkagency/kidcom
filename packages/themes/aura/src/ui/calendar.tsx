@@ -1,6 +1,8 @@
 import * as React from "react"
 import { DayPicker, getDefaultClassNames, type DayButton } from "react-day-picker"
 
+import { useFormat } from "@kidcom/core"
+
 import { cn } from "../lib/utils"
 import { Icon } from "../components/Icon"
 
@@ -15,11 +17,18 @@ function Calendar({
   ...props
 }: React.ComponentProps<typeof DayPicker>) {
   const d = getDefaultClassNames()
+  const fmt = useFormat()
 
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
-      weekStartsOn={1}
+      weekStartsOn={(fmt.weekStart % 7) as 0 | 1 | 2 | 3 | 4 | 5 | 6}
+      formatters={{
+        // The picker's dates are device-local midnights; read them at local noon so the
+        // Copenhagen-zoned formatters land on the same calendar day.
+        formatCaption: (month) => fmt.monthYear(new Date(month.getFullYear(), month.getMonth(), 15, 12)),
+        formatWeekdayName: (day) => fmt.date(new Date(day.getFullYear(), day.getMonth(), day.getDate(), 12), { weekday: "short" }).slice(0, 2),
+      }}
       className={cn("group/calendar w-full", className)}
       classNames={{
         root: cn("w-full", d.root),

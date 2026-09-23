@@ -370,13 +370,14 @@ export function GrowthScreen() {
 
 function GrowthSheet({ childId, onClose }: { childId: string; onClose: () => void }) {
   const { t } = useT("children");
+  const fmt = useFormat();
   const add = useAddGrowthEntry(childId);
   const [day, setDay] = useState(dateKey());
   const [height, setHeight] = useState("");
   const [weight, setWeight] = useState("");
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const num = (v: string) => (v.trim() ? Number(v.replace(",", ".")) : undefined);
+  const num = (v: string) => (v.trim() ? fmt.parseNumber(v) : undefined);
   const submit = (e: FormEvent) => {
     e.preventDefault();
     const h = num(height);

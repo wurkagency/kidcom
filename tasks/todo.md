@@ -182,8 +182,16 @@ see "Decisions" below.
 - [x] Child selector is now multi-select (All / any subset), shared by header and Children
 - [x] Flow specs: claim, claim note, child selection, add measurement, relationship edit,
       custody 9/5 and 14/2. e2e 40/40
+- [x] Country formats (Charlie, 2026-09-23: "respect country formats"): dates, times,
+      numbers, percent and the first day of the week follow the user's country, separate
+      from the UI language — account `User.region` (null = device), else the device's
+      region, else DK. Numeric formats use the country's own conventions (26.09.2026,
+      15.00, 1.234,5, 60 %); formats with words keep the UI language in the country's
+      order ("26 Sept 2026"). Typed decimals accept "48,5" and "48.5". Calendar, date
+      picker and month grids start on the country's first day
 ## Phase 6 — Messages + Notifications + Search
 ## Phase 7 — Profile menu areas (Family, Account & Billing, Preferences, onboarding)
+- [ ] Preferences → "Country formats" picker (PATCH /auth/me `region`; "Follow device" = null)
 ## Dev database
 - 2026-09-23: all test accounts wiped (4 users, 2 test-only children and their content);
   only `charlie@wurk.dk` + children August and Pige remain. Procedure:

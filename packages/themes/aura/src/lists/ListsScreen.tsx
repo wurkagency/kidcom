@@ -40,6 +40,7 @@ function readType(): ListItemType {
 
 export function ListsScreen() {
   const { t } = useT("lists");
+  const fmt = useFormat();
   const { filter, selected, children } = useActiveChildren();
   const [type, setTypeState] = useState<ListItemType>(readType);
   const setType = (v: ListItemType) => {
@@ -54,7 +55,7 @@ export function ListsScreen() {
   const families = useFamilies(items.map((i) => i.childId));
   const open = items.filter((i) => !i.claimedById);
   const claimed = items.filter((i) => i.claimedById);
-  const pct = items.length ? Math.round((claimed.length / items.length) * 100) : 0;
+  const share = items.length ? claimed.length / items.length : 0;
   const kid = (id: string) => children.find((c) => c.id === id);
 
   return (
@@ -105,18 +106,18 @@ export function ListsScreen() {
               </span>
             </div>
             <span className="font-micro-meta text-micro-meta text-on-tertiary-fixed-variant bg-surface-container-lowest/80 px-2 py-0.5 rounded-full">
-              {t("percent", { pct })}
+              {fmt.percent(share)}
             </span>
           </div>
           <div
             role="progressbar"
             aria-valuemin={0}
             aria-valuemax={100}
-            aria-valuenow={pct}
+            aria-valuenow={Math.round(share * 100)}
             aria-label={t(`progress.${type}`, { claimed: claimed.length, total: items.length })}
             className="w-full h-2 rounded-full bg-surface-container-lowest/70 overflow-hidden mb-2"
           >
-            <div className="h-full rounded-full bg-on-tertiary-container transition-all" style={{ width: `${pct}%` }} />
+            <div className="h-full rounded-full bg-on-tertiary-container transition-all" style={{ width: `${share * 100}%` }} />
           </div>
           <p className="font-body-md text-body-md text-on-tertiary-fixed-variant flex items-center gap-1.5 text-xs">
             <Icon name="sync_saved_locally" className="text-[14px]" />
