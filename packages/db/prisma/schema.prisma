@@ -119,6 +119,7 @@ model User {
   mediaAssets    MediaAsset[]
   bookmarks      Bookmark[]
   downloadLinks  MediaDownloadLink[]
+  loginEvents    LoginEvent[]
   avatarAsset    MediaAsset?       @relation("UserAvatar")
   listClaims     ListItem[]        @relation("ListItemClaimedBy")
   listAssignments ListItem[]       @relation("ListItemAssignedTo")
@@ -677,6 +678,22 @@ model MediaAsset {
   playableBytes      Int?
   durationSeconds    Float?
   codec              String?        // e.g. "hevc", "h264" (videos only)
+  // Capture metadata and upload origin, for abuse and fraud checks in
+  // manage.kidcom.org. NEVER serialized to app clients (a child's location
+  // could reveal a home or school). GPS comes from the file where the phone
+  // kept it; see docs/data_retention_policy.md.
+  capturedLatitude    Float?
+  capturedLongitude   Float?
+  capturedAltitude    Float?
+  capturedAt          DateTime?
+  deviceMake          String?
+  deviceModel         String?
+  uploadIp            String?
+  uploadUserAgent     String?
+  // The original with its location removed, served to everyone but the
+  // uploader. Null when the original carried no location.
+  sharedOriginalPath  String?
+  sharedOriginalBytes Int?
   bookmarks          Bookmark[]
   createdAt        DateTime         @default(now())
 
@@ -1224,4 +1241,39 @@ model HandoverPackingItem {
 
   @@index([childId])
   @@map("handover_packing_items")
+}
+
+enum LoginMethod {
+  PASSWORD
+  TWO_FACTOR
+  GOOGLE
+  MICROSOFT
+  SIGNUP
+  OAUTH_SIGNUP
+  PASSWORD_RESET
+  INVITE
+}
+
+enum LoginOutcome {
+  SUCCESS
+  FAILED
+}
+
+// Every sign-in and failed attempt with its IP and user agent, for abuse and
+// fraud checks in manage.kidcom.org (compared with media upload origins).
+// Failed attempts on unknown accounts keep the typed email, userId null.
+model LoginEvent {
+  id        String       @id @default(cuid())
+  userId    String?
+  user      User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  email     String?
+  method    LoginMethod
+  outcome   LoginOutcome
+  ip        String?
+  userAgent String?
+  createdAt DateTime     @default(now())
+
+  @@index([userId, createdAt])
+  @@index([ip, createdAt])
+  @@map("login_events")
 }

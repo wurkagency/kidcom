@@ -32,4 +32,7 @@ const redisUrl = process.env.REDIS_URL ?? "redis://localhost:6379";
 process.env.REDIS_URL = redisUrl.replace(/\/\d*$/, "").replace(/^(redis:\/\/[^/]+).*$/, "$1") + "/1";
 
 process.env.NODE_ENV = "test";
+// Tests write media too: keep it out of dev's media folder, under a fixed key.
+process.env.MEDIA_STORAGE_PATH = path.resolve(__dirname, "../../media-test");
+process.env.MEDIA_ENCRYPTION_KEY = "7e57".repeat(16);
 process.env.SESSION_SECRET = process.env.SESSION_SECRET ?? "test-secret";

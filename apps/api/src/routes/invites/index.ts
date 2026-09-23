@@ -302,7 +302,7 @@ invitesRouter.post("/:token/accept", async (req, res, next) => {
       });
     }
 
-    await establishSession(req, user.id);
+    await establishSession(req, user.id, { method: "INVITE" });
     // Same anti-spoofing treatment as an organic signup (apps/api/src/routes/
     // auth/index.ts) — this route also creates a brand-new account, just via
     // an invite link rather than the signup form, so it needs the same

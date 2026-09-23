@@ -27,6 +27,7 @@ import { loadPublicUser } from "../../lib/publicUser";
 import { createAccount } from "../../lib/accounts";
 import { SALT_ROUNDS, assertStrongPassword, setPassword } from "../../lib/passwordPolicy";
 import { consumePhoneCode, isE164, pendingPhone, sendPhoneCode } from "../../lib/phoneVerification";
+import { recordLogin } from "../../lib/loginEvents";
 import { establishSession, forgetSession, revokeOtherSessions } from "../../lib/sessions";
 import { oauthRouter } from "./oauth";
 
@@ -106,7 +107,7 @@ authRouter.post("/signup", authRateLimiter, async (req, res, next) => {
       passwordHash: body.password ? await bcrypt.hash(body.password, SALT_ROUNDS) : null,
     });
 
-    await establishSession(req, user.id);
+    await establishSession(req, user.id, { method: "SIGNUP" });
     await sendPhoneCode(user.id, phone, "VERIFY_PHONE");
     await sendVerificationEmailSafely(user);
     res.status(201).json(await meResponse(user.id));
@@ -270,7 +271,7 @@ authRouter.post("/reset-password", authRateLimiter, async (req, res, next) => {
     if (proofOfEmail) {
       await prisma.user.updateMany({ where: { id: userId, emailVerifiedAt: null }, data: { emailVerifiedAt: new Date() } });
     }
-    await establishSession(req, userId);
+    await establishSession(req, userId, { method: "PASSWORD_RESET" });
     if (body.signOutOtherDevices !== false) {
       await revokeOtherSessions(userId, req.sessionID);
     }
@@ -335,6 +336,7 @@ authRouter.post("/login", authRateLimiter, async (req, res, next) => {
     const user = await prisma.user.findUnique({ where: { email } });
     // Same answer for "no account", "no password set" and "wrong password".
     if (!user?.passwordHash || !(await bcrypt.compare(password, user.passwordHash))) {
+      await recordLogin(req, { userId: user?.id, email, method: "PASSWORD", outcome: "FAILED" });
       throw new ApiError(401, "Invalid email or password", "INVALID_CREDENTIALS");
     }
     req.session.pendingTwoFactorUserId = user.id;
@@ -370,12 +372,13 @@ authRouter.post("/verify-2fa", authRateLimiter, async (req, res, next) => {
         throw new ApiError(400, "Too many incorrect attempts — request a new code", "CODE_ATTEMPTS_EXCEEDED");
       }
       await prisma.loginTwoFactorCode.update({ where: { id: record.id }, data: { attempts } });
+      await recordLogin(req, { userId: pendingUserId, method: "TWO_FACTOR", outcome: "FAILED" });
       throw new ApiError(401, "Incorrect code", "CODE_INCORRECT");
     }
     await prisma.loginTwoFactorCode.delete({ where: { id: record.id } });
 
     const rememberMe = req.session.pendingRememberMe !== false;
-    await establishSession(req, pendingUserId, { rememberMe });
+    await establishSession(req, pendingUserId, { method: "TWO_FACTOR", rememberMe });
     res.json(await meResponse(pendingUserId));
   } catch (err) {
     next(err);

@@ -1,7 +1,9 @@
 import type { Request } from "express";
+import type { LoginMethod } from "@kidcom/db";
 
 import { prisma } from "../db";
 import { redis } from "../redis";
+import { recordLogin } from "./loginEvents";
 
 // Session lifecycle helpers. Every sign-in (password + 2FA, signup, Google/
 // Microsoft, password reset) goes through establishSession so they all get
@@ -10,7 +12,8 @@ import { redis } from "../redis";
 //    never becomes an authenticated session);
 //  - the id recorded in a per-user index, so "sign out of all other devices"
 //    can find and destroy the others;
-//  - the phone-verified flag cached on the session (see requireVerifiedPhone).
+//  - the phone-verified flag cached on the session (see requireVerifiedPhone);
+//  - a login event (IP, user agent, method) for manage.kidcom.org.
 
 const SESSION_PREFIX = "kidcom:sess:"; // must match middleware/session.ts
 const indexKey = (userId: string) => `kidcom:usess:${userId}`;
@@ -24,7 +27,7 @@ function save(req: Request): Promise<void> {
   return new Promise((resolve, reject) => req.session.save((err) => (err ? reject(err) : resolve())));
 }
 
-export async function establishSession(req: Request, userId: string, options: { rememberMe?: boolean } = {}) {
+export async function establishSession(req: Request, userId: string, options: { method: LoginMethod; rememberMe?: boolean }) {
   const user = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { phoneVerifiedAt: true } });
   await regenerate(req);
   req.session.userId = userId;
@@ -36,6 +39,7 @@ export async function establishSession(req: Request, userId: string, options: { 
   }
   await save(req);
   await redis.multi().sadd(indexKey(userId), req.sessionID).expire(indexKey(userId), INDEX_TTL_SECONDS).exec();
+  await recordLogin(req, { userId, method: options.method, outcome: "SUCCESS" });
 }
 
 /** Destroys every session of `userId` except `keepSessionId`. */

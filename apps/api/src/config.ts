@@ -40,6 +40,22 @@ export const config = {
   corsOrigin: (process.env.CORS_ORIGIN ?? "http://localhost:5173").split(","),
   cookieDomain: process.env.COOKIE_DOMAIN ?? "localhost",
   mediaStoragePath: process.env.MEDIA_STORAGE_PATH ?? "./media",
+  // v3.0: every media file is encrypted at rest (lib/mediaCrypto.ts) with a
+  // per-file key wrapped by this 32-byte master key (`openssl rand -hex 32`).
+  // LOSING IT MAKES EVERY PHOTO AND VIDEO UNRECOVERABLE — back it up apart
+  // from the media and the database (docs/plesk_deployment.md). Production
+  // refuses to start without one; local dev/test fall back to a fixed,
+  // public dev key. MEDIA_ENCRYPTION_KEYS_PREVIOUS (comma-separated) keeps
+  // old keys readable during a rotation.
+  mediaEncryptionKey:
+    process.env.MEDIA_ENCRYPTION_KEY ??
+    (process.env.NODE_ENV === "production"
+      ? required("MEDIA_ENCRYPTION_KEY")
+      : "d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0"),
+  mediaEncryptionKeysPrevious: (process.env.MEDIA_ENCRYPTION_KEYS_PREVIOUS ?? "").split(",").map((k) => k.trim()).filter(Boolean),
+  // Plaintext scratch space while the worker runs sharp/ffmpeg; files are
+  // 0600 and removed as soon as each step finishes.
+  mediaTempPath: process.env.MEDIA_TEMP_PATH,
   isProduction: process.env.NODE_ENV === "production",
   // Temporary testing toggle for the still-in-testing production deployment:
   // when true, POST /billing/subscribe skips QuickPay entirely and activates

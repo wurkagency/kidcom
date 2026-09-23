@@ -5,19 +5,13 @@
 // root concurrently script).
 import "dotenv/config";
 import { Worker } from "bullmq";
-import path from "node:path";
-import fsp from "node:fs/promises";
-import sharp from "sharp";
-import ffmpeg from "fluent-ffmpeg";
-import ffmpegPath from "ffmpeg-static";
-import ffprobeStatic from "ffprobe-static";
 
 import { systemCategoryId } from "@kidcom/shared";
 
 import { prisma } from "./db";
 import { withRlsBypass } from "./lib/rls";
 import { bullConnection, type ProcessMediaJob } from "./lib/mediaQueue";
-import { mediaStorage } from "./lib/mediaStorage";
+import { processImage, processVideo, processedColumns } from "./lib/mediaProcessing";
 import { billingQueue, reconciliationQueue, type RenewSubscriptionsJob, type ReconcileSubscriptionsJob } from "./lib/billingQueue";
 import { BILLING_PERIOD_DAYS, BILLING_PRICES_ORE } from "./lib/billingPricing";
 import * as quickpay from "./lib/quickpay";
@@ -27,93 +21,10 @@ import { sendPushToUser } from "./lib/webPush";
 import { remindersQueue, type RemindAppointmentsJob } from "./lib/remindersQueue";
 import { childPurgeQueue, type PurgeDeletedChildrenJob } from "./lib/childPurgeQueue";
 import { purgeExpiredDeletedChildren } from "./lib/childPurge";
+import { purgeExpiredLoginEvents } from "./lib/loginEvents";
+import { mediaStorage } from "./lib/mediaStorage";
 
-if (ffmpegPath) {
-  ffmpeg.setFfmpegPath(ffmpegPath);
-}
-// ffmpeg-static only ships the ffmpeg binary — fluent-ffmpeg's ffprobe()
-// (used below for video dimensions) shells out to a separate `ffprobe`
-// binary that it otherwise expects to find on PATH, which a bare Node/PM2
-// process on a fresh host generally doesn't have. ffprobe-static ships
-// that second binary the same way ffmpeg-static ships the first.
-if (ffprobeStatic?.path) {
-  ffmpeg.setFfprobePath(ffprobeStatic.path);
-}
 
-async function processImage(originalKey: string, assetId: string) {
-  const derivedKey = `derived/${assetId}.webp`;
-  // sharp's .toFile() (like ffmpeg's .screenshots() below) writes straight
-  // to this path and does not create a missing "derived/" directory itself
-  // — unlike mediaStorage.save(), which already mkdir's for uploaded
-  // originals. Without this, every single image/video fails to process on
-  // a host where "derived/" hasn't been created by hand.
-  await mediaStorage.ensureDirFor(derivedKey);
-  const image = sharp(mediaStorage.pathFor(originalKey)).rotate();
-  const metadata = await image.metadata();
-  const derivedPath = mediaStorage.pathFor(derivedKey);
-  await sharp(mediaStorage.pathFor(originalKey))
-    .rotate()
-    .resize({ width: 1600, height: 1600, fit: "inside", withoutEnlargement: true })
-    .webp({ quality: 82 })
-    .toFile(derivedPath);
-  const derivedBytes = (await fsp.stat(derivedPath)).size;
-  return { derivedKey, derivedBytes, width: metadata.width ?? null, height: metadata.height ?? null };
-}
-
-async function processVideo(originalKey: string, assetId: string) {
-  const originalPath = mediaStorage.pathFor(originalKey);
-  const derivedKey = `derived/${assetId}.jpg`; // poster frame — used as the feed thumbnail
-  await mediaStorage.ensureDirFor(derivedKey);
-  const derivedPath = mediaStorage.pathFor(derivedKey);
-  const outDir = path.dirname(derivedPath);
-
-  const probe = await new Promise<{ width: number | null; height: number | null; durationSeconds: number | null; codec: string | null }>(
-    (resolve, reject) => {
-      ffmpeg.ffprobe(originalPath, (err, data) => {
-        if (err) return reject(err);
-        const stream = data.streams.find((s) => s.width && s.height);
-        const duration = Number(data.format?.duration ?? stream?.duration);
-        resolve({
-          width: stream?.width ?? null,
-          height: stream?.height ?? null,
-          durationSeconds: Number.isFinite(duration) ? duration : null,
-          codec: stream?.codec_name ?? null,
-        });
-      });
-    }
-  );
-
-  await new Promise<void>((resolve, reject) => {
-    ffmpeg(originalPath)
-      .on("end", () => resolve())
-      .on("error", reject)
-      .screenshots({ count: 1, folder: outDir, filename: path.basename(derivedPath), timestamps: ["1"] });
-  });
-
-  // Bug fix — playback used originalPath directly (whatever codec/container
-  // the uploading phone produced) with no transcoding at all. iPhones
-  // commonly record HEVC-in-.mov (video/quicktime), which only Safari/
-  // macOS/iOS decode — Chrome/Firefox/Android just fail to play it, no
-  // error shown. Transcode to H.264 baseline + AAC in an MP4 container,
-  // the one combination every mainstream browser plays. +faststart moves
-  // the moov atom to the front of the file so playback can start before the
-  // whole (blob-fetched, see lib/media.ts) file has finished downloading.
-  const playableKey = `derived/${assetId}-playable.mp4`;
-  await mediaStorage.ensureDirFor(playableKey);
-  const playablePath = mediaStorage.pathFor(playableKey);
-  await new Promise<void>((resolve, reject) => {
-    ffmpeg(originalPath)
-      .videoCodec("libx264")
-      .outputOptions(["-profile:v baseline", "-level 3.0", "-pix_fmt yuv420p", "-movflags +faststart"])
-      .audioCodec("aac")
-      .on("end", () => resolve())
-      .on("error", reject)
-      .save(playablePath);
-  });
-
-  const [derivedBytes, playableBytes] = await Promise.all([fsp.stat(derivedPath), fsp.stat(playablePath)]).then((st) => st.map((x) => x.size));
-  return { derivedKey, playableKey, derivedBytes, playableBytes, ...probe };
-}
 
 const worker = new Worker<ProcessMediaJob>(
   "process-media",
@@ -122,27 +33,8 @@ const worker = new Worker<ProcessMediaJob>(
     // needs to update any media asset regardless of who owns/tagged it.
     const asset = await withRlsBypass((tx) => tx.mediaAsset.findUniqueOrThrow({ where: { id: job.data.mediaAssetId } }));
     try {
-      const result =
-        asset.type === "IMAGE"
-          ? await processImage(asset.originalPath, asset.id)
-          : await processVideo(asset.originalPath, asset.id);
-
-      await withRlsBypass((tx) =>
-        tx.mediaAsset.update({
-          where: { id: asset.id },
-          data: {
-            status: "READY",
-            derivedPath: result.derivedKey,
-            playablePath: "playableKey" in result ? result.playableKey : undefined,
-            width: result.width,
-            height: result.height,
-            derivedBytes: result.derivedBytes,
-            ...("playableKey" in result
-              ? { playableBytes: result.playableBytes, durationSeconds: result.durationSeconds, codec: result.codec }
-              : {}),
-          },
-        })
-      );
+      const result = asset.type === "IMAGE" ? await processImage(asset) : await processVideo(asset);
+      await withRlsBypass((tx) => tx.mediaAsset.update({ where: { id: asset.id }, data: processedColumns(result) }));
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error(`Failed to process media asset ${asset.id}:`, err);
@@ -153,6 +45,7 @@ const worker = new Worker<ProcessMediaJob>(
 );
 
 worker.on("ready", () => {
+  void mediaStorage.cleanScratch(0); // nothing is in flight yet: anything there is a crash leftover
   // eslint-disable-next-line no-console
   console.log("KidCom media worker ready, listening for process-media jobs");
 });
@@ -341,6 +234,13 @@ const childPurgeWorker = new Worker<PurgeDeletedChildrenJob>(
     if (purged) {
       // eslint-disable-next-line no-console
       console.log(`purge-deleted-children: hard-deleted ${purged} child(ren) past their restore window`);
+    }
+    // Same daily run: login events past retention, stray plaintext scratch files.
+    const events = await purgeExpiredLoginEvents();
+    const scratch = await mediaStorage.cleanScratch();
+    if (events || scratch) {
+      // eslint-disable-next-line no-console
+      console.log(`daily purge: ${events} login event(s) past 12 months, ${scratch} stray media scratch file(s)`);
     }
   },
   { connection: bullConnection }

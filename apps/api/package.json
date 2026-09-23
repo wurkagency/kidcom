@@ -10,7 +10,8 @@
     "start": "node dist/server.js",
     "start:worker": "node dist/worker.js",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "media:encrypt": "tsx src/scripts/encryptMedia.ts"
   },
   "dependencies": {
     "@kidcom/db": "*",
@@ -22,6 +23,7 @@
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
+    "exifr": "^7.1.3",
     "express": "^4.21.0",
     "express-rate-limit": "^7.4.1",
     "express-session": "^1.18.1",

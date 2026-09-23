@@ -38,7 +38,7 @@
   "feed": {
     "empty": "No moments yet.",
     "share": "Share one",
-    "privateTitle": "All moments are private",
+    "privateTitle": "All moments are encrypted and private",
     "privateBody": "Shared only with parents and family"
   },
   "post": {

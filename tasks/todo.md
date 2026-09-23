@@ -30,6 +30,14 @@ see "Decisions" below.
 - Existing accounts without a verified number must add + verify one at next sign-in;
   changing number always re-verifies (new number takes effect only once its SMS code is
   confirmed). Confirmed 2026-09-23. Change-number UI: Phase 7 account settings.
+- **Media privacy (2026-09-26)**: all media encrypted at rest (per-file keys under
+  `MEDIA_ENCRYPTION_KEY`, chunked AES-256-GCM). **End-to-end encryption considered and
+  rejected**: the server could no longer make thumbnails, convert iPhone video or build
+  download zips; every family would need key sharing, re-sharing on join/leave and phone-loss
+  recovery; and it conflicts with the "former member" retention rule.
+- GPS / capture time / device from uploads, upload IP + user agent, and sign-in events are
+  stored for manage.kidcom.org's abuse and fraud checks — never shown in the app. The
+  uploader keeps their original; everyone else gets it without location.
 
 ## Phase 0 — Branch, baseline, cleanup
 

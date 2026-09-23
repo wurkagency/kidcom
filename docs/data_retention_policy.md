@@ -88,6 +88,41 @@ database (only `charlie@wurk.dk` and its children kept).
 - Follows the same lifecycle as the `Child` record it belongs to (cascades on hard
   delete, no separate retention window).
 
+## Photos and videos (encryption, capture metadata, upload origin)
+
+- All media files are encrypted at rest (AES-256-GCM, per-file keys; see
+  `docs/plesk_deployment.md` → Media encryption). Not end-to-end: the server
+  decrypts to make thumbnails, playable videos and downloads.
+- **Capture metadata** read from each upload where the phone kept it: GPS
+  latitude / longitude / altitude, capture time, device make and model
+  (`MediaAsset.captured*`, `deviceMake`, `deviceModel`). Mobile browsers often
+  remove location before upload, so coverage is partial.
+- **Upload origin**: the uploader's IP address and user agent
+  (`MediaAsset.uploadIp`, `uploadUserAgent`).
+- **Purpose**: abuse and fraud detection in the admin tool (manage.kidcom.org),
+  e.g. comparing where media was taken and uploaded from with where accounts
+  sign in. Lawful basis proposed: legitimate interest (GDPR Art. 6(1)(f)) in
+  protecting children and accounts — **to be confirmed by Charlie / legal, with
+  a DPIA, before manage.kidcom.org uses it, and named in the privacy notice.**
+- **Never shown in the app** to anyone, including the uploader: no API
+  response includes these fields (covered by `routes/mediaPrivacy.test.ts`).
+- **Location inside files**: the uploader can download their original as
+  uploaded. Everyone else gets a copy with the location removed (JPEG EXIF
+  GPS + XMP GPS zeroed/dropped, videos remuxed without metadata; pixels and
+  streams untouched), or the optimized version where that isn't possible. The
+  in-app versions (WebP, posters, playback MP4) never carry metadata.
+- Retention: with the media asset itself (deleted with it).
+
+## Sign-in events
+
+- `LoginEvent`: every sign-in (method: password + 2FA, Google, Microsoft,
+  signup, password reset, invite) and failed attempt (wrong password — with the
+  typed email even when no such account exists — or wrong 2FA code), with IP
+  address and user agent. Same purpose and legal basis as upload origin above.
+- Readable by the admin tool; a user could be shown their own (RLS allows only
+  that). Deleted after **12 months** by the daily 04:00 job
+  (`purgeExpiredLoginEvents`).
+
 ## Billing / subscription data
 
 - `Subscription` rows persist for the life of the owning account (billing history).

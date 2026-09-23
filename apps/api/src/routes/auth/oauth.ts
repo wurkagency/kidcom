@@ -51,7 +51,7 @@ async function createOAuthAccount(req: Request, provider: OAuthProviderId, profi
       console.error(`Failed to send verification email to ${user.email}:`, err);
     });
   }
-  await establishSession(req, user.id);
+  await establishSession(req, user.id, { method: "OAUTH_SIGNUP" });
   return user;
 }
 
@@ -114,7 +114,7 @@ oauthRouter.get("/:provider/callback", async (req, res, next) => {
       where: { provider_providerUserId: { provider: dbProvider(provider), providerUserId: profile.subject } },
     });
     if (linked) {
-      await establishSession(req, linked.userId);
+      await establishSession(req, linked.userId, { method: provider === "google" ? "GOOGLE" : "MICROSOFT" });
       res.redirect(302, pending.next);
       return;
     }
@@ -146,7 +146,7 @@ oauthRouter.get("/:provider/callback", async (req, res, next) => {
       await prisma.oAuthAccount.create({
         data: { userId: existing.id, provider: dbProvider(provider), providerUserId: profile.subject, email },
       });
-      await establishSession(req, existing.id);
+      await establishSession(req, existing.id, { method: provider === "google" ? "GOOGLE" : "MICROSOFT" });
       res.redirect(302, pending.next);
       return;
     }

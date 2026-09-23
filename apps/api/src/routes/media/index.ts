@@ -1,8 +1,6 @@
 import { Router, type Response } from "express";
 import multer from "multer";
 import crypto from "node:crypto";
-import fs from "node:fs";
-import fsp from "node:fs/promises";
 import archiver from "archiver";
 import type { MediaArchiveRequest, MediaDownloadVariant, MediaInfoDto, MediaUploadResponse } from "@kidcom/shared";
 
@@ -81,6 +79,9 @@ mediaRouter.post("/upload", requireAuth, upload.single("file"), async (req, res,
           originalPath: key,
           mimeType: req.file!.mimetype,
           originalBytes: req.file!.size,
+          // For manage.kidcom.org's abuse and fraud checks; never sent to clients.
+          uploadIp: req.ip ?? null,
+          uploadUserAgent: req.get("user-agent")?.slice(0, 500) ?? null,
         },
       })
     );
@@ -145,27 +146,41 @@ async function loadReadableAsset(userId: string, id: string) {
 
 type Readable = Awaited<ReturnType<typeof loadReadableAsset>>;
 
+/**
+ * The original as this viewer may have it. The uploader gets their file
+ * untouched; everyone else gets it with the location removed — or, when the
+ * format couldn't be stripped losslessly, the optimized version. Until the
+ * worker has checked a file for location, only its uploader can have it.
+ */
+function originalFor(asset: Readable, userId: string): string {
+  if (asset.ownerId === userId) return asset.originalPath;
+  if (asset.status !== "READY") throw new ApiError(409, "Still processing — try again in a moment", "MEDIA_PROCESSING");
+  if (asset.sharedOriginalPath) return asset.sharedOriginalPath;
+  if (asset.capturedLatitude === null) return asset.originalPath;
+  return asset.type === "VIDEO" ? asset.playablePath ?? asset.derivedPath! : asset.derivedPath!;
+}
+
 /** Which stored file a request variant maps to. */
-function keyFor(asset: Readable, variant: string | undefined): string {
-  // "source": the untouched upload (downloads). "original": what <video>
-  // plays — the H.264 transcode when there is one, since phones often record
-  // HEVC that most browsers can't decode. Default: the in-app derivative
-  // (WebP photo / JPEG poster frame).
-  if (variant === "source") return asset.originalPath;
-  if (variant === "original") return asset.playablePath ?? asset.originalPath;
-  return asset.derivedPath ?? asset.originalPath;
+function keyFor(asset: Readable, variant: string | undefined, userId: string): string {
+  // "source": the original (downloads). "original": what <video> plays —
+  // the H.264 transcode, since phones often record HEVC most browsers can't
+  // decode (and the transcode carries no location). Default: the in-app
+  // derivative (WebP photo / JPEG poster frame), metadata-free.
+  if (variant === "source") return originalFor(asset, userId);
+  if (variant === "original") return asset.playablePath ?? originalFor(asset, userId);
+  return asset.derivedPath ?? originalFor(asset, userId);
 }
 
-/** The download variants: original = the upload; optimized = the in-app file. */
-function downloadKey(asset: Readable, variant: MediaDownloadVariant): string {
-  if (variant === "original") return asset.originalPath;
-  return asset.type === "VIDEO" ? asset.playablePath ?? asset.originalPath : asset.derivedPath ?? asset.originalPath;
+/** The download variants: original = as uploaded (location-free for others); optimized = the in-app file. */
+function downloadKey(asset: Readable, variant: MediaDownloadVariant, userId: string): string {
+  if (variant === "original") return originalFor(asset, userId);
+  return (asset.type === "VIDEO" ? asset.playablePath : asset.derivedPath) ?? originalFor(asset, userId);
 }
 
-/** Streams a stored file, honouring a single Range (needed for video seeking on iOS). */
+/** Streams a stored (encrypted) file, honouring a single Range (video seeking on iOS). */
 async function sendFile(res: Response, key: string, range: string | undefined, attachmentName?: string) {
   if (!(await mediaStorage.exists(key))) throw new ApiError(404, "Media file missing on disk");
-  const { size } = await fsp.stat(mediaStorage.pathFor(key));
+  const size = await mediaStorage.size(key);
   res.setHeader("Cache-Control", "private, max-age=86400");
   res.setHeader("Accept-Ranges", "bytes");
   const mime = mimeForKey(key);
@@ -185,11 +200,21 @@ async function sendFile(res: Response, key: string, range: string | undefined, a
     res.status(206);
     res.setHeader("Content-Range", `bytes ${start}-${end}/${size}`);
     res.setHeader("Content-Length", String(end - start + 1));
-    fs.createReadStream(mediaStorage.pathFor(key), { start, end }).pipe(res);
+    pipe(await mediaStorage.readStream(key, { start, end }), res);
     return;
   }
   res.setHeader("Content-Length", String(size));
-  mediaStorage.readStream(key).pipe(res);
+  pipe(await mediaStorage.readStream(key), res);
+}
+
+/** A decryption failure mid-stream can't become an error page any more: end the response. */
+function pipe(stream: NodeJS.ReadableStream, res: Response) {
+  stream.on("error", (err) => {
+    // eslint-disable-next-line no-console
+    console.error("Media stream failed:", err);
+    res.destroy(err as Error);
+  });
+  stream.pipe(res);
 }
 
 const slug = (text: string) =>
@@ -217,9 +242,12 @@ function parseArchiveRequest(body: unknown): MediaArchiveRequest {
 }
 
 async function streamArchive(res: Response, userId: string, { mediaIds, variant }: MediaArchiveRequest) {
-  // Every file is access-checked before the first byte is sent.
-  const assets = [];
-  for (const id of mediaIds) assets.push(await loadReadableAsset(userId, id));
+  // Every file is access-checked (and its key chosen) before the first byte is sent.
+  const files: { key: string; asset: Readable }[] = [];
+  for (const id of mediaIds) {
+    const asset = await loadReadableAsset(userId, id);
+    files.push({ asset, key: downloadKey(asset, variant, userId) });
+  }
 
   res.setHeader("Content-Type", "application/zip");
   res.setHeader("Content-Disposition", `attachment; filename="kidcom-${new Date().toISOString().slice(0, 10)}.zip"`);
@@ -227,13 +255,12 @@ async function streamArchive(res: Response, userId: string, { mediaIds, variant 
   zip.on("error", (err) => res.destroy(err));
   zip.pipe(res);
   const seen = new Map<string, number>();
-  for (const asset of assets) {
-    const key = downloadKey(asset, variant);
+  for (const { asset, key } of files) {
     if (!(await mediaStorage.exists(key))) continue;
     const base = slug(asset.moment?.title ?? "kidcom");
     const n = (seen.get(base) ?? 0) + 1;
     seen.set(base, n);
-    zip.file(mediaStorage.pathFor(key), { name: `${base}-${n}.${extOf(key)}` });
+    zip.append(await mediaStorage.readStream(key), { name: `${base}-${n}.${extOf(key)}` });
   }
   await zip.finalize();
 }
@@ -261,7 +288,7 @@ mediaRouter.post("/archive/email", requireAuth, async (req, res, next) => {
   try {
     const userId = req.session.userId!;
     const request = parseArchiveRequest(req.body);
-    for (const id of request.mediaIds) await loadReadableAsset(userId, id);
+    for (const id of request.mediaIds) downloadKey(await loadReadableAsset(userId, id), request.variant, userId);
     const token = crypto.randomBytes(32).toString("base64url");
     const user = await withRls(userId, async (tx) => {
       await tx.mediaDownloadLink.create({
@@ -316,7 +343,7 @@ mediaRouter.get("/:id/info", requireAuth, async (req, res, next) => {
       ...toMediaDto(asset),
       mimeType: asset.mimeType,
       codec: asset.codec,
-      originalBytes: asset.originalBytes,
+      originalBytes: asset.ownerId === userId ? asset.originalBytes : (asset.sharedOriginalBytes ?? asset.originalBytes),
       optimizedBytes: asset.type === "VIDEO" ? asset.playableBytes : asset.derivedBytes,
       bookmarkedByMe: asset.bookmarks.length > 0,
       moment: m
@@ -346,7 +373,7 @@ mediaRouter.get("/:id", requireAuth, async (req, res, next) => {
   try {
     const asset = await loadReadableAsset(req.session.userId!, req.params.id);
     const variant = typeof req.query.variant === "string" ? req.query.variant : undefined;
-    const key = keyFor(asset, variant);
+    const key = keyFor(asset, variant, req.session.userId!);
     const attachment = variant === "source" ? `${slug(asset.moment?.title ?? "kidcom")}.${extOf(key)}` : undefined;
     await sendFile(res, key, req.headers.range, attachment);
   } catch (err) {

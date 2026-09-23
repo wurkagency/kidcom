@@ -16,6 +16,7 @@ apps/web/dev-dist/
 
 # Local media uploads (dev)
 apps/api/media/
+apps/api/media-test/
 
 # IDE
 .vscode/*
