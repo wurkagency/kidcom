@@ -67,7 +67,8 @@ export const config = {
   smtpPort: Number(process.env.SMTP_PORT ?? 587),
   smtpUser: process.env.SMTP_USER,
   smtpPass: process.env.SMTP_PASS,
-  smtpFrom: process.env.SMTP_FROM ?? '"KidCom" <noreply@kidcom.org>',
+  // Must be a sender verified in Brevo (no-reply@kidcom.org is).
+  smtpFrom: process.env.SMTP_FROM ?? '"KidCom" <no-reply@kidcom.org>',
   // SMS (lib/smsSender.ts). "brevo" sends real SMS; "log" prints them. Real
   // SMS costs credits, so only production sends by default.
   smsDelivery: (process.env.SMS_DELIVERY ?? (process.env.NODE_ENV === "production" ? "brevo" : "log")) as "brevo" | "log",

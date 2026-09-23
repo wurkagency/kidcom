@@ -119,6 +119,14 @@ see "Decisions" below.
 ## Phase 5 — Lists + Children + Health
 ## Phase 6 — Messages + Notifications + Search
 ## Phase 7 — Profile menu areas (Family, Account & Billing, Preferences, onboarding)
+## Known defects found during the build (owner: phase noted)
+- **Account deletion (`DELETE /auth/me`, GDPR erasure) fails for every user** — 12 User
+  relations have no onDelete rule (Subscription, Moment, Comment, MediaAsset ×2, Message,
+  Invite, SwapRequest, CalendarEventRequest, ListItem ×2, UpgradeRequest), so Postgres
+  refuses the delete. Needs a decision: erase vs. keep-and-anonymise content that belongs
+  to a child's shared history (spec: "content stays with the child"). Found 2026-09-23 while
+  wiping a test user. → Phase 7 (Account & Billing / privacy), with a test.
+
 ## Phase 8 — Hardening, remove legacy/web-v2, full regression, push
 
 ## Credentials (in app/.env, never committed)
