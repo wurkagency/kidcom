@@ -2,7 +2,8 @@ node_modules/
 dist/
 build/
 .env
-.env.local
+.env.*
+!.env.example
 *.log
 .DS_Store
 Thumbs.db
@@ -29,3 +30,12 @@ playwright-report/
 
 # i18n machine-translation exchange files
 i18n/
+
+# Secrets and keys — never committed
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+credentials*.json
+*credentials*.md

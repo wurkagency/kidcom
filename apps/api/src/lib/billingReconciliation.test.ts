@@ -62,15 +62,40 @@ describe("reconcilePendingSubscriptions (spec-adjacent, D7)", () => {
     await prisma.subscription.update({ where: { id: subscriptionId }, data: { updatedAt: new Date(Date.now() - RECONCILE_AFTER_MS - 1000) } });
 
     vi.spyOn(quickpay, "getSubscription").mockResolvedValue({ id: 12345, accepted: true });
+    const charge = vi.spyOn(quickpay, "chargeRecurring").mockResolvedValue({ id: 1, accepted: true, operations: [{ type: "recurring", qp_status_code: "20000" }] });
 
     const result = await reconcilePendingSubscriptions();
     expect(result.healed).toBe(1);
     expect(result.reverted).toBe(0);
+    // Healing charges the first period — never ACTIVE for free.
+    expect(charge).toHaveBeenCalledTimes(1);
 
     const after = await prisma.subscription.findUniqueOrThrow({ where: { id: subscriptionId } });
     expect(after.tier).toBe("FAMILY");
     expect(after.status).toBe("ACTIVE");
     expect(after.currentPeriodEnd).not.toBeNull();
+    expect(after.lastChargeOrderId).not.toBeNull();
+  });
+
+  it("reverts to FREE when the healing charge is declined", async () => {
+    const { subscriptionId } = await pendingSubscriptionFor("reconcile-declined@example.com");
+    await prisma.subscription.update({ where: { id: subscriptionId }, data: { updatedAt: new Date(Date.now() - RECONCILE_AFTER_MS - 1000) } });
+    vi.spyOn(quickpay, "getSubscription").mockResolvedValue({ id: 12345, accepted: true });
+    vi.spyOn(quickpay, "chargeRecurring").mockResolvedValue({ id: 1, accepted: false, operations: [{ type: "recurring", qp_status_code: "40000" }] });
+
+    expect(await reconcilePendingSubscriptions()).toEqual({ healed: 0, reverted: 1 });
+    expect(await prisma.subscription.findUniqueOrThrow({ where: { id: subscriptionId } })).toMatchObject({ tier: "FREE", status: "ACTIVE" });
+  });
+
+  it("leaves the row PENDING for the next run when the charge request itself fails", async () => {
+    const { subscriptionId } = await pendingSubscriptionFor("reconcile-charge-error@example.com");
+    await prisma.subscription.update({ where: { id: subscriptionId }, data: { updatedAt: new Date(Date.now() - RECONCILE_AFTER_MS - 1000) } });
+    vi.spyOn(quickpay, "getSubscription").mockResolvedValue({ id: 12345, accepted: true });
+    vi.spyOn(quickpay, "chargeRecurring").mockRejectedValue(new Error("network down"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    expect(await reconcilePendingSubscriptions()).toEqual({ healed: 0, reverted: 0 });
+    expect((await prisma.subscription.findUniqueOrThrow({ where: { id: subscriptionId } })).status).toBe("PENDING");
   });
 
   it("does not touch a subscription still within its grace window (checkout genuinely in progress)", async () => {

@@ -22,6 +22,8 @@ import { momentsFeedRouter } from "./routes/moments";
 import { bookmarksRouter } from "./routes/bookmarks";
 import { listsRouter } from "./routes/lists";
 import { requireVerifiedPhone, sessionMiddleware } from "./middleware/session";
+import { requireClientHeader } from "./middleware/clientHeader";
+import { keepSessionIndexed } from "./lib/sessions";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler";
 
 declare global {
@@ -71,6 +73,8 @@ export function createApp() {
       credentials: true,
     })
   );
+  // CSRF: state-changing requests must carry the app's own header.
+  app.use(requireClientHeader);
   app.use(
     express.json({
       verify: (req, _res, buf) => {
@@ -80,6 +84,7 @@ export function createApp() {
   );
   app.use(cookieParser());
   app.use(sessionMiddleware);
+  app.use(keepSessionIndexed);
   app.use(requireVerifiedPhone);
 
   app.use("/health", healthRouter);

@@ -4,6 +4,8 @@ export default defineConfig({
   test: {
     environment: "node",
     globals: false,
+    // Sources only: `npm run build` also compiles the tests into dist/.
+    include: ["src/**/*.test.ts"],
     setupFiles: ["./src/testUtils/setupEnv.ts"],
     // Integration tests share one real Postgres test database (see
     // testUtils/db.ts's per-test truncate) — running files in parallel

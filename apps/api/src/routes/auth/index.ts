@@ -23,7 +23,7 @@ import { ApiError } from "../../middleware/errorHandler";
 import { hashVerificationToken, sendVerificationEmail } from "../../lib/emailVerification";
 import { hashResetToken, sendPasswordResetEmail } from "../../lib/passwordReset";
 import { TWO_FACTOR_MAX_ATTEMPTS, hashTwoFactorCode, sendLoginTwoFactorCode } from "../../lib/twoFactor";
-import { withRls } from "../../lib/rls";
+import { withRls, withRlsBypass } from "../../lib/rls";
 import { loadPublicUser } from "../../lib/publicUser";
 import { createAccount } from "../../lib/accounts";
 import { SALT_ROUNDS, assertStrongPassword, setPassword } from "../../lib/passwordPolicy";
@@ -34,17 +34,38 @@ import { oauthRouter } from "./oauth";
 
 export const authRouter = Router();
 
-// Basic per-IP throttling on the endpoints most attractive to abuse
-// (credential stuffing, signup spam, code guessing, SMS/email flooding).
-// Skipped under test: supertest traffic all comes from one "IP".
+// Per-IP throttling on the endpoints most attractive to abuse (credential
+// stuffing, signup spam, code guessing, SMS/email flooding) — one bucket per
+// endpoint, so a household or a mobile carrier sharing one IP doesn't lock
+// itself out by signing up and verifying. Per-account limits sit on top
+// (login below; SMS in lib/phoneVerification.ts). Skipped under test:
+// supertest traffic all comes from one "IP".
 const authRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 10,
+  limit: 20,
+  keyGenerator: (req) => `${req.ip}|${req.baseUrl}${req.path}`,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: "Too many attempts — please try again later." },
+  message: { error: "Too many attempts — please try again later.", code: "TOO_MANY_ATTEMPTS" },
   skip: () => config.nodeEnv === "test",
 });
+
+// Per-account: failed password attempts on one email (existing or not — the
+// answer is the same either way, so it reveals nothing) within a window. Stops
+// a distributed attack from many IPs on one parent's account.
+export const LOGIN_FAILURE_LIMIT = 10;
+const LOGIN_FAILURE_WINDOW_MS = 15 * 60 * 1000;
+
+async function assertLoginAllowed(email: string): Promise<void> {
+  const failures = await withRlsBypass((tx) =>
+    tx.loginEvent.count({
+      where: { email, method: "PASSWORD", outcome: "FAILED", createdAt: { gte: new Date(Date.now() - LOGIN_FAILURE_WINDOW_MS) } },
+    })
+  );
+  if (failures >= LOGIN_FAILURE_LIMIT) {
+    throw new ApiError(429, "Too many attempts for this account — please try again in 15 minutes", "TOO_MANY_ATTEMPTS");
+  }
+}
 
 async function meResponse(userId: string): Promise<MeResponse> {
   return { user: await loadPublicUser(userId) };
@@ -61,7 +82,7 @@ async function sendVerificationEmailSafely(user: { id: string; email: string; fi
     await sendVerificationEmail(user);
   } catch (err) {
     // eslint-disable-next-line no-console
-    console.error(`Failed to send verification email to ${user.email}:`, err);
+    console.error(`Failed to send verification email for user ${user.id}:`, err);
   }
 }
 
@@ -335,6 +356,7 @@ authRouter.post("/login", authRateLimiter, async (req, res, next) => {
     if (!email || !password) {
       throw new ApiError(400, "email and password are required");
     }
+    await assertLoginAllowed(email);
     const user = await prisma.user.findUnique({ where: { email } });
     // Same answer for "no account", "no password set" and "wrong password".
     if (!user?.passwordHash || !(await bcrypt.compare(password, user.passwordHash))) {
@@ -408,6 +430,12 @@ authRouter.post("/cancel-2fa", (req, res) => {
   res.status(204).end();
 });
 
+// Signing out (or deleting the account) empties the browser's HTTP cache for
+// the app, so photos and videos (cached privately for a day) can't be seen by
+// the next person on a shared device. "cache" only: the service worker's app
+// shell and the device's own settings stay.
+const CLEAR_CACHE = '"cache"';
+
 authRouter.post("/logout", (req, res, next) => {
   const userId = req.session.userId;
   const sessionId = req.sessionID;
@@ -418,6 +446,7 @@ authRouter.post("/logout", (req, res, next) => {
     }
     const done = () => {
       res.clearCookie("kidcom.sid");
+      res.setHeader("Clear-Site-Data", CLEAR_CACHE);
       res.status(204).end();
     };
     if (userId) forgetSession(userId, sessionId).then(done, done);
@@ -601,6 +630,7 @@ authRouter.delete("/me", async (req, res, next) => {
     await revokeOtherSessions(userId, req.sessionID);
     req.session.destroy(() => {
       res.clearCookie("kidcom.sid");
+      res.setHeader("Clear-Site-Data", CLEAR_CACHE);
       res.status(204).end();
     });
   } catch (err) {

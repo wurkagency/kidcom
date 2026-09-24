@@ -89,6 +89,10 @@ export const config = {
   // 0600 and removed as soon as each step finishes.
   mediaTempPath: process.env.MEDIA_TEMP_PATH,
   isProduction,
+  // CSRF defence (middleware/clientHeader.ts): state-changing requests must
+  // carry X-KidCom-Client: 1. Off only under the test runner, whose requests
+  // don't come from the app; the CSRF test switches it on.
+  requireClientHeader: process.env.NODE_ENV !== "test",
   // Temporary testing toggle for the still-in-testing production deployment:
   // when true, POST /billing/subscribe skips QuickPay entirely and activates
   // whatever tier was requested directly (same bypass local dev already

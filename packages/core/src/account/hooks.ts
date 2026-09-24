@@ -175,6 +175,8 @@ export function useConfirmCheckout() {
       qc.setQueryData(["billing"], sub);
       void qc.invalidateQueries({ queryKey: queryKeys.children });
     },
+    // A declined card puts the plan back on Free: show that.
+    onError: () => void qc.invalidateQueries({ queryKey: ["billing"] }),
   });
 }
 

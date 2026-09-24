@@ -1,4 +1,4 @@
-import type { Request } from "express";
+import type { NextFunction, Request, Response } from "express";
 import type { LoginMethod } from "@kidcom/db";
 
 import { prisma } from "../db";
@@ -17,7 +17,17 @@ import { recordLogin } from "./loginEvents";
 
 const SESSION_PREFIX = "kidcom:sess:"; // must match middleware/session.ts
 const indexKey = (userId: string) => `kidcom:usess:${userId}`;
-const INDEX_TTL_SECONDS = 60 * 60 * 24 * 31;
+
+/**
+ * Sessions slide: each visit restarts the clock, so a family using the app
+ * (installed on the home screen or not) stays signed in; after this long
+ * without any visit the session expires. Unticked "Remember me" still gives a
+ * browser-session cookie instead (shared devices).
+ */
+export const SESSION_IDLE_MS = 1000 * 60 * 60 * 24 * 90;
+// A little longer than any session can live, refreshed while it's in use.
+const INDEX_TTL_SECONDS = Math.ceil(SESSION_IDLE_MS / 1000) + 60 * 60 * 24 * 7;
+const INDEX_REFRESH_MS = 1000 * 60 * 60 * 24;
 
 function regenerate(req: Request): Promise<void> {
   return new Promise((resolve, reject) => req.session.regenerate((err) => (err ? reject(err) : resolve())));
@@ -25,6 +35,24 @@ function regenerate(req: Request): Promise<void> {
 
 function save(req: Request): Promise<void> {
   return new Promise((resolve, reject) => req.session.save((err) => (err ? reject(err) : resolve())));
+}
+
+/**
+ * Keeps a long-lived session in its user's index (at most once a day per
+ * session), so "sign out of all other devices" and password resets still find
+ * a session that has slid on for months.
+ */
+export function keepSessionIndexed(req: Request, _res: Response, next: NextFunction) {
+  const userId = req.session?.userId;
+  const last = req.session?.indexedAt ?? 0;
+  if (!userId || Date.now() - last < INDEX_REFRESH_MS) return next();
+  req.session.indexedAt = Date.now();
+  redis
+    .multi()
+    .sadd(indexKey(userId), req.sessionID)
+    .expire(indexKey(userId), INDEX_TTL_SECONDS)
+    .exec()
+    .then(() => next(), next);
 }
 
 export async function establishSession(req: Request, userId: string, options: { method: LoginMethod; rememberMe?: boolean }) {
@@ -38,6 +66,7 @@ export async function establishSession(req: Request, userId: string, options: { 
     req.session.cookie.expires = false as unknown as Date;
   }
   await save(req);
+  req.session.indexedAt = Date.now();
   await redis.multi().sadd(indexKey(userId), req.sessionID).expire(indexKey(userId), INDEX_TTL_SECONDS).exec();
   await recordLogin(req, { userId, method: options.method, outcome: "SUCCESS" });
 }

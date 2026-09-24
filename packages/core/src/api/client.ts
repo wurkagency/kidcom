@@ -34,7 +34,12 @@ async function request<T>(method: Method, path: string, body?: unknown): Promise
   const res = await fetch(apiUrl(path), {
     method,
     credentials: "include",
-    headers: body === undefined || isForm ? undefined : { "Content-Type": "application/json" },
+    // X-KidCom-Client: the API refuses state-changing requests without it
+    // (CSRF defence — apps/api/src/middleware/clientHeader.ts).
+    headers: {
+      "X-KidCom-Client": "1",
+      ...(body === undefined || isForm ? {} : { "Content-Type": "application/json" }),
+    },
     body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
   });
 

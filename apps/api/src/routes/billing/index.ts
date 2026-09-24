@@ -1,7 +1,6 @@
 import { Router } from "express";
 import crypto from "node:crypto";
 import type { BillingPeriod, BillingPlansResponse, SubscribeRequest, SubscribeResponse, SubscriptionDto } from "@kidcom/shared";
-import { vatBreakdown } from "@kidcom/shared";
 
 import { prisma } from "../../db";
 import { config } from "../../config";
@@ -9,40 +8,11 @@ import { requireAuth } from "../../middleware/session";
 import { ApiError } from "../../middleware/errorHandler";
 import { BILLING_PERIOD_DAYS, BILLING_PRICES_ORE } from "../../lib/billingPricing";
 import * as quickpay from "../../lib/quickpay";
-import { mailSender } from "../../lib/mailSender";
-import { renderSubscriptionReceiptHtml, renderSubscriptionReceiptText } from "../../lib/emailTemplates/subscriptionReceipt";
+import { sendReceiptEmail } from "../../lib/billingReceipt";
 import { notifyPaymentFailure } from "../../lib/paymentFailureNotice";
 import { activateAfterAuthorization } from "../../lib/billingActivation";
 
 export const billingRouter = Router();
-
-const TIER_LABELS: Record<"PARENTS" | "FAMILY", string> = { PARENTS: "Parents", FAMILY: "Family" };
-const PERIOD_LABELS: Record<BillingPeriod, string> = { MONTHLY: "Monthly", ANNUAL: "Annual" };
-
-// D9 (spec 9.14/§6.3): sends the VAT-breakdown receipt this app never had
-// before. Called only for a subscription that has actually just gone
-// ACTIVE with a real paid tier — never for FREE (nothing was charged) and
-// never for a merely-PENDING checkout. Email failures are swallowed and
-// logged, same treatment as the verification email elsewhere in this repo —
-// the payment itself already succeeded and must not be rolled back over a
-// receipt delivery failure.
-async function sendReceiptEmail(ownerId: string, tier: "PARENTS" | "FAMILY", billingPeriod: BillingPeriod) {
-  try {
-    const owner = await prisma.user.findUnique({ where: { id: ownerId } });
-    if (!owner) return;
-    const vat = vatBreakdown(BILLING_PRICES_ORE[tier][billingPeriod]);
-    const chargedAt = new Date();
-    await mailSender.send({
-      to: owner.email,
-      subject: `Your KidCom ${TIER_LABELS[tier]} receipt`,
-      text: renderSubscriptionReceiptText({ tierLabel: TIER_LABELS[tier], billingPeriodLabel: PERIOD_LABELS[billingPeriod], vat, chargedAt }),
-      html: renderSubscriptionReceiptHtml({ tierLabel: TIER_LABELS[tier], billingPeriodLabel: PERIOD_LABELS[billingPeriod], vat, chargedAt }),
-    });
-  } catch (err) {
-    // eslint-disable-next-line no-console
-    console.error(`Failed to send subscription receipt email for owner ${ownerId}:`, err);
-  }
-}
 
 function toDto(sub: {
   tier: string;
@@ -233,8 +203,13 @@ billingRouter.post("/confirm", requireAuth, async (req, res, next) => {
     const userId = req.session.userId!;
     const sub = await prisma.subscription.findUnique({ where: { ownerId: userId } });
     if (sub?.status === "PENDING" && sub.quickpaySubscriptionId) {
-      const result = await activateAfterAuthorization(sub.id);
+      const { result, qpStatusCode } = await activateAfterAuthorization(sub.id);
       if (result === "activated") await sendReceiptEmail(userId, sub.tier as "PARENTS" | "FAMILY", sub.billingPeriod as BillingPeriod);
+      // Only QuickPay's informational status code reaches the app, never
+      // its message text (learn.quickpay.net/tech-talk/appendixes/errors).
+      if (result === "declined") {
+        throw new ApiError(402, "The card was declined", "PAYMENT_DECLINED", qpStatusCode ? { qpStatusCode } : undefined);
+      }
     }
     const fresh = await prisma.subscription.upsert({ where: { ownerId: userId }, update: {}, create: { ownerId: userId } });
     res.json(toDto(fresh));
@@ -304,7 +279,7 @@ billingRouter.post("/webhook", async (req, res, next) => {
 
     // The card was authorised: charge the first period and switch the plan on.
     if (body.accepted === true && sub.status === "PENDING") {
-      if ((await activateAfterAuthorization(sub.id)) === "activated") {
+      if ((await activateAfterAuthorization(sub.id)).result === "activated") {
         await sendReceiptEmail(sub.ownerId, sub.tier as "PARENTS" | "FAMILY", sub.billingPeriod as BillingPeriod);
       }
     } else if (body.accepted === true) {

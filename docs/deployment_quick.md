@@ -218,6 +218,13 @@ Test the CSP against the production build (before a release that adds a dependen
 npm run test:csp --workspace=apps/web
 ```
 
+Direct API calls (scripts, `curl`) must send `X-KidCom-Client: 1` on POST/PATCH/PUT/DELETE.
+
+Declined payments and QuickPay's error text (the app only gets the `qp_status_code`):
+```bash
+pm2 logs kidcom-api --lines 1000 | grep -i quickpay
+```
+
 Look for SMS pumping alerts:
 ```bash
 pm2 logs kidcom-api --lines 1000 | grep ALERT

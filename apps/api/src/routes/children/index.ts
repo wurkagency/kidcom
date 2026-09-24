@@ -293,7 +293,7 @@ childrenRouter.post("/", requireVerifiedEmail, async (req, res, next) => {
           emailSent = true;
         } catch (err) {
           // eslint-disable-next-line no-console
-          console.error(`Failed to send bootstrap parent-contact invite to ${parentContact.email}:`, err);
+          console.error(`Failed to send bootstrap parent-contact invite ${invite.id}:`, err);
         }
       }
       parentInvite = { token: invite.token, emailSent };

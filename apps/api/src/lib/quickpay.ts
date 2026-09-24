@@ -7,6 +7,39 @@ import crypto from "node:crypto";
 import { config } from "../config";
 import { ApiError } from "../middleware/errorHandler";
 
+// QuickPay's informational status codes (qp_status_code,
+// learn.quickpay.net/tech-talk/appendixes/errors/) — the only payment detail
+// the app is ever told. QuickPay's own error text stays in the server log.
+export const QP_STATUS_CODES = ["30100", "30101", "40000", "40001", "40002", "40003", "40004", "40300", "41000", "42300", "50000", "50300"] as const;
+export type QpStatusCode = (typeof QP_STATUS_CODES)[number];
+const QP_APPROVED = "20000";
+const isQpStatusCode = (code: unknown): code is QpStatusCode => (QP_STATUS_CODES as readonly unknown[]).includes(code);
+
+/** A failed QuickPay request. The client sees a generic message plus, when QuickPay gave one, its informational status code. */
+export class QuickPayError extends ApiError {
+  constructor(
+    readonly providerStatus: number,
+    /** QuickPay's response body — for the server log only, never sent to the app. */
+    readonly providerText: string,
+    qpStatusCode: QpStatusCode | null
+  ) {
+    super(502, "The payment service couldn't complete this — please try again", "PAYMENT_PROVIDER_ERROR", qpStatusCode ? { qpStatusCode } : undefined);
+  }
+}
+
+export type PaymentOperation = { type: string; qp_status_code?: string; pending?: boolean };
+export type Payment = { id: number; accepted: boolean; order_id?: string; operations?: PaymentOperation[] };
+
+/**
+ * Whether a payment was declined, and QuickPay's informational code for it.
+ * Pending operations aren't a decline (the callback settles them later).
+ */
+export function paymentOutcome(payment: Payment | null): { declined: boolean; qpStatusCode: QpStatusCode | null } {
+  const failed = [...(payment?.operations ?? [])].reverse().find((op) => op.qp_status_code && op.qp_status_code !== QP_APPROVED && !op.pending);
+  if (!failed) return { declined: false, qpStatusCode: null };
+  return { declined: true, qpStatusCode: isQpStatusCode(failed.qp_status_code) ? failed.qp_status_code : null };
+}
+
 function authHeader(): string {
   if (!config.quickpayApiKey) {
     throw new ApiError(500, "QuickPay isn't configured (QUICKPAY_API_KEY missing)");
@@ -27,7 +60,17 @@ async function quickpayFetch<T>(path: string, init: { method: string; body?: unk
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    throw new ApiError(502, `QuickPay request failed (${res.status}): ${text.slice(0, 500)}`);
+    // eslint-disable-next-line no-console
+    console.error(`QuickPay ${init.method} ${path} failed (${res.status}): ${text.slice(0, 1000)}`);
+    let qpStatusCode: QpStatusCode | null = null;
+    try {
+      const body = JSON.parse(text) as { qp_status_code?: unknown; operations?: PaymentOperation[] };
+      const code = body.qp_status_code ?? [...(body.operations ?? [])].reverse().find((op) => op.qp_status_code)?.qp_status_code;
+      if (isQpStatusCode(code)) qpStatusCode = code;
+    } catch {
+      // Not JSON — nothing informational to pass on.
+    }
+    throw new QuickPayError(res.status, text, qpStatusCode);
   }
   return (await res.json()) as T;
 }
@@ -77,11 +120,17 @@ export async function chargeRecurring(params: {
   subscriptionId: number;
   amountMinorUnits: number;
   orderId: string;
-}): Promise<{ id: number }> {
-  return quickpayFetch<{ id: number }>(`/subscriptions/${params.subscriptionId}/recurring`, {
+}): Promise<Payment> {
+  return quickpayFetch<Payment>(`/subscriptions/${params.subscriptionId}/recurring`, {
     method: "POST",
     body: { amount: params.amountMinorUnits, order_id: params.orderId, auto_capture: true },
   });
+}
+
+// GET /payments?order_id= — the payment already made under an order_id
+// (order_ids are unique per QuickPay account, so at most one).
+export async function findPaymentsByOrderId(orderId: string): Promise<Payment[]> {
+  return quickpayFetch<Payment[]>(`/payments?order_id=${encodeURIComponent(orderId)}`, { method: "GET" });
 }
 
 // GET /payments/:id — check the acquirer's result for a recurring charge.

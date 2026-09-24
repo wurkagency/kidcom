@@ -208,7 +208,13 @@ In both consoles, the authorised origin or home page is `https://APP_HOST`.
     `test_mode: false`. Confirm the keys before testing.)
 - Payment status is confirmed twice, safely: once when the customer returns
   (`POST /billing/confirm`) and once by QuickPay's callback. The first period is
-  charged exactly once, whichever arrives first.
+  charged exactly once, whichever arrives first. The nightly reconciliation
+  job does the same for a checkout whose callback never arrived: it charges
+  first and only then switches the plan on.
+- A declined first charge puts the account back on Free. The app shows only
+  QuickPay's informational `qp_status_code`, translated (e.g. 40000 "rejected
+  by acquirer"; see https://learn.quickpay.net/tech-talk/appendixes/errors/).
+  QuickPay's own error text goes only to the API log (`pm2 logs kidcom-api`).
 - `BILLING_TEST_MODE=true` bypasses payment entirely: paid plans switch on
   without charging. Use it only while a deployment is being tested.
 
@@ -330,6 +336,20 @@ What the headers do:
   the app to trick a parent into tapping "Delete account" or "Cancel
   subscription".
 - **HSTS:** browsers always use HTTPS for the app.
+
+What the API adds:
+- **CSRF:** every POST/PATCH/PUT/DELETE must carry the header
+  `X-KidCom-Client: 1`. The app always sends it; another site can't. The
+  QuickPay callback is exempt, since it is signed. Anything calling the API
+  directly (a script, `curl`) must send the header too.
+- **Sign-in limits:** 20 attempts per IP per endpoint every 15 minutes, and
+  10 wrong passwords per account (per email, whether or not the account
+  exists) lock password sign-in for that account for 15 minutes.
+- **Sessions** stay valid for 90 days since the last use, so the home-screen
+  app stays signed in. Signing out, a password change and "sign out other
+  devices" still end them at once.
+- **Signing out** sends `Clear-Site-Data: "cache"`: photos and videos cached on
+  the phone are gone for the next person using it.
 
 Test the CSP against the production build before deploying a change that adds
 a dependency or an outside resource:
@@ -598,5 +618,11 @@ Always take the §6.1 backup before a release with migrations.
   Brevo SMTP relay (§3.1). Email is never logged instead of sent.
 - **nginx returns 502 for `/api` after upgrading:** a `proxy_pass` points at
   `localhost` or a public address. The API listens on `127.0.0.1:4000` only.
+- **Requests return 403 `CLIENT_HEADER_REQUIRED`:** the caller didn't send
+  `X-KidCom-Client: 1` (see §5.5). The app always does. If the app itself gets
+  it, check that nginx isn't stripping request headers.
+- **A parent says they're locked out ("Too many attempts"):** 10 wrong
+  passwords within 15 minutes. It clears by itself after 15 minutes; a
+  password reset works straight away.
 - **After changing `.env`:** `pm2 restart ecosystem.config.cjs` so both
   processes reload it.

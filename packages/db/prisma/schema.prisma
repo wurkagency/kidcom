@@ -1337,5 +1337,6 @@ model LoginEvent {
 
   @@index([userId, createdAt])
   @@index([ip, createdAt])
+  @@index([email, createdAt])
   @@map("login_events")
 }

@@ -1,6 +1,9 @@
+import type { BillingPeriod } from "@kidcom/shared";
+
 import { prisma } from "../db";
 import * as quickpay from "./quickpay";
-import { BILLING_PERIOD_DAYS } from "./billingPricing";
+import { activateAfterAuthorization } from "./billingActivation";
+import { sendReceiptEmail } from "./billingReceipt";
 
 // Post-launch backlog Phase E (D7) — an abandoned QuickPay checkout
 // (createSubscription succeeded, the customer never finished the hosted
@@ -44,17 +47,24 @@ export async function reconcilePendingSubscriptions(now: Date = new Date()): Pro
     }
 
     if (accepted) {
-      // A missed webhook, not an abandoned checkout — self-heal to what the
-      // webhook's accepted:true branch would have done.
-      const periodDays = sub.billingPeriod ? BILLING_PERIOD_DAYS[sub.billingPeriod] : BILLING_PERIOD_DAYS.MONTHLY;
-      await prisma.subscription.update({
-        where: { id: sub.id },
-        data: {
-          status: "ACTIVE",
-          currentPeriodEnd: new Date(now.getTime() + periodDays * 24 * 60 * 60 * 1000),
-        },
-      });
-      healed++;
+      // A missed webhook, not an abandoned checkout: do what the webhook
+      // would have done — charge the first period, then switch the plan on.
+      // Never ACTIVE without that charge; a declined card goes back to Free.
+      try {
+        const { result } = await activateAfterAuthorization(sub.id, now);
+        if (result === "activated") {
+          await sendReceiptEmail(sub.ownerId, sub.tier as "PARENTS" | "FAMILY", sub.billingPeriod as BillingPeriod);
+          healed++;
+        } else if (result === "declined") {
+          reverted++;
+        }
+      } catch (err) {
+        // The charge request itself failed: it may or may not have gone
+        // through, so leave the row PENDING and try again on the next run
+        // (the fixed order_id makes the retry safe).
+        // eslint-disable-next-line no-console
+        console.error(`Billing reconciliation: could not charge subscription ${sub.id}, retrying next run:`, err);
+      }
     } else {
       // Genuinely never completed — undo the premature tier bump rather
       // than leave a dead PENDING row lying around.

@@ -48,7 +48,7 @@ async function createOAuthAccount(req: Request, provider: OAuthProviderId, profi
   if (!profile.emailVerified) {
     await sendVerificationEmail(user).catch((err: unknown) => {
       // eslint-disable-next-line no-console
-      console.error(`Failed to send verification email to ${user.email}:`, err);
+      console.error(`Failed to send verification email for user ${user.id}:`, err);
     });
   }
   await establishSession(req, user.id, { method: "OAUTH_SIGNUP" });

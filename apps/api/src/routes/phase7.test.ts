@@ -1,11 +1,13 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import request from "supertest";
 
-vi.mock("../lib/quickpay", () => ({
+vi.mock("../lib/quickpay", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../lib/quickpay")>()),
   createSubscription: vi.fn(async () => ({ id: 4242 })),
   getSubscriptionLink: vi.fn(async () => ({ url: "https://payment.quickpay.net/subscriptions/test" })),
   getSubscription: vi.fn(async () => ({ id: 4242, accepted: true })),
-  chargeRecurring: vi.fn(async () => ({ id: 9001 })),
+  chargeRecurring: vi.fn(async () => ({ id: 9001, accepted: true, operations: [{ type: "recurring", qp_status_code: "20000" }] })),
+  findPaymentsByOrderId: vi.fn(async () => []),
   getPayment: vi.fn(),
   verifyWebhookSignature: vi.fn(() => true),
 }));
@@ -149,6 +151,40 @@ describe("Checkout", () => {
     await me.agent.post("/billing/subscribe").send({ tier: "PARENTS", billingPeriod: "MONTHLY", acceptWithdrawalWaiver: true });
     expect((await me.agent.post("/billing/confirm")).body.status).toBe("PENDING");
     expect(quickpay.chargeRecurring).not.toHaveBeenCalled();
+  });
+
+  it("a declined first charge answers with QuickPay's status code only, and leaves the plan on Free", async () => {
+    vi.mocked(quickpay.chargeRecurring).mockResolvedValueOnce({ id: 9002, accepted: false, operations: [{ type: "recurring", qp_status_code: "40000" }] });
+    const app = createApp();
+    const me = await signupTestUser(app);
+    await me.agent.post("/billing/subscribe").send({ tier: "PARENTS", billingPeriod: "MONTHLY", acceptWithdrawalWaiver: true });
+
+    const res = await me.agent.post("/billing/confirm");
+    expect(res.status).toBe(402);
+    expect(res.body).toMatchObject({ code: "PAYMENT_DECLINED", details: { qpStatusCode: "40000" } });
+    expect(await prisma.subscription.findUniqueOrThrow({ where: { ownerId: me.userId } })).toMatchObject({ tier: "FREE", status: "ACTIVE", quickpaySubscriptionId: null });
+  });
+
+  it("losing the race to charge goes by how the winner's payment went", async () => {
+    vi.mocked(quickpay.chargeRecurring).mockRejectedValueOnce(new quickpay.QuickPayError(409, '{"message":"order_id already exists"}', null));
+    vi.mocked(quickpay.findPaymentsByOrderId).mockResolvedValueOnce([{ id: 9003, accepted: false, operations: [{ type: "recurring", qp_status_code: "40001" }] }]);
+    const app = createApp();
+    const me = await signupTestUser(app);
+    await me.agent.post("/billing/subscribe").send({ tier: "FAMILY", billingPeriod: "MONTHLY", acceptWithdrawalWaiver: true });
+
+    const res = await me.agent.post("/billing/confirm");
+    expect(res.status).toBe(402);
+    expect(res.body.details).toEqual({ qpStatusCode: "40001" });
+  });
+
+  it("never passes QuickPay's own error text to the app", async () => {
+    vi.mocked(quickpay.createSubscription).mockRejectedValueOnce(new quickpay.QuickPayError(400, '{"message":"Validation error","errors":{"currency":["internal detail"]}}', "30100"));
+    const app = createApp();
+    const me = await signupTestUser(app);
+    const res = await me.agent.post("/billing/subscribe").send({ tier: "PARENTS", billingPeriod: "MONTHLY", acceptWithdrawalWaiver: true });
+    expect(res.status).toBe(502);
+    expect(res.body).toMatchObject({ code: "PAYMENT_PROVIDER_ERROR", details: { qpStatusCode: "30100" } });
+    expect(JSON.stringify(res.body)).not.toMatch(/Validation error|internal detail/);
   });
 
   it("a declined charge callback puts the plan past due; a later accepted one recovers it", async () => {

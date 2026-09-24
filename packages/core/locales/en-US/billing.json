@@ -63,5 +63,24 @@
   "toPayment": "Continue to secure payment",
   "chooseFree": "Continue with Free",
   "quickpay": "You'll enter your card on QuickPay's secure page and return here.",
-  "failed": "Couldn't start checkout. Please try again."
+  "failed": "Couldn't start checkout. Please try again.",
+  "declinedBanner": "Your payment didn't go through, so you're still on Free.",
+  "errors": {
+    "PAYMENT_DECLINED": "Your card was declined. Please try another card.",
+    "PAYMENT_PROVIDER_ERROR": "The payment service couldn't complete this. Please try again.",
+    "qp": {
+      "30100": "Your card needs 3-D Secure verification. Please try again and approve the payment with your bank.",
+      "30101": "Your bank needs you to confirm this payment. Please try again and approve it with your bank.",
+      "40000": "Your bank declined the payment. Please try another card or contact your bank.",
+      "40001": "Something went wrong with the payment details. Please try again.",
+      "40002": "The card approval expired. Please start checkout again.",
+      "40003": "The payment was cancelled. Nothing was charged.",
+      "40004": "Your card can't be used for this payment. Please try another card.",
+      "40300": "The payment was blocked for security reasons. Please try another card or contact your bank.",
+      "41000": "Your saved card is no longer valid. Please check out again with your card.",
+      "42300": "Your saved card is suspended. Please check out again with another card.",
+      "50000": "The payment service had a problem. Please try again in a few minutes.",
+      "50300": "We couldn't reach your bank. Please try again in a few minutes."
+    }
+  }
 }

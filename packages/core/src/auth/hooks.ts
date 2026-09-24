@@ -68,10 +68,27 @@ export function useSignup() {
   });
 }
 
+// This device stops getting the account's notifications — the next person
+// on a shared phone mustn't see them. Best effort: never blocks signing out.
+async function stopPushOnThisDevice() {
+  try {
+    const reg = typeof navigator !== "undefined" && "serviceWorker" in navigator ? await navigator.serviceWorker.getRegistration() : undefined;
+    const sub = await reg?.pushManager?.getSubscription();
+    if (!sub) return;
+    await api.delete(`/push/subscribe?endpoint=${encodeURIComponent(sub.endpoint)}`).catch(() => {});
+    await sub.unsubscribe();
+  } catch {
+    // No push support, or already gone.
+  }
+}
+
 export function useLogout() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () => api.post<void>("/auth/logout"),
+    mutationFn: async () => {
+      await stopPushOnThisDevice();
+      await api.post<void>("/auth/logout");
+    },
     onSettled: () => {
       // Nothing cached for one account may survive into the next session.
       queryClient.clear();

@@ -315,7 +315,7 @@ invitesRouter.post("/:token/accept", async (req, res, next) => {
       await sendVerificationEmail(user);
     } catch (err) {
       // eslint-disable-next-line no-console
-      console.error(`Failed to send verification email to ${user.email}:`, err);
+      console.error(`Failed to send verification email for user ${user.id}:`, err);
     }
     res.json({ user: await loadPublicUser(user.id) } satisfies MeResponse);
   } catch (err) {

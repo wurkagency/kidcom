@@ -17,6 +17,7 @@ import {
 
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { EditorTitle, FormCard, FormError, PrimaryButton, SecondaryButton, primaryButtonClass } from "../components/Form";
+import { billingErrorText } from "./errors";
 import { Icon } from "../components/Icon";
 import { MenuGroup, MenuItem } from "../components/MenuList";
 import { cn } from "../lib/utils";
@@ -59,9 +60,10 @@ export function BillingScreen() {
     <div className="flex flex-col w-full pb-28 gap-space-lg">
       <EditorTitle>{t("title")}</EditorTitle>
 
-      {outcome === "success" && (confirm.isPending || sub.status === "PENDING") && <Banner icon="hourglass_top" text={t("confirming")} />}
+      {outcome === "success" && !confirm.isError && (confirm.isPending || sub.status === "PENDING") && <Banner icon="hourglass_top" text={t("confirming")} />}
       {outcome === "success" && sub.status === "ACTIVE" && paid && <Banner icon="celebration" text={t("welcome", { plan: t(`tiers.${sub.tier}`) })} tone="mint" />}
       {outcome === "cancel" && <Banner icon="info" text={t("canceledCheckout")} />}
+      {outcome === "success" && confirm.isError && <Banner icon="credit_card_off" text={`${billingErrorText(confirm.error, t)} ${t("declinedBanner")}`} tone="error" />}
       {sub.status === "PAST_DUE" && <Banner icon="credit_card_off" text={t("pastDue")} tone="error" />}
 
       <FormCard>
@@ -148,7 +150,7 @@ export function CheckoutForm({ onFree }: { onFree?: () => void }) {
         onSuccess: ({ redirectUrl }) => {
           if (!redirectUrl) onFree?.();
         },
-        onError: (err) => setError(err instanceof Error ? err.message : t("failed")),
+        onError: (err) => setError(billingErrorText(err, t)),
       },
     );
   };

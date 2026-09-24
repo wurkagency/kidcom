@@ -294,10 +294,29 @@ see "Decisions" below.
       blob previews, video, service worker — 0 violations; also asserts the guides match.
       Found on the way: Zod probed `new Function` (now jitless) and a data: font subset
 - [x] Regression: API 265/265, shared 49, core 26, theme-kit 4, e2e 77/77, CSP 3/3, budget ✓
-- Remaining from the sweep (not yet done): dev-toolchain Vitest 1.x in apps/api + shared
-  (dev-only advisories), `.gitignore` patterns, credentials file in the parent folder,
-  CSRF custom header, Redis-backed per-account rate limits, upload quota, emails in error
-  logs, QuickPay error text to the client, `Clear-Site-Data` on sign-out, compose ports
+- Remaining from the sweep: all done below, except the upload quota (proposal, awaiting decisions)
+
+## Security sweep follow-ups (2026-09-24)
+- [x] Vitest 5 in apps/api and packages/shared (`include: src/**/*.test.ts`, 5.x no longer
+      skips dist); `npm audit fix` → 0 vulnerabilities
+- [x] `.gitignore`: `.env.*` (except `.env.example`), `*.pem`, `*.key`, `*.p12`, `*.pfx`, `*.jks`,
+      `credentials*.json`, `*credentials*.md`
+- [ ] Credentials file `../docs/kidcom_credentials.md` still sits beside the repo (Charlie to move)
+- [x] CSRF: `X-KidCom-Client: 1` required on state-changing requests (`middleware/clientHeader.ts`),
+      QuickPay webhook exempt; sent by `packages/core` on every request
+- [x] Per-account sign-in limit: 10 failed passwords per email / 15 min → 429 `TOO_MANY_ATTEMPTS`
+      (same for unknown emails); IP limiter keyed per endpoint
+- [x] Sessions: rolling, 90 days idle (was a fixed 30 days); session index refreshed daily so
+      "sign out other devices" and password change still reach every session
+- [x] Emails out of error logs (user/invite ids instead)
+- [x] QuickPay: `QuickPayError` keeps the provider text in the server log; the client gets
+      `PAYMENT_PROVIDER_ERROR`/`PAYMENT_DECLINED` + `qpStatusCode`, translated in billing.json.
+      Found on the way: a declined first charge still activated the plan, and the nightly
+      reconciliation switched plans on **without charging** — both fixed (declined → Free)
+- [x] Sign-out: `Clear-Site-Data: "cache"` (media is cached privately for a day) and the
+      device's push subscription is removed
+- [x] docker-compose ports bound to 127.0.0.1
+- [ ] Upload quota per tier (200 MB / 2 GB / 100 GB + add-ons): proposal given, awaiting decisions
 
 ## Review (v3.0)
 - **Scope delivered:** every screen id has a real screen — 22 from Stitch exports (visual

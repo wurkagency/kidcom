@@ -5,6 +5,7 @@ import type { NextFunction, Request, Response } from "express";
 import { config } from "../config";
 import { redis } from "../redis";
 import { prisma } from "../db";
+import { SESSION_IDLE_MS } from "../lib/sessions";
 
 declare module "express-session" {
   interface SessionData {
@@ -18,6 +19,9 @@ declare module "express-session" {
     // gap so POST /verify-2fa can size the session cookie once it actually
     // grants one — see that handler.
     pendingRememberMe?: boolean;
+    // When this session was last (re)added to its user's session index
+    // (lib/sessions.ts keepSessionIndexed).
+    indexedAt?: number;
     // Cached "this account has a verified phone" (lib/sessions.ts sets it at
     // sign-in and on phone verification) so requireVerifiedPhone needs no DB
     // lookup per request. Undefined on sessions older than the flag: checked
@@ -53,12 +57,15 @@ export const sessionMiddleware = session({
   name: "kidcom.sid",
   resave: false,
   saveUninitialized: false,
+  // Sliding expiry: every response pushes the cookie and the Redis TTL out
+  // again, so people who use the app stay signed in (SESSION_IDLE_MS).
+  rolling: true,
   cookie: {
     httpOnly: true,
     sameSite: "lax",
     secure: config.isProduction,
     domain: config.isProduction ? config.cookieDomain : undefined,
-    maxAge: 1000 * 60 * 60 * 24 * 30, // 30 days
+    maxAge: SESSION_IDLE_MS,
   },
 });
 
