@@ -4,6 +4,11 @@ import { THEME_IDS, type ThemeId } from "@kidcom/shared";
 
 import { SCREEN_IDS, SHELL_KINDS, type ScreenId, type ShellKind } from "./screens";
 
+// The app runs under a strict Content-Security-Policy (no eval — see
+// apps/web/security-headers.ts). Zod's fast path compiles validators with
+// `new Function` and probes for it; jitless validates the same way without it.
+z.config({ jitless: true });
+
 export type ShellProps = {
   screen: ScreenId;
   children: ReactNode;

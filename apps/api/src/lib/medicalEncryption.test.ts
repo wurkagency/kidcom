@@ -1,6 +1,28 @@
 import { describe, it, expect } from "vitest";
 
-import { decryptField, decryptNullableField, encryptField, encryptNullableField } from "./medicalEncryption";
+import { createFieldCipher, decryptField, decryptNullableField, encryptField, encryptNullableField } from "./medicalEncryption";
+
+describe("medical key rotation", () => {
+  const oldCipher = createFieldCipher("dev-only-medical-encryption-key-change-me");
+  const rotated = createFieldCipher("a-new-random-key-from-openssl-rand-hex-32", ["dev-only-medical-encryption-key-change-me"]);
+
+  it("still reads values sealed under a previous key, and knows which key opened them", () => {
+    const old = oldCipher.encrypt("Peanut allergy");
+    expect(rotated.decrypt(old)).toBe("Peanut allergy");
+    expect(rotated.keyIndexOf(old)).toBe(1);
+  });
+
+  it("always encrypts with the current key", () => {
+    const fresh = rotated.encrypt("Asthma");
+    expect(rotated.keyIndexOf(fresh)).toBe(0);
+    expect(() => oldCipher.decrypt(fresh)).toThrow();
+  });
+
+  it("a value under an unknown key can't be opened", () => {
+    const stranger = createFieldCipher("someone-elses-key").encrypt("x");
+    expect(() => rotated.decrypt(stranger)).toThrow(/can't be opened/);
+  });
+});
 
 describe("medicalEncryption (post-launch backlog Phase G)", () => {
   it("round-trips a plaintext string through encrypt/decrypt", () => {

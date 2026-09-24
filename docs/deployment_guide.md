@@ -83,13 +83,18 @@ npx web-push generate-vapid-keys   # VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY
 | Key | If it is lost | If it changes |
 |---|---|---|
 | `MEDIA_ENCRYPTION_KEY` | **Every photo and video is unrecoverable.** | Rotate only with the procedure in §8.4. |
-| `MEDICAL_INFO_ENCRYPTION_KEY` | Medical info can't be read. | **Never change it.** Existing medical info becomes unreadable. |
+| `MEDICAL_INFO_ENCRYPTION_KEY` | Medical info can't be read. | Rotate only with the procedure in §8.5. Replacing it directly makes existing medical info unreadable. |
 | `SESSION_SECRET` | Everyone is signed out. | Everyone is signed out. |
 | `VAPID_*` | Push subscriptions stop working. | Every phone must turn push on again. |
 
 Keep the first two in the company password manager, plus a sealed offline copy,
 **apart from** the database and media backups. A backup that holds both the
 media and its key protects nothing.
+
+**Production refuses to start on a weak key.** Each of these three keys must
+be set, at least 32 characters, and not a placeholder (`change-me`,
+`dev-only`, `<…>`) or a development default. The API stops at startup
+instead of running on a value anyone can read in the source code.
 
 ### 3.1 `apps/api/.env` — production template
 
@@ -111,6 +116,8 @@ MEDICAL_INFO_ENCRYPTION_KEY=<openssl rand -hex 32 — never change>
 MEDIA_STORAGE_PATH=/var/www/vhosts/kidcom.org/media
 MEDIA_ENCRYPTION_KEY=<openssl rand -hex 32 — back up apart from the media>
 MEDIA_ENCRYPTION_KEYS_PREVIOUS=
+# Only during a medical-key rotation (§8.5):
+MEDICAL_INFO_ENCRYPTION_KEYS_PREVIOUS=
 # Plaintext scratch space while processing (local disk, not backed up):
 MEDIA_TEMP_PATH=/var/www/vhosts/kidcom.org/media-tmp
 
@@ -133,6 +140,8 @@ SMTP_PORT=587
 SMTP_USER=<Brevo SMTP login>
 SMTP_PASS=<Brevo SMTP key>
 SMTP_FROM="KidCom" <no-reply@kidcom.org>
+# SMS toll-fraud guard: most texts in any 24 hours, all accounts together
+SMS_DAILY_LIMIT=500
 
 # Google / Microsoft sign-in
 OAUTH_REDIRECT_BASE=https://app.kidcom.org/api
@@ -144,6 +153,12 @@ MICROSOFT_TENANT_ID=common
 ```
 
 Lock it down: `chmod 600 SITE/apps/api/.env`.
+
+- **Email:** production refuses to start without `SMTP_HOST`, `SMTP_USER` and
+  `SMTP_PASS`. Emails carry reset links and sign-in codes, so they are never
+  written to the log instead of being sent.
+- **Listen address:** the API listens on `127.0.0.1` in production. `HOST`
+  overrides this, but leave it unset: nginx must be the only way in.
 
 **Do not set `VITE_API_BASE`** for production builds. The app must call `/api`
 on its own origin (the default).
@@ -165,6 +180,20 @@ In both consoles, the authorised origin or home page is `https://APP_HOST`.
   credit balance; sign-up can't finish without SMS.
 - The `SMTP_FROM` address's domain is verified in Brevo (SPF/DKIM), otherwise
   mail lands in spam.
+- **SMS pumping (toll fraud)** is when scripted sign-ups send codes to
+  premium-rate numbers to earn a share of the SMS fees. The API guards against
+  it:
+  - It only texts the countries the app offers
+    (`packages/shared/src/phone.ts`), minus the Caribbean `+1` ranges and
+    premium, toll-free and UK `070` numbers.
+  - It sends at most 5 texts per number per day, across all accounts.
+  - It sends at most `SMS_DAILY_LIMIT` texts per 24 hours in total. At that
+    limit SMS pauses and the API logs a line starting `[ALERT] SMS daily limit
+    reached`.
+
+  Keep the Brevo SMS balance modest, and don't enable unlimited automatic
+  top-up. If your Brevo plan lets you restrict SMS destination countries, use
+  the same list.
 
 ### 4.3 QuickPay
 - The payment window, return URL and callback are set per checkout by the API
@@ -238,7 +267,9 @@ Expect `rolbypassrls = f`, `rolsuper = f`, and both security columns `t` on ever
 4. **Additional nginx directives:**
 
 ```nginx
-# The API, same origin, under /api
+# The API, same origin, under /api. It listens on 127.0.0.1 only (HOST
+# defaults to it in production): always proxy to 127.0.0.1:4000, never
+# "localhost", which can resolve to ::1.
 location /api/ {
     proxy_pass http://127.0.0.1:4000/;
     proxy_http_version 1.1;
@@ -252,27 +283,58 @@ location /api/ {
     client_max_body_size 60m;       # API limit is 50 MB per file
 }
 
-# Hashed build files: cache for a year
+# Hashed build files: cache for a year. Caching uses "expires", not
+# add_header: an add_header inside a location drops every header set
+# outside it.
 location /assets/ {
-    add_header Cache-Control "public, max-age=31536000, immutable";
+    expires 1y;
     try_files $uri =404;
 }
 
-# The service worker and the entry page must always be re-checked
-location = /sw.js      { add_header Cache-Control "no-cache"; try_files $uri =404; }
-location = /index.html { add_header Cache-Control "no-cache"; }
+# The service worker must always be re-checked
+location = /sw.js {
+    expires -1;
+    try_files $uri =404;
+}
 
-# Single-page app: unknown paths load the app
+# The app's pages (every path loads index.html) with the security headers.
+# Keep these identical to apps/web/security-headers.ts.
 location / {
+    expires -1;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; media-src 'self' blob:; font-src 'self' data:; connect-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests" always;
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy "camera=(self), microphone=(self), geolocation=(), payment=()" always;
+    add_header Cross-Origin-Opener-Policy "same-origin" always;
     try_files $uri $uri/ /index.html;
 }
 ```
 
 If Plesk rejects `location /` as a duplicate (some Plesk versions add their
-own), drop that block and add this instead:
+own), make two changes:
+- Drop that block and add `error_page 404 = /index.html;` instead.
+- Put its seven `add_header … always;` lines on their own at the top level,
+  outside any location, so every response gets them.
 
-```nginx
-error_page 404 = /index.html;
+Check that the headers arrive:
+```bash
+curl -sI https://APP_HOST/calendar | grep -iE "content-security-policy|strict-transport|x-frame-options"
+```
+
+What the headers do:
+- **Content-Security-Policy:** only KidCom's own code runs on the page, with no
+  outside scripts or `eval`, which contains the damage of any XSS bug.
+- **`frame-ancestors 'none'` and `X-Frame-Options`:** no other site can frame
+  the app to trick a parent into tapping "Delete account" or "Cancel
+  subscription".
+- **HSTS:** browsers always use HTTPS for the app.
+
+Test the CSP against the production build before deploying a change that adds
+a dependency or an outside resource:
+```bash
+npm run test:csp --workspace=apps/web
 ```
 
 5. Permissions. nginx runs as its own user and must be able to read the build:
@@ -315,8 +377,9 @@ minutes, done out of hours.
    ```
 2. **Choose the app's domain** (`APP_HOST`) and give it TLS. Set up nginx as in
    §5.5, with the document root on `apps/web/dist` and `/api` proxied.
-   - Keep the old `api.kidcom.org` vhost proxying to port 4000 for a while, so
-     old links and installed v2 apps still reach the API.
+   - Keep the old `api.kidcom.org` vhost for a while, so old links and
+     installed v2 apps still reach the API. Its `proxy_pass` must point at
+     `http://127.0.0.1:4000`: the API now listens on loopback only.
    - If `APP_HOST` differs from `www.kidcom.org`, turn `www.kidcom.org` into a
      301 redirect to `https://APP_HOST`.
 3. **Update `apps/api/.env`** from §3.1. Settings that are new or changed:
@@ -327,7 +390,15 @@ minutes, done out of hours.
    - `MEDIA_ENCRYPTION_KEY`: new, and required. Back it up before the next step.
    - `MEDIA_TEMP_PATH`
    - `BILLING_TEST_MODE`
-   - `SMS_DELIVERY=brevo`, `BREVO_*`
+   - `SMS_DELIVERY=brevo`, `BREVO_*`, `SMS_DAILY_LIMIT`
+   - `SMTP_*`: now required in production
+   - `SESSION_SECRET`: if the current value is under 32 characters or a
+     placeholder, generate a new one. Everyone signs in again once.
+   - `MEDICAL_INFO_ENCRYPTION_KEY`: if the current value is under 32
+     characters or a placeholder, **or the variable was never set**, don't just
+     replace it. Follow §8.5 at step 5 below. When the variable was missing,
+     v2 encrypted medical info with the built-in value
+     `dev-only-medical-encryption-key-change-me`, and that is the "old key".
 4. **Register the new OAuth redirect URIs** (§4.1). Keep the old ones until the
    upgrade is verified.
 5. **Deploy the branch.**
@@ -340,6 +411,9 @@ minutes, done out of hours.
    not dropped. PM2 now uses the repository's `ecosystem.config.cjs`; if an older
    one ran under different names, `pm2 delete all` first, then
    `pm2 start ecosystem.config.cjs && pm2 save`.
+   If the API refuses to start with "`… must be a random secret of at least 32
+   characters in production`", the error names the key. For the medical key,
+   follow §8.5 (the error message spells out the same steps).
 6. **Encrypt the existing media** (safe to re-run; unconverted files are still
    served until it finishes):
    ```bash
@@ -414,7 +488,11 @@ tail -f /var/www/vhosts/system/kidcom.org/logs/proxy_error_log   # nginx
 | hourly | appointment reminders (next 24 h) |
 | 03:00 | renew subscriptions due today (QuickPay recurring charge) |
 | 03:30 | reconcile checkouts left pending > 24 h |
-| 04:00 | purge: deleted children past the restore window, login events > 12 months, notifications > 90 days, media scratch files |
+| 04:00 | purge: deleted children past the restore window, login events > 12 months, notifications and the SMS send log > 90 days, media scratch files |
+
+**Alert:** `pm2 logs kidcom-api | grep ALERT` shows when the SMS daily limit
+was reached, which is a sign of SMS pumping. Check `sms_sends` (numbers and
+countries) before raising `SMS_DAILY_LIMIT`.
 
 ### 8.3 Backups
 - **Database:** nightly `pg_dump -Fc`; keep 30 days; copy off the server.
@@ -441,7 +519,33 @@ The server can decrypt media, because it makes thumbnails, playable video and
 download zips. End-to-end encryption was considered and rejected
 (`tasks/todo.md` → Decisions).
 
-### 8.5 Personal data
+### 8.5 Rotating the medical-info key
+Medical info is encrypted per field with `MEDICAL_INFO_ENCRYPTION_KEY`. To
+move to a new key without losing anything:
+
+1. Generate the new key: `openssl rand -hex 32`.
+2. In `apps/api/.env`, set `MEDICAL_INFO_ENCRYPTION_KEY` to the new key and
+   put the old value in `MEDICAL_INFO_ENCRYPTION_KEYS_PREVIOUS`.
+   - Comma-separate several old values.
+   - If the variable was never set before, the old value is
+     `dev-only-medical-encryption-key-change-me`.
+3. Restart both processes:
+   ```bash
+   pm2 restart ecosystem.config.cjs
+   ```
+   Old values still read; everything new is written with the new key.
+4. Re-encrypt:
+   ```bash
+   npx dotenv -e apps/api/.env -- npm run medical:rekey --workspace=apps/api -- --dry-run
+   npx dotenv -e apps/api/.env -- npm run medical:rekey --workspace=apps/api
+   ```
+5. Run it again. When it reports `0 value(s) re-encrypted, 0 unreadable`,
+   empty `MEDICAL_INFO_ENCRYPTION_KEYS_PREVIOUS`, restart, and destroy copies of
+   the old key.
+   - "Unreadable" means a value's key is in neither variable: find the right
+     old key before removing anything.
+
+### 8.6 Personal data
 Account deletion, retention periods and the family-circle removal procedure are
 in `docs/data_retention_policy.md`. Data kept for abuse checks (IPs, capture
 metadata, sign-in events) is in `docs/management_data.md`. It is never shown in
@@ -484,8 +588,15 @@ Always take the §6.1 backup before a release with migrations.
   `CORS_ORIGIN` must be `https://APP_HOST`.
 - **Photos stay "processing":** the worker isn't running, or Redis is down.
   Check `pm2 status` and `pm2 logs kidcom-worker`.
-- **The API refuses to start with "MEDIA_ENCRYPTION_KEY is required":** it is
-  set in `apps/api/.env`, but that file is missing, or PM2 was started from the
-  wrong folder. Always run PM2 with `SITE/ecosystem.config.cjs`.
+- **The API refuses to start with "Missing required environment variable":**
+  the key is set in `apps/api/.env`, but the file is missing, or PM2 was
+  started from the wrong folder. Always run PM2 with `SITE/ecosystem.config.cjs`.
+- **"… must be a random secret of at least 32 characters in production":** a
+  key is a placeholder, a development default or too short. See §3, and §8.5
+  for the medical key.
+- **"SMTP_HOST, SMTP_USER and SMTP_PASS are required in production":** set the
+  Brevo SMTP relay (§3.1). Email is never logged instead of sent.
+- **nginx returns 502 for `/api` after upgrading:** a `proxy_pass` points at
+  `localhost` or a public address. The API listens on `127.0.0.1:4000` only.
 - **After changing `.env`:** `pm2 restart ecosystem.config.cjs` so both
   processes reload it.

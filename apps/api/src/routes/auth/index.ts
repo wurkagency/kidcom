@@ -27,7 +27,7 @@ import { withRls } from "../../lib/rls";
 import { loadPublicUser } from "../../lib/publicUser";
 import { createAccount } from "../../lib/accounts";
 import { SALT_ROUNDS, assertStrongPassword, setPassword } from "../../lib/passwordPolicy";
-import { consumePhoneCode, isE164, pendingPhone, sendPhoneCode } from "../../lib/phoneVerification";
+import { assertPhoneAllowed, assertSmsQuota, consumePhoneCode, pendingPhone, sendPhoneCode } from "../../lib/phoneVerification";
 import { recordLogin } from "../../lib/loginEvents";
 import { countOtherSessions, establishSession, forgetSession, revokeOtherSessions } from "../../lib/sessions";
 import { oauthRouter } from "./oauth";
@@ -87,9 +87,10 @@ authRouter.post("/signup", authRateLimiter, async (req, res, next) => {
     if (!isValidEmail(email)) {
       throw new ApiError(400, "Please enter a valid email address");
     }
-    if (!isE164(phone)) {
-      throw new ApiError(400, "Please enter a valid mobile number", "PHONE_INVALID");
-    }
+    // Format, country and SMS caps (toll-fraud guard) before any account
+    // exists — a sign-up that can't be texted isn't created at all.
+    assertPhoneAllowed(phone);
+    await assertSmsQuota(phone);
     if (body.acceptedTerms !== true) {
       throw new ApiError(400, "You must accept the Privacy Policy and Terms to continue");
     }
@@ -127,7 +128,7 @@ authRouter.post("/phone/send", authRateLimiter, async (req, res, next) => {
     const { phone: requested } = req.body as SendPhoneCodeRequest;
     let phone: string | null;
     if (requested !== undefined) {
-      if (!isE164(requested)) throw new ApiError(400, "Please enter a valid mobile number", "PHONE_INVALID");
+      assertPhoneAllowed(requested);
       phone = requested;
     } else {
       const user = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { phone: true } });
@@ -207,7 +208,7 @@ authRouter.post("/forgot-password", authRateLimiter, async (req, res, next) => {
 
     if (body.method === "sms") {
       const phone = body.phone?.trim();
-      if (!isE164(phone)) throw new ApiError(400, "Please enter a valid mobile number", "PHONE_INVALID");
+      assertPhoneAllowed(phone);
       // The code is tied to this browser session; POST /reset-password
       // with { code } completes it here.
       req.session.pendingResetPhone = phone;
@@ -216,8 +217,8 @@ authRouter.post("/forgot-password", authRateLimiter, async (req, res, next) => {
         try {
           await sendPhoneCode(user.id, phone, "PASSWORD_RESET");
         } catch (err) {
-          // A throttled resend must look identical to "no such account".
-          if (!(err instanceof ApiError && err.status === 429)) throw err;
+          // A throttled resend (or paused SMS) must look identical to "no such account".
+          if (!(err instanceof ApiError && (err.status === 429 || err.status === 503))) throw err;
         }
       }
       res.status(204).end();

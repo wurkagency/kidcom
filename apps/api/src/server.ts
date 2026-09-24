@@ -6,10 +6,13 @@ import { ensureSystemCategories } from "./lib/categories";
 ensureSystemCategories()
   .then(() => {
     const app = createApp();
-    app.listen(config.port, () => {
+    const listening = () => {
       // eslint-disable-next-line no-console
-      console.log(`KidCom API listening on port ${config.port} (${config.nodeEnv})`);
-    });
+      console.log(`KidCom API listening on ${config.host ?? "all interfaces"}, port ${config.port} (${config.nodeEnv})`);
+    };
+    // Production: loopback only, behind nginx (config.host).
+    if (config.host) app.listen(config.port, config.host, listening);
+    else app.listen(config.port, listening);
   })
   .catch((err: unknown) => {
     // eslint-disable-next-line no-console

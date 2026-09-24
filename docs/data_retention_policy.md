@@ -96,6 +96,9 @@ database (only `charlie@wurk.dk` and its children kept).
   disk/database-level encryption the hosting provider offers.
 - Follows the same lifecycle as the `Child` record it belongs to (cascades on hard
   delete, no separate retention window).
+- Key rotation keeps every value readable: the old key goes in
+  `MEDICAL_INFO_ENCRYPTION_KEYS_PREVIOUS` until `npm run medical:rekey` has
+  re-encrypted everything (docs/deployment_guide.md §8.5).
 
 ## Photos and videos (encryption, capture metadata, upload origin)
 
@@ -131,6 +134,18 @@ database (only `charlie@wurk.dk` and its children kept).
 - Readable by the admin tool; a user could be shown their own (RLS allows only
   that). Deleted after **12 months** by the daily 04:00 job
   (`purgeExpiredLoginEvents`).
+
+## SMS send log
+
+- `SmsSend` (`sms_sends`): every text the API sends. It records the number, the
+  purpose (verify number / password reset), the account it was sent for, and
+  the time.
+- **Purpose:** the SMS toll-fraud guard caps texts per number and in total, and
+  the log is an abuse signal for manage.kidcom.org. The legal basis is
+  legitimate interest (fraud prevention).
+- **Retention:** deleted after **90 days** by the daily 04:00 job. It is kept
+  through an account deletion, for the same fraud-prevention reason as sign-in
+  events, and purged on the same schedule.
 
 ## Billing / subscription data
 

@@ -57,7 +57,11 @@ tar czf /root/backup/media-pre-v3-$(date +%F).tgz -C /var/www/vhosts/kidcom.org/
    - `CORS_ORIGIN`, `COOKIE_DOMAIN`, `API_BASE_URL`, `OAUTH_REDIRECT_BASE`,
      all for `app.kidcom.org`
    - `MEDIA_ENCRYPTION_KEY`, `MEDIA_TEMP_PATH`, `BILLING_TEST_MODE`,
-     `SMS_DELIVERY=brevo`, `BREVO_*`
+     `SMS_DELIVERY=brevo`, `BREVO_*`, `SMS_DAILY_LIMIT`, `SMTP_*`
+   - Keys under 32 characters or placeholders are refused at startup:
+     - `SESSION_SECRET`: generate a new one.
+     - `MEDICAL_INFO_ENCRYPTION_KEY`: weak or never set? Follow **Rotate the
+       medical-info key** below; don't just replace it.
 4. Google and Microsoft consoles: add
    - `https://app.kidcom.org/api/auth/oauth/google/callback`
    - `https://app.kidcom.org/api/auth/oauth/microsoft/callback`
@@ -93,17 +97,31 @@ location /api/ {
     proxy_read_timeout 300s;
     client_max_body_size 60m;
 }
-location /assets/ { add_header Cache-Control "public, max-age=31536000, immutable"; try_files $uri =404; }
-location = /sw.js { add_header Cache-Control "no-cache"; try_files $uri =404; }
-location = /index.html { add_header Cache-Control "no-cache"; }
-location / { try_files $uri $uri/ /index.html; }
+location /assets/ { expires 1y; try_files $uri =404; }
+location = /sw.js { expires -1; try_files $uri =404; }
+location / {
+    expires -1;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; media-src 'self' blob:; font-src 'self' data:; connect-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests" always;
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy "camera=(self), microphone=(self), geolocation=(), payment=()" always;
+    add_header Cross-Origin-Opener-Policy "same-origin" always;
+    try_files $uri $uri/ /index.html;
+}
 ```
 
-If Plesk rejects `location /`, replace that line with:
+If Plesk rejects `location /`:
+- replace the `location /` block with `error_page 404 = /index.html;`
+- move its seven `add_header … always;` lines to the top level, outside any location
 
-```nginx
-error_page 404 = /index.html;
+Check the headers:
+```bash
+curl -sI https://app.kidcom.org/calendar | grep -iE "content-security-policy|strict-transport|x-frame-options"
 ```
+
+The old `api.kidcom.org` vhost must also proxy to `http://127.0.0.1:4000`, not `localhost`.
 
 ## One-time: fresh server
 
@@ -177,6 +195,33 @@ With migrations:
 pg_restore --clean -d "$DATABASE_URL" /root/backup/<dump-file>
 ```
 Then check out the previous commit and run **Every deploy** without the migrate step.
+
+## Rotate the medical-info key
+
+1. Set `MEDICAL_INFO_ENCRYPTION_KEY` to the new key (`openssl rand -hex 32`) and `MEDICAL_INFO_ENCRYPTION_KEYS_PREVIOUS` to the old one. If the variable was never set before, the old one is `dev-only-medical-encryption-key-change-me`. Then:
+```bash
+pm2 restart ecosystem.config.cjs
+```
+2. Re-encrypt, repeating until it reports `0 value(s) re-encrypted, 0 unreadable`:
+```bash
+npx dotenv -e apps/api/.env -- npm run medical:rekey --workspace=apps/api
+```
+3. Clear `MEDICAL_INFO_ENCRYPTION_KEYS_PREVIOUS`, then:
+```bash
+pm2 restart ecosystem.config.cjs
+```
+
+## Security checks
+
+Test the CSP against the production build (before a release that adds a dependency or an outside resource):
+```bash
+npm run test:csp --workspace=apps/web
+```
+
+Look for SMS pumping alerts:
+```bash
+pm2 logs kidcom-api --lines 1000 | grep ALERT
+```
 
 ## Rotate the media key
 

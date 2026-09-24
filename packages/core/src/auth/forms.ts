@@ -4,33 +4,12 @@
 // Mobile numbers
 // ---------------------------------------------------------------------------
 
-export type PhoneCountry = {
-  /** ISO 3166-1 alpha-2 */
-  iso: string;
-  /** Dial code without "+" */
-  dial: string;
-  flag: string;
-  /** A sample national number, shown as the input placeholder. */
-  example: string;
-};
+// The supported countries (and the ranges never texted) live in
+// @kidcom/shared, so the API enforces exactly the list offered here.
+import { DEFAULT_PHONE_COUNTRY, PHONE_COUNTRIES, type PhoneCountry } from "@kidcom/shared";
 
-// The Nordics first (KidCom's markets, DK default), then common neighbours.
-export const PHONE_COUNTRIES: readonly PhoneCountry[] = [
-  { iso: "DK", dial: "45", flag: "🇩🇰", example: "20 12 34 56" },
-  { iso: "NO", dial: "47", flag: "🇳🇴", example: "406 12 345" },
-  { iso: "SE", dial: "46", flag: "🇸🇪", example: "70 123 45 67" },
-  { iso: "FI", dial: "358", flag: "🇫🇮", example: "40 123 4567" },
-  { iso: "IS", dial: "354", flag: "🇮🇸", example: "611 1234" },
-  { iso: "DE", dial: "49", flag: "🇩🇪", example: "151 23456789" },
-  { iso: "GB", dial: "44", flag: "🇬🇧", example: "7400 123456" },
-  { iso: "NL", dial: "31", flag: "🇳🇱", example: "6 12345678" },
-  { iso: "PL", dial: "48", flag: "🇵🇱", example: "512 345 678" },
-  { iso: "ES", dial: "34", flag: "🇪🇸", example: "612 34 56 78" },
-  { iso: "FR", dial: "33", flag: "🇫🇷", example: "6 12 34 56 78" },
-  { iso: "US", dial: "1", flag: "🇺🇸", example: "201 555 0123" },
-];
-
-export const DEFAULT_PHONE_COUNTRY = PHONE_COUNTRIES[0];
+export { DEFAULT_PHONE_COUNTRY, PHONE_COUNTRIES };
+export type { PhoneCountry };
 
 /**
  * Builds an E.164 number from a dial code and what the user typed. Accepts

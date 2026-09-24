@@ -3,11 +3,11 @@ import nodemailer from "nodemailer";
 import { config } from "../config";
 
 // Email-sending interface — same "swappable" treatment MediaStorage got in
-// chunk 5. Two implementations below: a console-logging stub for local dev
-// (no SMTP_* env vars set) and a real SMTP sender for production — the
-// choice is made once, at module load, from config alone, so every call
-// site (invites, verification emails, ...) stays identical in both
-// environments.
+// chunk 5. Implementations below: a console-logging stub for local dev
+// (no SMTP_* env vars set), an in-memory one for tests, and a real SMTP
+// sender — required in production (createMailSender refuses to start
+// without it). The choice is made once, at module load, from config alone,
+// so every call site (invites, verification emails, ...) stays identical.
 export interface MailSender {
   send(message: { to: string; subject: string; text: string; html?: string }): Promise<void>;
 }
@@ -48,6 +48,10 @@ export class SmtpMailSender implements MailSender {
       // for the former, so basing it on the port keeps this correct for
       // either without needing its own env var.
       secure: port === 465,
+      // …and STARTTLS is mandatory: never fall back to plaintext if it's
+      // stripped in transit (that would expose the SMTP login and every
+      // reset link and sign-in code).
+      requireTLS: port !== 465,
       auth: user && pass ? { user, pass } : undefined,
     });
   }
@@ -63,12 +67,22 @@ export class SmtpMailSender implements MailSender {
   }
 }
 
-export const mailSender: MailSender =
-  config.nodeEnv === "test"
-    ? new MemoryMailSender()
-    : config.smtpHost
-      ? new SmtpMailSender(config.smtpHost, config.smtpPort, config.smtpUser, config.smtpPass)
-      : new ConsoleMailSender();
+function createMailSender(): MailSender {
+  if (config.nodeEnv === "test") return new MemoryMailSender();
+  if (config.isProduction) {
+    // Fail closed: emails carry password-reset links, sign-in codes and
+    // download links. Without SMTP they must not quietly go to the log.
+    if (!config.smtpHost || !config.smtpUser || !config.smtpPass) {
+      throw new Error("SMTP_HOST, SMTP_USER and SMTP_PASS are required in production — email is never logged instead of sent");
+    }
+    return new SmtpMailSender(config.smtpHost, config.smtpPort, config.smtpUser, config.smtpPass);
+  }
+  return config.smtpHost
+    ? new SmtpMailSender(config.smtpHost, config.smtpPort, config.smtpUser, config.smtpPass)
+    : new ConsoleMailSender();
+}
+
+export const mailSender: MailSender = createMailSender();
 
 // Small shared helper for the two real HTML templates (emailTemplates/*) —
 // wraps the raw brand SVG mark used in both mockups so it's defined once.

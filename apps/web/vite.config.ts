@@ -3,6 +3,8 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { VitePWA } from "vite-plugin-pwa";
 
+import { SECURITY_HEADERS } from "./security-headers";
+
 export default defineConfig({
   plugins: [
     react(),
@@ -46,6 +48,19 @@ export default defineConfig({
     port: 5173,
     // Same-origin API in dev, so the session cookie also rides along on
     // plain <img>/<video> media requests.
+    proxy: {
+      "/api": {
+        target: "http://localhost:4000",
+        rewrite: (path) => path.replace(/^\/api/, ""),
+      },
+    },
+  },
+  // `vite preview` serves the production build with the production security
+  // headers (nginx sends the same — security-headers.ts), so CSP problems
+  // show up locally. Not on the dev server: HMR needs inline scripts.
+  preview: {
+    port: 4173,
+    headers: SECURITY_HEADERS,
     proxy: {
       "/api": {
         target: "http://localhost:4000",

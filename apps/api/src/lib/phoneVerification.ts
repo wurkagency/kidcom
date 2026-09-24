@@ -1,4 +1,5 @@
 import type { PhoneCodePurpose } from "@kidcom/db";
+import { isE164, isSupportedPhone } from "@kidcom/shared";
 
 import { config } from "../config";
 import { prisma } from "../db";
@@ -9,10 +10,45 @@ import { generateTwoFactorCode, hashTwoFactorCode } from "./twoFactor";
 export const PHONE_CODE_TTL_MS = 1000 * 60 * 10; // 10 minutes
 export const PHONE_CODE_MAX_ATTEMPTS = 5;
 export const PHONE_CODE_RESEND_COOLDOWN_MS = 1000 * 30;
+// Toll-fraud guard: texts to one number in any 24 hours, across all accounts
+// (a real person needs 1–3: sign-up, a resend, a password reset).
+export const SMS_PER_NUMBER_PER_DAY = 5;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
-/** International format: "+" then 8–15 digits, no leading zero country code. */
-export function isE164(phone: unknown): phone is string {
-  return typeof phone === "string" && /^\+[1-9]\d{7,14}$/.test(phone);
+/**
+ * A number we may text: well-formed and in a country the app offers, outside
+ * the premium/foreign ranges (@kidcom/shared phone.ts). Checked before any
+ * account is created, and again right before every SMS.
+ */
+export function assertPhoneAllowed(phone: unknown): asserts phone is string {
+  if (!isE164(phone)) throw new ApiError(400, "Please enter a valid mobile number", "PHONE_INVALID");
+  if (!isSupportedPhone(phone)) {
+    throw new ApiError(400, "KidCom can't send text messages to this number's country yet", "PHONE_COUNTRY_UNSUPPORTED");
+  }
+}
+
+/**
+ * The two caps that bound what SMS pumping can cost: per destination number
+ * (stops hammering one premium number from many throwaway accounts) and in
+ * total (a hard ceiling on spend; reaching it pauses SMS and logs an alert).
+ */
+export async function assertSmsQuota(phone: string): Promise<void> {
+  const since = new Date(Date.now() - DAY_MS);
+  const [toNumber, total] = await Promise.all([
+    prisma.smsSend.count({ where: { phone, createdAt: { gte: since } } }),
+    prisma.smsSend.count({ where: { createdAt: { gte: since } } }),
+  ]);
+  if (total >= config.smsDailyLimit) {
+    // eslint-disable-next-line no-console
+    console.error(
+      `[ALERT] SMS daily limit reached: ${total} sent in 24 h (SMS_DAILY_LIMIT=${config.smsDailyLimit}). ` +
+        "SMS is paused. Check sms_sends for pumping before raising the limit."
+    );
+    throw new ApiError(503, "Text messages are paused for a moment — please try again later", "SMS_UNAVAILABLE");
+  }
+  if (toNumber >= SMS_PER_NUMBER_PER_DAY) {
+    throw new ApiError(429, "Too many codes were sent to this number today — please try again tomorrow", "SMS_LIMIT");
+  }
 }
 
 function smsText(purpose: PhoneCodePurpose, code: string): string {
@@ -29,10 +65,12 @@ function smsText(purpose: PhoneCodePurpose, code: string): string {
 
 /**
  * Sends a fresh 6-digit code to `phone`, replacing any earlier code for the
- * same purpose. Throttled per user and purpose so the endpoint can't be used
- * to spam a number (or burn SMS credits).
+ * same purpose. Every SMS in the app goes through here: the number must be
+ * allowed, the user must wait between resends, and the per-number and total
+ * caps must have room. Each send is logged (sms_sends) for those caps.
  */
 export async function sendPhoneCode(userId: string, phone: string, purpose: PhoneCodePurpose): Promise<void> {
+  assertPhoneAllowed(phone);
   const latest = await prisma.phoneVerificationCode.findFirst({
     where: { userId, purpose },
     orderBy: { createdAt: "desc" },
@@ -40,6 +78,7 @@ export async function sendPhoneCode(userId: string, phone: string, purpose: Phon
   if (latest && Date.now() - latest.createdAt.getTime() < PHONE_CODE_RESEND_COOLDOWN_MS) {
     throw new ApiError(429, "Please wait a moment before requesting another code", "CODE_COOLDOWN");
   }
+  await assertSmsQuota(phone);
 
   const code = generateTwoFactorCode();
   await prisma.$transaction([
@@ -53,6 +92,7 @@ export async function sendPhoneCode(userId: string, phone: string, purpose: Phon
         expiresAt: new Date(Date.now() + PHONE_CODE_TTL_MS),
       },
     }),
+    prisma.smsSend.create({ data: { userId, phone, purpose } }),
   ]);
   await smsSender.send({ to: phone, content: smsText(purpose, code) });
 }

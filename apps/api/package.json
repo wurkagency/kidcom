@@ -11,7 +11,8 @@
     "start:worker": "node dist/worker.js",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "media:encrypt": "tsx src/scripts/encryptMedia.ts"
+    "media:encrypt": "tsx src/scripts/encryptMedia.ts",
+    "medical:rekey": "tsx src/scripts/rekeyMedicalInfo.ts"
   },
   "dependencies": {
     "@kidcom/db": "*",

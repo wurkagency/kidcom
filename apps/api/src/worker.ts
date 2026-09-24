@@ -238,7 +238,9 @@ const childPurgeWorker = new Worker<PurgeDeletedChildrenJob>(
     }
     // Same daily run: login events past retention, stray plaintext scratch files.
     const events = await purgeExpiredLoginEvents();
-    await prisma.notification.deleteMany({ where: { createdAt: { lt: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) } } });
+    const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+    await prisma.notification.deleteMany({ where: { createdAt: { lt: ninetyDaysAgo } } });
+    await prisma.smsSend.deleteMany({ where: { createdAt: { lt: ninetyDaysAgo } } }); // SMS toll-fraud log
     const scratch = await mediaStorage.cleanScratch();
     if (events || scratch) {
       // eslint-disable-next-line no-console

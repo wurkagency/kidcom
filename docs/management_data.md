@@ -67,6 +67,7 @@ v3.0 schema (`packages/db/prisma/schema.prisma`).
 | IP network owner (ASN), hosting/VPN/Tor flag | ⬜ | — | Datacenter, VPN and Tor traffic on a family app is unusual. `geoip-lite` has no ASN; needs MaxMind GeoLite2-ASN (free, offline) plus a Tor exit-node list |
 | 2FA code attempts | ✅ | `login_two_factor_codes.attempts` (short-lived) | Guessing codes |
 | SMS code attempts and purposes | ✅ | `phone_verification_codes` (purpose, attempts, short-lived) | SMS pumping (fraudulent SMS traffic), code guessing |
+| Every SMS sent: number, purpose, account, time | ✅ | `sms_sends`, kept 90 days (added 2026-09-24) | SMS pumping; one number targeted from many accounts; country mix. The API already enforces a per-number cap (5 per 24 h) and a total cap (`SMS_DAILY_LIMIT`), and logs `[ALERT] SMS daily limit reached` |
 | Password reset requests | ✅ | `password_reset_tokens` (short-lived) | Reset storms against one account |
 | Email verification requests | ✅ | `email_verification_tokens` (short-lived) | — |
 | Active sessions per user | ✅ | Redis `kidcom:usess:<userId>` (session ids) | Many concurrent sessions; "sign out everywhere" used after an alarm |
@@ -162,7 +163,7 @@ Signals computable **today** from stored data (✅ / 🟡 only):
 | Rapid growth | Children, invites, uploads per account per day since `createdAt` |
 | Trial farming | New accounts with trials sharing phone prefix / IP / device |
 | Bulk download requests | `media_download_links` per user per day |
-| SMS pumping | `phone_verification_codes` volume per number / IP |
+| SMS pumping | `sms_sends` per number, per country and in total per hour; the `[ALERT] SMS daily limit reached` log line |
 
 Signals that need new collection first (⬜): VoIP numbers, VPN / datacenter
 IPs, per-file downloads, access changes, duplicate / perceptual hashes,

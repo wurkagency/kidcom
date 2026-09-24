@@ -1118,6 +1118,22 @@ model PhoneVerificationCode {
   @@map("phone_verification_codes")
 }
 
+// Every SMS the API has sent — the toll-fraud guard counts these (per
+// number and in total, rolling 24 h; lib/phoneVerification.ts), and they are
+// abuse signals for manage.kidcom.org. No user relation on purpose: the log
+// outlives a deleted account until the daily purge (90 days).
+model SmsSend {
+  id        String           @id @default(cuid())
+  userId    String?
+  phone     String
+  purpose   PhoneCodePurpose
+  createdAt DateTime         @default(now())
+
+  @@index([phone, createdAt])
+  @@index([createdAt])
+  @@map("sms_sends")
+}
+
 // Previous password hashes, for the "not used in the past 90 days" rule.
 model PasswordHistory {
   id           String   @id @default(cuid())

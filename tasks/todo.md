@@ -271,6 +271,34 @@ see "Decisions" below.
       /health. **v3 must be served same-origin** (API under `https://<app host>/api`): OAuth,
       invite links and QuickPay return URLs depend on it
 
+## Security sweep (2026-09-24) — top 3 fixed
+- [x] **Fail closed in production** (was HIGH): `SESSION_SECRET`, `MEDICAL_INFO_ENCRYPTION_KEY`
+      and `MEDIA_ENCRYPTION_KEY` must be set, ≥32 characters, and not a placeholder or
+      development default, or the API refuses to start (it used to fall back silently —
+      medical data under a key published in the source). Email refuses to start without
+      SMTP (it used to log reset links and sign-in codes) and requires STARTTLS. The API
+      listens on 127.0.0.1 in production (it trusted X-Forwarded-For while open on all
+      interfaces). Medical key rotation added so fixing a weak key loses nothing:
+      `MEDICAL_INFO_ENCRYPTION_KEYS_PREVIOUS` + `npm run medical:rekey`. 19 new tests
+- [x] **SMS pumping / toll fraud** (was MEDIUM): the server texts only the countries the app
+      offers (`packages/shared/src/phone.ts`, now the single list), minus Caribbean +1,
+      premium/toll-free and UK 070 ranges; at most 5 SMS per number per 24 h across all
+      accounts; `SMS_DAILY_LIMIT` in total (pauses SMS + `[ALERT]` log). New `sms_sends`
+      log (90 days). Sign-ups that can't be texted aren't created; the SMS reset stays
+      silent (no account enumeration). 21 new tests
+- [x] **Security headers on the app's pages** (was MEDIUM): CSP (no eval, no outside
+      origins), HSTS, frame-ancestors/X-Frame-Options (clickjacking), nosniff,
+      Referrer-Policy, Permissions-Policy, COOP — single source `apps/web/security-headers.ts`,
+      in both deployment guides (nginx `expires` so add_header isn't dropped). Proven with
+      `npm run test:csp --workspace=apps/web`: production build + headers, 20 screens, dialogs,
+      blob previews, video, service worker — 0 violations; also asserts the guides match.
+      Found on the way: Zod probed `new Function` (now jitless) and a data: font subset
+- [x] Regression: API 265/265, shared 49, core 26, theme-kit 4, e2e 77/77, CSP 3/3, budget ✓
+- Remaining from the sweep (not yet done): dev-toolchain Vitest 1.x in apps/api + shared
+  (dev-only advisories), `.gitignore` patterns, credentials file in the parent folder,
+  CSRF custom header, Redis-backed per-account rate limits, upload quota, emails in error
+  logs, QuickPay error text to the client, `Clear-Site-Data` on sign-out, compose ports
+
 ## Review (v3.0)
 - **Scope delivered:** every screen id has a real screen — 22 from Stitch exports (visual
   diffs listed per phase), the rest built strictly from DESIGN.md tokens and shadcn parts.

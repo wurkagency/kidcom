@@ -7,19 +7,55 @@
 // Node.js app panel, so this is a no-op there too.
 import "dotenv/config";
 
-function required(name: string, fallback?: string): string {
-  const value = process.env[name] ?? fallback;
-  if (value === undefined) {
+const isProduction = process.env.NODE_ENV === "production";
+
+/**
+ * A setting the app can't run without. The development fallback is never
+ * used in production: a missing (or empty) value stops the process at
+ * startup instead of silently running on a default everyone can read.
+ */
+function required(name: string, devFallback?: string): string {
+  const value = process.env[name] || (isProduction ? undefined : devFallback);
+  if (!value) {
     throw new Error(`Missing required environment variable: ${name}`);
   }
   return value;
 }
+
+// Placeholder values from .env.example and the development fallbacks.
+const PLACEHOLDER = /change-me|dev-only|replace-me|<.*>/i;
+
+/**
+ * A secret key. In production it must also be real: not a placeholder, not
+ * the development fallback, and long enough to be random (openssl rand -hex 32).
+ */
+function requiredSecret(name: string, devFallback: string): string {
+  const value = required(name, devFallback);
+  if (isProduction && (value === devFallback || PLACEHOLDER.test(value) || value.length < 32)) {
+    throw new Error(
+      `${name} must be a random secret of at least 32 characters in production (generate one with: openssl rand -hex 32)` +
+        (name === "MEDICAL_INFO_ENCRYPTION_KEY"
+          ? ". Existing medical info stays readable: move the old value to MEDICAL_INFO_ENCRYPTION_KEYS_PREVIOUS " +
+            '(if the server ran without this variable, the old value is "dev-only-medical-encryption-key-change-me"), ' +
+            "restart, then run: npm run medical:rekey --workspace=apps/api"
+          : "")
+    );
+  }
+  return value;
+}
+
+const list = (value: string | undefined) => (value ?? "").split(",").map((v) => v.trim()).filter(Boolean);
 
 const port = Number(process.env.PORT ?? 4000);
 
 export const config = {
   nodeEnv: process.env.NODE_ENV ?? "development",
   port,
+  // Production listens on the loopback interface only: nginx is the one way
+  // in. Reachable directly, a client could set its own X-Forwarded-For (we
+  // trust one proxy hop) and dodge per-IP limits or fake the IPs recorded
+  // for abuse checks. Unset in development = all interfaces, as before.
+  host: process.env.HOST || (isProduction ? "127.0.0.1" : undefined),
   // The API's own publicly reachable base URL — used to build the QuickPay
   // webhook callback URL. In local dev this is localhost, which QuickPay
   // can't reach directly (needs a tunnel like ngrok — see chunk 7 plan
@@ -27,16 +63,16 @@ export const config = {
   apiBaseUrl: process.env.API_BASE_URL ?? `http://localhost:${port}`,
   databaseUrl: required("DATABASE_URL"),
   redisUrl: process.env.REDIS_URL ?? "redis://localhost:6379",
-  sessionSecret: required("SESSION_SECRET", "dev-only-secret-change-me"),
-  // Post-launch backlog Phase G — GDPR Art. 9 special-category data about a
-  // minor (MedicalInfo.condition/description/emergencyNote), encrypted at
-  // rest at the app layer. Same "required with a dev-only fallback" shape
-  // as sessionSecret above: production must set a real one (generate with
-  // `openssl rand -hex 32`, same as SESSION_SECRET), local dev works out of
-  // the box. Any-length input is fine — lib/medicalEncryption.ts derives a
-  // real 32-byte AES-256 key from whatever string this is via SHA-256, so
-  // this doesn't need to be exactly 32 bytes itself.
-  medicalInfoEncryptionKey: required("MEDICAL_INFO_ENCRYPTION_KEY", "dev-only-medical-encryption-key-change-me"),
+  sessionSecret: requiredSecret("SESSION_SECRET", "dev-only-secret-change-me"),
+  // GDPR Art. 9 special-category data about a minor (MedicalInfo.condition/
+  // description/emergencyNote), encrypted at rest at the app layer. Production
+  // refuses to start without a real key (see requiredSecret); local dev works
+  // out of the box. lib/medicalEncryption.ts derives the AES-256 key from this
+  // string via SHA-256. Rotation: the old value goes in
+  // MEDICAL_INFO_ENCRYPTION_KEYS_PREVIOUS (comma-separated, still readable),
+  // then `npm run medical:rekey` re-encrypts every row with the current key.
+  medicalInfoEncryptionKey: requiredSecret("MEDICAL_INFO_ENCRYPTION_KEY", "dev-only-medical-encryption-key-change-me"),
+  medicalInfoEncryptionKeysPrevious: list(process.env.MEDICAL_INFO_ENCRYPTION_KEYS_PREVIOUS),
   corsOrigin: (process.env.CORS_ORIGIN ?? "http://localhost:5173").split(","),
   cookieDomain: process.env.COOKIE_DOMAIN ?? "localhost",
   mediaStoragePath: process.env.MEDIA_STORAGE_PATH ?? "./media",
@@ -44,19 +80,15 @@ export const config = {
   // per-file key wrapped by this 32-byte master key (`openssl rand -hex 32`).
   // LOSING IT MAKES EVERY PHOTO AND VIDEO UNRECOVERABLE — back it up apart
   // from the media and the database (docs/deployment_guide.md). Production
-  // refuses to start without one; local dev/test fall back to a fixed,
+  // refuses to start without a real one; local dev/test fall back to a fixed,
   // public dev key. MEDIA_ENCRYPTION_KEYS_PREVIOUS (comma-separated) keeps
   // old keys readable during a rotation.
-  mediaEncryptionKey:
-    process.env.MEDIA_ENCRYPTION_KEY ??
-    (process.env.NODE_ENV === "production"
-      ? required("MEDIA_ENCRYPTION_KEY")
-      : "d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0"),
-  mediaEncryptionKeysPrevious: (process.env.MEDIA_ENCRYPTION_KEYS_PREVIOUS ?? "").split(",").map((k) => k.trim()).filter(Boolean),
+  mediaEncryptionKey: requiredSecret("MEDIA_ENCRYPTION_KEY", "d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0"),
+  mediaEncryptionKeysPrevious: list(process.env.MEDIA_ENCRYPTION_KEYS_PREVIOUS),
   // Plaintext scratch space while the worker runs sharp/ffmpeg; files are
   // 0600 and removed as soon as each step finishes.
   mediaTempPath: process.env.MEDIA_TEMP_PATH,
-  isProduction: process.env.NODE_ENV === "production",
+  isProduction,
   // Temporary testing toggle for the still-in-testing production deployment:
   // when true, POST /billing/subscribe skips QuickPay entirely and activates
   // whatever tier was requested directly (same bypass local dev already
@@ -76,9 +108,9 @@ export const config = {
   vapidPublicKey: process.env.VAPID_PUBLIC_KEY,
   vapidPrivateKey: process.env.VAPID_PRIVATE_KEY,
   vapidSubject: process.env.VAPID_SUBJECT ?? "mailto:charlie@wurk.dk",
-  // SMTP — optional. Unset in local dev (mailSender.ts falls back to
-  // logging emails to the console instead of sending them); set for real
-  // delivery in production, per docs/deployment_guide.md.
+  // SMTP. Unset in local dev (mailSender.ts logs emails to the console
+  // instead); REQUIRED in production — mailSender.ts refuses to start
+  // without it, so reset links and sign-in codes can never end up in a log.
   smtpHost: process.env.SMTP_HOST,
   smtpPort: Number(process.env.SMTP_PORT ?? 587),
   smtpUser: process.env.SMTP_USER,
@@ -87,7 +119,11 @@ export const config = {
   smtpFrom: process.env.SMTP_FROM ?? '"KidCom" <no-reply@kidcom.org>',
   // SMS (lib/smsSender.ts). "brevo" sends real SMS; "log" prints them. Real
   // SMS costs credits, so only production sends by default.
-  smsDelivery: (process.env.SMS_DELIVERY ?? (process.env.NODE_ENV === "production" ? "brevo" : "log")) as "brevo" | "log",
+  smsDelivery: (process.env.SMS_DELIVERY ?? (isProduction ? "brevo" : "log")) as "brevo" | "log",
+  // Toll-fraud guard (lib/phoneVerification.ts): at most this many SMS in
+  // any 24 hours across all accounts. Reaching it stops SMS and logs an
+  // [ALERT] line; raise it deliberately as real sign-ups grow.
+  smsDailyLimit: Number(process.env.SMS_DAILY_LIMIT || 500),
   brevoApiKey: process.env.BREVO_API_KEY,
   brevoSmsSender: process.env.BREVO_SMS_SENDER ?? "KidCom",
   // Google/Microsoft sign-in (lib/oauth.ts). The redirect base is the public
