@@ -1,3 +1,4 @@
+import { config } from "../../config";
 import { escapeHtml, renderEmailShell } from "./layout";
 
 // Real, mail-client-safe adaptation of
@@ -49,7 +50,7 @@ export function renderLoginTwoFactorHtml(options: {
 <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="background-color:#fff9f2;border:1px solid #f5debe;border-radius:12px;max-width:460px;width:100%;">
 <tbody><tr><td style="padding:14px 16px;font-size:12.5px;line-height:1.55;color:#824d1a;">
   <strong style="color:#6b3e14;display:block;margin-bottom:2px;">Didn't request this code?</strong>
-  If you didn't attempt to log in, someone may be trying to access your account. Please <a href="https://kidcom.org/account/security/password-reset" style="color:#9a4c00;font-weight:600;text-decoration:underline;">change your password immediately</a> or contact us at <a href="mailto:support@kidcom.org" style="color:#9a4c00;font-weight:600;text-decoration:underline;">support@kidcom.org</a>.
+  If you didn't attempt to log in, someone may be trying to access your account. Please <a href="${escapeHtml(`${config.corsOrigin[0]}/forgot-password`)}" style="color:#9a4c00;font-weight:600;text-decoration:underline;">change your password immediately</a> or contact us at <a href="mailto:support@kidcom.org" style="color:#9a4c00;font-weight:600;text-decoration:underline;">support@kidcom.org</a>.
 </td></tr></tbody></table>
 </td></tr></tbody></table>`;
 

@@ -45,9 +45,8 @@ declare module "express-session" {
 // the jobs chunk will use for BullMQ. httpOnly always; `secure` only in
 // production (local dev is plain HTTP on localhost, so requiring `secure`
 // there would silently drop the cookie on every request); domain is unset
-// locally and `.kidcom.org` in production (see docs/deployment_guide.md) so the
-// session cookie is shared between the `kidcom.org` and `api.kidcom.org`
-// origins.
+// locally and COOKIE_DOMAIN (the app's host, app.kidcom.org) in production —
+// the API is served same-origin under /api (docs/deployment_guide.md).
 export const sessionMiddleware = session({
   store: new RedisStore({ client: redis, prefix: "kidcom:sess:" }),
   secret: config.sessionSecret,
