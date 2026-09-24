@@ -23,7 +23,7 @@ export const config = {
   // The API's own publicly reachable base URL — used to build the QuickPay
   // webhook callback URL. In local dev this is localhost, which QuickPay
   // can't reach directly (needs a tunnel like ngrok — see chunk 7 plan
-  // notes); in production it's api.kidcom.org per docs/plesk_deployment.md.
+  // notes); in production it's https://<app host>/api (docs/deployment_guide.md).
   apiBaseUrl: process.env.API_BASE_URL ?? `http://localhost:${port}`,
   databaseUrl: required("DATABASE_URL"),
   redisUrl: process.env.REDIS_URL ?? "redis://localhost:6379",
@@ -43,7 +43,7 @@ export const config = {
   // v3.0: every media file is encrypted at rest (lib/mediaCrypto.ts) with a
   // per-file key wrapped by this 32-byte master key (`openssl rand -hex 32`).
   // LOSING IT MAKES EVERY PHOTO AND VIDEO UNRECOVERABLE — back it up apart
-  // from the media and the database (docs/plesk_deployment.md). Production
+  // from the media and the database (docs/deployment_guide.md). Production
   // refuses to start without one; local dev/test fall back to a fixed,
   // public dev key. MEDIA_ENCRYPTION_KEYS_PREVIOUS (comma-separated) keeps
   // old keys readable during a rotation.
@@ -78,7 +78,7 @@ export const config = {
   vapidSubject: process.env.VAPID_SUBJECT ?? "mailto:charlie@wurk.dk",
   // SMTP — optional. Unset in local dev (mailSender.ts falls back to
   // logging emails to the console instead of sending them); set for real
-  // delivery in production, per docs/plesk_deployment.md.
+  // delivery in production, per docs/deployment_guide.md.
   smtpHost: process.env.SMTP_HOST,
   smtpPort: Number(process.env.SMTP_PORT ?? 587),
   smtpUser: process.env.SMTP_USER,

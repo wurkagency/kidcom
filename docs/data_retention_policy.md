@@ -100,7 +100,7 @@ database (only `charlie@wurk.dk` and its children kept).
 ## Photos and videos (encryption, capture metadata, upload origin)
 
 - All media files are encrypted at rest (AES-256-GCM, per-file keys; see
-  `docs/plesk_deployment.md` → Media encryption). Not end-to-end: the server
+  `docs/deployment_guide.md` → Media encryption). Not end-to-end: the server
   decrypts to make thumbnails, playable videos and downloads.
 - **Capture metadata** read from each upload where the phone kept it: GPS
   latitude / longitude / altitude, capture time, device make and model
@@ -158,6 +158,6 @@ database (only `charlie@wurk.dk` and its children kept).
 - Backup/disaster-recovery retention (how long database backups themselves are
   kept) is an infrastructure/hosting decision, not an application-layer one — set
   wherever backups are actually configured (currently undocumented;
-  `docs/plesk_deployment.md` doesn't describe a backup strategy yet).
+  `docs/deployment_guide.md` doesn't describe a backup strategy yet).
 - Server access/request logs, if any are ever added at the infrastructure level,
   are outside this document's scope.

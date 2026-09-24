@@ -3,7 +3,7 @@
 A well-being and communication app for separated parents and families,
 built child-first. Product docs live alongside this repo in `../docs`; the
 Aura design exports (source of truth for the UI) are in `docs/design/aura/`,
-and `docs/plesk_deployment.md` describes the production Plesk VM.
+and `docs/deployment_guide.md` describes the production Plesk VM.
 
 ## Stack
 

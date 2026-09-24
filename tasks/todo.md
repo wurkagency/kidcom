@@ -264,6 +264,13 @@ see "Decisions" below.
 - [x] Full regression: API 241/241, shared 33, core 26, theme-kit 4, e2e 77/77 (visual,
       flows, a11y), typecheck, lint, i18n (788 keys)
 
+- [x] Deployment guides: `docs/deployment_guide.md` (full) and `docs/deployment_quick.md`
+      (commands only); `ecosystem.config.cjs` now in the repo; `.env.example` corrected
+      (`VITE_API_BASE` — was the stale `VITE_API_URL` — plus `API_BASE_URL`,
+      `BILLING_TEST_MODE`, `QUICKPAY_BASE_URL`). Production dist verified to boot and serve
+      /health. **v3 must be served same-origin** (API under `https://<app host>/api`): OAuth,
+      invite links and QuickPay return URLs depend on it
+
 ## Review (v3.0)
 - **Scope delivered:** every screen id has a real screen — 22 from Stitch exports (visual
   diffs listed per phase), the rest built strictly from DESIGN.md tokens and shadcn parts.

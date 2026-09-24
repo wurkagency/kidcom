@@ -1,4 +1,4 @@
-// Media encryption maintenance (see docs/plesk_deployment.md → "Media
+// Media encryption maintenance (see docs/deployment_guide.md → "Media
 // encryption"). Run with the API's environment, e.g.
 //
 //   npm run media:encrypt --workspace=apps/api                # encrypt files still in plaintext

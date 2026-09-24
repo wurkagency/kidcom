@@ -215,7 +215,7 @@ this part.** The notes below are orientation, not legal guidance.
   automatically (GDPR Art. 22), except clear-cut technical abuse such as
   brute force, which can be rate-limited automatically.
 - **Related documents:** `docs/data_retention_policy.md` (retention per data
-  category), `docs/plesk_deployment.md` (encryption keys).
+  category), `docs/deployment_guide.md` (encryption keys).
 
 ## 10. Suggested collection backlog (for the alarm-system phase)
 

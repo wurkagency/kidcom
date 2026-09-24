@@ -45,7 +45,7 @@ export function createApp() {
   const app = express();
 
   // Nginx terminates TLS and reverse-proxies to this process over plain HTTP
-  // (see docs/plesk_deployment.md step 5), so without this Express sees every request as
+  // (see docs/deployment_guide.md §5.5), so without this Express sees every request as
   // insecure and silently drops the session cookie whenever cookie.secure is
   // true in production (express-session won't set Set-Cookie over what it
   // thinks is an insecure connection). Trusting the first proxy hop makes
@@ -59,10 +59,9 @@ export function createApp() {
   // Security-review pass — baseline response headers (X-Content-Type-Options,
   // a restrictive default CSP, Referrer-Policy, etc.) this API never had.
   // crossOriginResourcePolicy is relaxed from helmet's own default
-  // (same-origin) to cross-origin: the web app at kidcom.org loads media
-  // (GET /media/:id) directly from api.kidcom.org via plain <img>/<video>
-  // tags — a different origin by design (see docs/plesk_deployment.md) — same-origin
-  // CORP would silently block every one of those. CSP itself is close to a
+  // (same-origin) to cross-origin: v3 serves the API under the app's own
+  // origin (/api), but v2 installs still load media from api.kidcom.org via
+  // plain <img>/<video> tags, which same-origin CORP would silently block. CSP itself is close to a
   // no-op for a pure JSON+file API (no HTML is ever served here to protect),
   // left at helmet's default rather than disabled since it's harmless.
   app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
