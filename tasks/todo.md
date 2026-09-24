@@ -301,7 +301,7 @@ see "Decisions" below.
       skips dist); `npm audit fix` → 0 vulnerabilities
 - [x] `.gitignore`: `.env.*` (except `.env.example`), `*.pem`, `*.key`, `*.p12`, `*.pfx`, `*.jks`,
       `credentials*.json`, `*credentials*.md`
-- [ ] Credentials file `../docs/kidcom_credentials.md` still sits beside the repo (Charlie to move)
+- [x] Credentials file moved out of the project folder (2026-09-24)
 - [x] CSRF: `X-KidCom-Client: 1` required on state-changing requests (`middleware/clientHeader.ts`),
       QuickPay webhook exempt; sent by `packages/core` on every request
 - [x] Per-account sign-in limit: 10 failed passwords per email / 15 min → 429 `TOO_MANY_ATTEMPTS`
