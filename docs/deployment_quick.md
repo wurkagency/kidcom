@@ -65,7 +65,7 @@ CREATE DATABASE kinnd OWNER kinnd;
 ```
 3. **Code and folders:**
 ```bash
-git clone git@github.com:wurkagency/kidcom.git /var/www/vhosts/kinnd.eu/repo && git -C /var/www/vhosts/kinnd.eu/repo checkout v3.0
+git clone git@github.com:wurkagency/kinnd.git /var/www/vhosts/kinnd.eu/repo && git -C /var/www/vhosts/kinnd.eu/repo checkout v3.0
 ```
 ```bash
 mkdir -p /var/www/vhosts/kinnd.eu/media /var/www/vhosts/kinnd.eu/media-tmp && chmod 700 /var/www/vhosts/kinnd.eu/media /var/www/vhosts/kinnd.eu/media-tmp

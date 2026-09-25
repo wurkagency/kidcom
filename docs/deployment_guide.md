@@ -75,7 +75,7 @@ Phone (PWA) ──HTTPS──► nginx (Plesk) on app.kinnd.eu
 | Redis | ≥ 6.2 | Holds sessions and job queues. Turn on persistence (AOF or RDB) so sign-ins survive a restart. Bind it to localhost. |
 | PM2 | current | `npm i -g pm2` |
 | Plesk Obsidian + nginx | | Let's Encrypt extension for TLS |
-| git | | The server needs read access to `github.com/wurkagency/kidcom` (deploy key). |
+| git | | The server needs read access to `https://github.com/wurkagency/kinnd.git`. Use a read-only deploy key (GitHub → repo → Settings → Deploy keys) and clone over SSH. |
 | Disk | | Media grows with use. Keep `MEDIA` on local disk with room to grow, and back it up (§8.3). |
 
 ## 3. Secrets and keys
@@ -283,7 +283,7 @@ Redis: persistence on (`appendonly yes`), bound to `127.0.0.1`.
 
 ### 5.3 Code
 ```bash
-git clone git@github.com:wurkagency/kidcom.git /var/www/vhosts/kinnd.eu/repo
+git clone git@github.com:wurkagency/kinnd.git /var/www/vhosts/kinnd.eu/repo
 git -C /var/www/vhosts/kinnd.eu/repo checkout v3.0
 mkdir -p /var/www/vhosts/kinnd.eu/media /var/www/vhosts/kinnd.eu/media-tmp
 rsync -a --exclude='.git' --exclude='node_modules' --exclude='dist' --exclude='.env*' \
@@ -653,6 +653,9 @@ another parent taking the child over, restores it straight away.
 
 ## 10. Known gotchas
 
+- **A checkout made before the repository was renamed** still points at
+  `wurkagency/kidcom`. GitHub redirects it for now, but switch it over:
+  `git -C /var/www/vhosts/kinnd.eu/repo remote set-url origin git@github.com:wurkagency/kinnd.git`
 - **`git pull` fails with "local changes would be overwritten":**
   `package-lock.json` or `tsconfig.tsbuildinfo` drifted in `REPO`. Run
   `git -C /var/www/vhosts/kinnd.eu/repo stash`, then pull again.
