@@ -346,3 +346,13 @@ see "Decisions" below.
 
 ## Needed from Charlie
 - ~~QuickPay test-card credentials~~ (received 2026-09-23; keys in app/.env)
+
+## Subscription model (Circles) — implemented 2026-09-25
+- [x] Single / Parent Circle (DKK 39, 351/yr) / Family Circle (DKK 69, 621/yr); 30-day trial without card; suspension + 90-day deletion; legal hold (alarms); launch reset (D8, not run)
+- [x] Lifetime coupons (`npm run coupon`); internal code KC-9GYC-Y46E (dev DB; create in prod with `--code`)
+- [x] Production refuses QuickPay test cards unless QUICKPAY_ACCEPT_TEST_CARDS=true
+- [x] Browser QA: trial, add-card → QuickPay window, cancel/success return, coupon, tier greying, Circle invite
+- [ ] Owner: one real test-card run (add card in trial, and a direct paid checkout) on dev
+- [ ] Owner: switch off "allow test transactions" on the live QuickPay account at launch
+- [ ] Signup copy says "Start 30-Day Free Trial" but accounts start on Single (trial starts from Plan & billing) — decide wording
+- [ ] Dev .env has SMS_DELIVERY=brevo and real SMTP — QA sends real SMS/e-mail
