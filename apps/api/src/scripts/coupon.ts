@@ -1,8 +1,8 @@
 // Coupons (subscription model). Run with the API's environment, e.g.
 //
-//   npm run coupon --workspace=apps/api -- create --tier FAMILY --max 25 --note "Internal testing and family"
-//   npm run coupon --workspace=apps/api -- list
-//   npm run coupon --workspace=apps/api -- deactivate KC-ABCD-EFGH
+//   npx dotenv -e apps/api/.env -- npm run coupon --workspace=apps/api -- create --tier FAMILY --max 25 --note "Internal testing and family"
+//   npx dotenv -e apps/api/.env -- npm run coupon --workspace=apps/api -- list
+//   npx dotenv -e apps/api/.env -- npm run coupon --workspace=apps/api -- deactivate KC-ABCD-EFGH
 //
 // "create" makes a lifetime coupon: redeeming it (Plan & billing → "Have a
 // code?") gives that person's Circle the coupon's tier for good, with no

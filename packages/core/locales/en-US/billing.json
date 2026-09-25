@@ -114,6 +114,7 @@
     }
   },
   "lifetime": "Lifetime",
+  "lifetimeInfo": "Your {{plan}} is a lifetime plan. There's nothing to pay, and it never renews.",
   "memberOf": "In {{owner}}'s Family Circle",
   "trialEndsOn": "Free trial ends",
   "childrenInCircle": "Children in your Circle",

@@ -365,7 +365,12 @@ export function CheckoutForm({ onFree }: { onFree?: () => void }) {
   const trial = useStartTrial();
   const change = useChangeTier();
   const cancel = useCancelSubscription();
-  const [tier, setTier] = useState<SubscriptionTier>((params.get("tier") as SubscriptionTier) || "PARENTS");
+  // Without a ?tier, start on the current paid plan, or the first one that
+  // fits what's in use — never on a plan that's greyed out.
+  const [chosen, setTier] = useState<SubscriptionTier | null>((params.get("tier") as SubscriptionTier) || null);
+  const fits = (id: SubscriptionTier) => sub?.tiers?.find((a) => a.tier === id)?.available !== false;
+  const tier: SubscriptionTier =
+    chosen ?? (sub && sub.tier !== "FREE" ? sub.tier : ((["PARENTS", "FAMILY"] as const).find(fits) ?? "FAMILY"));
   const [period, setPeriod] = useState<BillingPeriod>((params.get("period") as BillingPeriod) || "ANNUAL");
   const [consent, setConsent] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -415,6 +420,19 @@ export function CheckoutForm({ onFree }: { onFree?: () => void }) {
           : t("chooseFree");
   const pending = subscribe.isPending || trial.isPending || change.isPending || cancel.isPending;
   const unchanged = (switching && sub?.tier === tier) || (!paid && sub?.tier === "FREE");
+  const blocked = owner && sub?.tier !== tier && sub?.tiers?.find((a) => a.tier === tier)?.available === false;
+
+  // A lifetime plan (coupon) is never billed: nothing to choose or pay here.
+  if (sub?.lifetime) {
+    return (
+      <div className="flex flex-col gap-space-lg">
+        <PlanPicker tier={sub.tier} period={period} current={sub.tier} onTier={() => undefined} />
+        <p role="status" className="px-1 font-body-md text-body-md text-secondary">
+          {t("lifetimeInfo", { plan: t(`tiers.${sub.tier}`) })}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-space-lg">
@@ -436,7 +454,7 @@ export function CheckoutForm({ onFree }: { onFree?: () => void }) {
         </label>
       )}
       <FormError message={error} />
-      <PrimaryButton type="button" icon={needsPayment ? "lock" : "check"} disabled={pending || unchanged} onClick={go}>
+      <PrimaryButton type="button" icon={needsPayment ? "lock" : "check"} disabled={pending || unchanged || blocked} onClick={go}>
         {label}
       </PrimaryButton>
       {needsPayment && <p className="px-1 font-label-sm text-label-sm text-secondary">{t("quickpay")}</p>}
