@@ -112,6 +112,11 @@ export async function fetchProfile(provider: OAuthProviderId, code: string, veri
     }),
   });
   if (!tokenRes.ok) {
+    // The provider's own reason (e.g. Microsoft's AADSTS code) goes to the
+    // server log only; it never contains the secret.
+    const detail = (await tokenRes.json().catch(() => ({}))) as { error?: string; error_description?: string };
+    // eslint-disable-next-line no-console
+    console.error(`OAuth ${provider} token exchange failed (${tokenRes.status}): ${detail.error ?? "?"} ${detail.error_description ?? ""}`.trim());
     throw new ApiError(502, `Sign-in with ${provider} failed at token exchange (${tokenRes.status})`);
   }
   const { access_token: accessToken } = (await tokenRes.json()) as { access_token?: string };

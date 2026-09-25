@@ -103,6 +103,11 @@ oauthRouter.get("/:provider/callback", async (req, res, next) => {
       return;
     }
     if (req.query.error || typeof req.query.code !== "string") {
+      if (req.query.error && req.query.error !== "access_denied") {
+        // Not the person pressing cancel: log the provider's reason for us.
+        // eslint-disable-next-line no-console
+        console.error(`OAuth ${provider} returned an error: ${String(req.query.error)} ${String(req.query.error_description ?? "")}`.trim());
+      }
       fail(res, "cancelled");
       return;
     }
