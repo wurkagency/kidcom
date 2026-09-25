@@ -5,6 +5,8 @@ import { useActiveChildren, useCreateInvite, useNavigate, useSearchParams, useT 
 
 import { ChildField, EditorTitle, Field, FormCard, FormError, PrimaryButton } from "../components/Form";
 import { Input } from "../ui/input";
+import { PlanNotice } from "../billing/PlanNotice";
+import { isPlanError } from "../billing/errors";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 
 // Invite family (no Stitch export; DESIGN.md form parts): an email invite
@@ -29,11 +31,13 @@ export function InviteForm({ onDone, hideTitle, footer }: { onDone: () => void; 
   const [email, setEmail] = useState("");
   const [relationship, setRelationship] = useState<RelationshipType>("GRANDMOTHER_MAT");
   const [error, setError] = useState<string | null>(null);
+  const [planError, setPlanError] = useState<unknown>(null);
   const invite = useCreateInvite();
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
     setError(null);
+    setPlanError(null);
     if (!email.trim()) return setError(t("invite.emailRequired"));
     invite.mutate(
       { childId, email: email.trim(), relationship },
@@ -42,7 +46,7 @@ export function InviteForm({ onDone, hideTitle, footer }: { onDone: () => void; 
           toast(t("invite.sent", { email: email.trim() }));
           onDone();
         },
-        onError: (err) => setError(err instanceof Error ? err.message : t("edit.failed")),
+        onError: (err) => (isPlanError(err) ? setPlanError(err) : setError(err instanceof Error ? err.message : t("edit.failed"))),
       },
     );
   };
@@ -72,6 +76,7 @@ export function InviteForm({ onDone, hideTitle, footer }: { onDone: () => void; 
         </Field>
       </FormCard>
       <FormError message={error} />
+      {planError ? <PlanNotice error={planError} /> : null}
       <PrimaryButton icon="send" disabled={invite.isPending || !childId}>
         {t("invite.send")}
       </PrimaryButton>

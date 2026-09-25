@@ -84,13 +84,15 @@ describe("Account deletion", () => {
     expect(res.body).toMatchObject({ code: "LAST_GUARDIAN", details: { children: [{ childId: leo, firstName: "Leo" }] } });
   });
 
-  it("a child nobody else follows is soft-deleted with the account", async () => {
+  it("is refused for the only parent of a child, even with nobody else following it", async () => {
     const app = createApp();
     const solo = await signupTestUser(app, { firstName: "Sol" });
     const kid = (await solo.agent.post("/children").send({ firstName: "Ida", gender: "GIRL", birthday: "2022-01-01", relationship: "MOTHER" })).body.id as string;
-    expect((await solo.agent.delete("/auth/me").send({ confirm: true })).status).toBe(204);
+    const res = await solo.agent.delete("/auth/me").send({ confirm: true });
+    expect(res.status).toBe(409);
+    expect(res.body.details.children).toEqual([{ childId: kid, firstName: "Ida" }]);
     const child = await withRlsBypass((tx) => tx.child.findUniqueOrThrow({ where: { id: kid } }));
-    expect(child.deletedAt).not.toBeNull();
+    expect(child.deletedAt).toBeNull();
   });
 });
 
@@ -107,6 +109,7 @@ describe("Sessions", () => {
 });
 
 describe("Checkout", () => {
+  const single = (app: ReturnType<typeof createApp>) => signupTestUser(app, { plan: "SINGLE" });
   beforeEach(async () => {
     await resetDb();
     vi.clearAllMocks();
@@ -115,7 +118,7 @@ describe("Checkout", () => {
 
   it("requires the withdrawal consent for a paid plan and records it", async () => {
     const app = createApp();
-    const me = await signupTestUser(app);
+    const me = await signupTestUser(app, { plan: "SINGLE" });
     const refused = await me.agent.post("/billing/subscribe").send({ tier: "PARENTS", billingPeriod: "MONTHLY" });
     expect(refused.status).toBe(400);
     expect(refused.body.code).toBe("WITHDRAWAL_CONSENT_REQUIRED");
@@ -129,14 +132,14 @@ describe("Checkout", () => {
 
   it("charges the first period once, whether the app or the callback confirms first", async () => {
     const app = createApp();
-    const me = await signupTestUser(app);
+    const me = await single(app);
     await me.agent.post("/billing/subscribe").send({ tier: "FAMILY", billingPeriod: "ANNUAL", acceptWithdrawalWaiver: true });
     const sub = await prisma.subscription.findUniqueOrThrow({ where: { ownerId: me.userId } });
 
     const confirmed = await me.agent.post("/billing/confirm");
     expect(confirmed.body).toMatchObject({ tier: "FAMILY", status: "ACTIVE", billingPeriod: "ANNUAL" });
     expect(quickpay.chargeRecurring).toHaveBeenCalledTimes(1);
-    expect(quickpay.chargeRecurring).toHaveBeenCalledWith({ subscriptionId: 4242, amountMinorUnits: 55900, orderId: firstChargeOrderId(sub.id, "4242") });
+    expect(quickpay.chargeRecurring).toHaveBeenCalledWith({ subscriptionId: 4242, amountMinorUnits: 62100, orderId: firstChargeOrderId(sub.id, "4242") });
 
     // The callback arriving afterwards, and a second confirm, charge nothing more.
     await request(app).post("/billing/webhook").set("QuickPay-Checksum-Sha256", "x").send({ id: 4242, type: "Subscription", accepted: true });
@@ -147,7 +150,7 @@ describe("Checkout", () => {
   it("stays pending while the card isn't authorised", async () => {
     vi.mocked(quickpay.getSubscription).mockResolvedValueOnce({ id: 4242, accepted: false });
     const app = createApp();
-    const me = await signupTestUser(app);
+    const me = await single(app);
     await me.agent.post("/billing/subscribe").send({ tier: "PARENTS", billingPeriod: "MONTHLY", acceptWithdrawalWaiver: true });
     expect((await me.agent.post("/billing/confirm")).body.status).toBe("PENDING");
     expect(quickpay.chargeRecurring).not.toHaveBeenCalled();
@@ -156,7 +159,7 @@ describe("Checkout", () => {
   it("a declined first charge answers with QuickPay's status code only, and leaves the plan on Free", async () => {
     vi.mocked(quickpay.chargeRecurring).mockResolvedValueOnce({ id: 9002, accepted: false, operations: [{ type: "recurring", qp_status_code: "40000" }] });
     const app = createApp();
-    const me = await signupTestUser(app);
+    const me = await single(app);
     await me.agent.post("/billing/subscribe").send({ tier: "PARENTS", billingPeriod: "MONTHLY", acceptWithdrawalWaiver: true });
 
     const res = await me.agent.post("/billing/confirm");
@@ -169,7 +172,7 @@ describe("Checkout", () => {
     vi.mocked(quickpay.chargeRecurring).mockRejectedValueOnce(new quickpay.QuickPayError(409, '{"message":"order_id already exists"}', null));
     vi.mocked(quickpay.findPaymentsByOrderId).mockResolvedValueOnce([{ id: 9003, accepted: false, operations: [{ type: "recurring", qp_status_code: "40001" }] }]);
     const app = createApp();
-    const me = await signupTestUser(app);
+    const me = await single(app);
     await me.agent.post("/billing/subscribe").send({ tier: "FAMILY", billingPeriod: "MONTHLY", acceptWithdrawalWaiver: true });
 
     const res = await me.agent.post("/billing/confirm");
@@ -180,31 +183,82 @@ describe("Checkout", () => {
   it("never passes QuickPay's own error text to the app", async () => {
     vi.mocked(quickpay.createSubscription).mockRejectedValueOnce(new quickpay.QuickPayError(400, '{"message":"Validation error","errors":{"currency":["internal detail"]}}', "30100"));
     const app = createApp();
-    const me = await signupTestUser(app);
+    const me = await single(app);
     const res = await me.agent.post("/billing/subscribe").send({ tier: "PARENTS", billingPeriod: "MONTHLY", acceptWithdrawalWaiver: true });
     expect(res.status).toBe(502);
     expect(res.body).toMatchObject({ code: "PAYMENT_PROVIDER_ERROR", details: { qpStatusCode: "30100" } });
     expect(JSON.stringify(res.body)).not.toMatch(/Validation error|internal detail/);
   });
 
-  it("a declined charge callback puts the plan past due; a later accepted one recovers it", async () => {
+  it("a declined charge callback ends the Circle at once (declined is declined)", async () => {
     const app = createApp();
-    const me = await signupTestUser(app);
+    const me = await single(app);
     await me.agent.post("/billing/subscribe").send({ tier: "PARENTS", billingPeriod: "MONTHLY", acceptWithdrawalWaiver: true });
     await me.agent.post("/billing/confirm");
     const sub = await prisma.subscription.findUniqueOrThrow({ where: { ownerId: me.userId } });
 
+    expect(sub).toMatchObject({ tier: "PARENTS", status: "ACTIVE" });
     await request(app).post("/billing/webhook").set("QuickPay-Checksum-Sha256", "x").send({ id: 9001, type: "Payment", accepted: false, order_id: sub.lastChargeOrderId });
-    expect((await prisma.subscription.findUniqueOrThrow({ where: { id: sub.id } })).status).toBe("PAST_DUE");
-    await request(app).post("/billing/webhook").set("QuickPay-Checksum-Sha256", "x").send({ id: 9001, type: "Payment", accepted: true, order_id: sub.lastChargeOrderId });
-    expect((await prisma.subscription.findUniqueOrThrow({ where: { id: sub.id } })).status).toBe("ACTIVE");
+    // Nothing in use needs a paid plan, so it simply drops to Single (D5).
+    expect(await prisma.subscription.findUniqueOrThrow({ where: { id: sub.id } })).toMatchObject({ tier: "FREE", status: "ACTIVE" });
+    expect(await prisma.notification.count({ where: { userId: me.userId, kind: "payment.failed" } })).toBe(1);
   });
 
   it("lists the plans with prices from the server", async () => {
     const res = await request(createApp()).get("/billing/plans");
-    expect(res.body.plans).toEqual([
-      { tier: "PARENTS", prices: { MONTHLY: 2900, ANNUAL: 27500 } },
-      { tier: "FAMILY", prices: { MONTHLY: 5900, ANNUAL: 55900 } },
+    expect(res.body.plans.map((p: { tier: string; prices: unknown }) => [p.tier, p.prices])).toEqual([
+      ["FREE", null],
+      ["PARENTS", { MONTHLY: 3900, ANNUAL: 35100 }],
+      ["FAMILY", { MONTHLY: 6900, ANNUAL: 62100 }],
     ]);
+    expect(res.body.trialDays).toBe(30);
+    expect(res.body.plans[1].limits).toMatchObject({ children: 3, invitableRoles: ["PARENT", "GUARDIAN"] });
+  });
+});
+
+describe("Trial (D3: no card at signup)", () => {
+  beforeEach(async () => {
+    await resetDb();
+    vi.clearAllMocks();
+    config.quickpayApiKey = "test-key";
+  });
+
+  it("starts without a card, records a card without charging, and charges when the trial ends", async () => {
+    const app = createApp();
+    const me = await signupTestUser(app, { plan: "SINGLE" });
+    const started = await me.agent.post("/billing/trial").send({ tier: "PARENTS" });
+    expect(started.body).toMatchObject({ tier: "PARENTS", status: "TRIALING", trialAvailable: false, cardOnFile: false });
+    expect(started.body.trialEndsAt).not.toBeNull();
+
+    // Adding a card during the trial: QuickPay payment window, nothing charged yet.
+    await me.agent.post("/billing/checkout").send({ tier: "PARENTS", billingPeriod: "MONTHLY", acceptWithdrawalWaiver: true });
+    const confirmed = await me.agent.post("/billing/confirm");
+    expect(confirmed.body).toMatchObject({ status: "TRIALING", cardOnFile: true });
+    expect(quickpay.chargeRecurring).not.toHaveBeenCalled();
+
+    const { finishTrials } = await import("../lib/billing");
+    const later = new Date(Date.now() + 31 * 86_400_000);
+    expect(await finishTrials(later)).toEqual({ charged: 1, ended: 0 });
+    expect(quickpay.chargeRecurring).toHaveBeenCalledTimes(1);
+    expect(await prisma.subscription.findUniqueOrThrow({ where: { ownerId: me.userId } })).toMatchObject({ tier: "PARENTS", status: "ACTIVE" });
+  });
+
+  it("one trial per person, ever", async () => {
+    const app = createApp();
+    const me = await signupTestUser(app, { plan: "SINGLE" });
+    await me.agent.post("/billing/trial").send({ tier: "FAMILY" });
+    await me.agent.post("/billing/cancel");
+    const again = await me.agent.post("/billing/trial").send({ tier: "FAMILY" });
+    expect(again.status).toBe(409);
+    expect(again.body.code).toBe("TRIAL_USED");
+  });
+
+  it("without a card, the trial ends by dropping to Single when the use fits", async () => {
+    const app = createApp();
+    const me = await signupTestUser(app, { plan: "SINGLE" });
+    await me.agent.post("/billing/trial").send({ tier: "FAMILY" });
+    const { finishTrials } = await import("../lib/billing");
+    expect(await finishTrials(new Date(Date.now() + 31 * 86_400_000))).toEqual({ charged: 0, ended: 1 });
+    expect((await me.agent.get("/billing/status")).body).toMatchObject({ tier: "FREE", circle: null });
   });
 });

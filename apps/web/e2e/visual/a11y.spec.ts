@@ -5,6 +5,7 @@ import { categories, FIXTURE_NOW, inboundSwap, leoOverview, members, overview } 
 import { augustDetail, contacts, custody, growth, listItems, schedule, stenbeckFamily, stenbecks } from "../support/childrenFixture";
 import { ingerMessages, ingerThread, notifications, threads } from "../support/messagesFixture";
 import { comments, feed, gallery, homeRun } from "../support/momentsFixture";
+import { familySub, plans } from "../support/billingFixture";
 import { charlie, mockApi } from "../support/mockApi";
 
 // Accessibility (WCAG 2.1 A/AA via axe-core) on every main screen, with the
@@ -61,8 +62,8 @@ async function open(page: Page, path: string) {
       "GET /messages/threads/t-inger": ingerThread,
       "GET /messages/threads/t-inger/messages": { items: ingerMessages, hasMore: false },
       "GET /notifications": { items: notifications, unreadCount: 1, nextCursor: null },
-      "GET /billing/status": { tier: "FAMILY", status: "ACTIVE", billingPeriod: "ANNUAL", trialEndsAt: null, currentPeriodEnd: "2027-10-12T07:00:00Z", trialExpired: false },
-      "GET /billing/plans": { currency: "DKK", vatRate: 0.25, plans: [{ tier: "PARENTS", prices: { MONTHLY: 2900, ANNUAL: 27500 } }, { tier: "FAMILY", prices: { MONTHLY: 5900, ANNUAL: 55900 } }] },
+      "GET /billing/status": familySub,
+      "GET /billing/plans": plans,
       "GET /notification-preferences": { emailEnabled: false, googleCalendarSyncEnabled: false, office365SyncEnabled: false, categoryCalendar: true, categoryMoments: true, categoryLists: false, categoryMessages: true, doNotDisturb: true, quietHoursFrom: "21:00", quietHoursTo: "07:00" },
       "GET /auth/sessions": { otherSessions: 1 },
     },

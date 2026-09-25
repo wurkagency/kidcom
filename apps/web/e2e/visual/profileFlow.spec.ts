@@ -3,14 +3,13 @@ import { expect, test, type Page, type Request } from "@playwright/test";
 import { members } from "../support/calendarFixture";
 import { charlie, ida, leo, maya, mockApi } from "../support/mockApi";
 import { FIXTURE_NOW } from "../support/messagesFixture";
+import { familySub, freeSub, plans } from "../support/billingFixture";
 
 // Phase 7 flows against the mocked API, request bodies asserted: the
 // profile menu, account (number change, deletion blocked), checkout with the
 // withdrawal consent → QuickPay → back and confirmed, preferences (country
 // formats, notifications), security, invite accept, and onboarding.
 
-const plans = { currency: "DKK", vatRate: 0.25, plans: [{ tier: "PARENTS", prices: { MONTHLY: 2900, ANNUAL: 27500 } }, { tier: "FAMILY", prices: { MONTHLY: 5900, ANNUAL: 55900 } }] };
-const freeSub = { tier: "FREE", status: "ACTIVE", billingPeriod: null, trialEndsAt: null, currentPeriodEnd: null, trialExpired: false };
 const prefs = {
   emailEnabled: false,
   googleCalendarSyncEnabled: false,
@@ -57,7 +56,7 @@ test("profile menu leads to every area", async ({ page }) => {
   for (const name of ["Family", "Children", "Messages", "Bookmarks", "Account", "Plan & billing", "Preferences"]) {
     await expect(page.getByRole("link", { name: new RegExp(`^${name}`) }).first()).toBeVisible();
   }
-  await expect(page.getByRole("link", { name: /Plan & billing\s*Free/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Plan & billing\s*Single/ })).toBeVisible();
   await page.getByRole("link", { name: /^Family/ }).click();
   await expect(page.getByText("Jonas Nielsen")).toBeVisible();
   await expect(page.getByText("Father to Leo")).toBeVisible();
@@ -90,10 +89,10 @@ test("deleting the account names the children it would leave without a parent", 
 test("checkout needs the consent, goes to QuickPay and is confirmed on return", async ({ page }) => {
   await open(page, "/billing/checkout", {
     "POST /billing/subscribe": { redirectUrl: "https://payment.quickpay.net/subscriptions/test" },
-    "POST /billing/confirm": { tier: "FAMILY", status: "ACTIVE", billingPeriod: "ANNUAL", trialEndsAt: null, currentPeriodEnd: "2027-10-12T07:00:00Z", trialExpired: false },
+    "POST /billing/confirm": familySub,
   });
   await page.route("https://payment.quickpay.net/**", (route) => route.fulfill({ contentType: "text/html", body: "<h1>QuickPay test window</h1>" }));
-  await expect(page.getByText("559,00 kr.")).toBeVisible(); // DK formats
+  await expect(page.getByText("621,00 kr.")).toBeVisible(); // DK formats
   await page.getByRole("radio", { name: /^Family/ }).click();
   await page.getByRole("button", { name: "Continue to secure payment" }).click();
   await expect(page.getByText("Please confirm you want the plan to start now.")).toBeVisible();
@@ -107,8 +106,25 @@ test("checkout needs the consent, goes to QuickPay and is confirmed on return", 
   const confirm = sent(page, "POST", "/billing/confirm");
   await page.goto("/billing?checkout=success");
   await confirm;
-  await expect(page.getByText("Welcome to Family — thank you!")).toBeVisible();
+  await expect(page.getByText("Welcome to your Family Circle — thank you!")).toBeVisible();
   await expect(page.getByText("12.10.2027")).toBeVisible();
+});
+
+test("with the trial still available, a paid plan starts 30 days free without a card", async ({ page }) => {
+  const trialing = {
+    ...familySub,
+    status: "TRIALING",
+    billingPeriod: null,
+    currentPeriodEnd: null,
+    trialEndsAt: "2026-11-01T07:00:00Z",
+    cardOnFile: false,
+  };
+  await open(page, "/billing/checkout", { "GET /billing/status": { ...freeSub, trialAvailable: true }, "POST /billing/trial": trialing });
+  await page.getByRole("radio", { name: /^Family/ }).click();
+  await expect(page.getByText("No card needed.", { exact: false })).toBeVisible();
+  const trial = sent(page, "POST", "/billing/trial");
+  await page.getByRole("button", { name: "Start 30 days free" }).click();
+  expect(body(await trial)).toEqual({ tier: "FAMILY" });
 });
 
 test("country formats and notification switches save", async ({ page }) => {

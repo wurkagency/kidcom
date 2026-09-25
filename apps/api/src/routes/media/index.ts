@@ -13,7 +13,48 @@ import { mediaQueue } from "../../lib/mediaQueue";
 import { mailSender } from "../../lib/mailSender";
 import { renderDownloadLinkHtml } from "../../lib/emailTemplates/downloadLink";
 import { toMediaDto } from "../../lib/moments";
-import { withRls } from "../../lib/rls";
+import { withRls, withRlsBypass } from "../../lib/rls";
+import { consumptionBytes, heldTier, uploadedLastDayBytes } from "../../lib/circles";
+import { DAILY_UPLOAD_CAP_BYTES, STORAGE_BLOCK_RATIO, TIERS } from "@kidcom/shared";
+import type { NextFunction, Request } from "express";
+
+/**
+ * Subscription model §5: a user's uploads are refused once they'd take the
+ * user past 90% of the storage their tier allows (consumption counted by
+ * access), with the upgrade prompt; viewing is never blocked, and one
+ * person's limit never blocks anyone else (D11). Plus a daily abuse cap.
+ * Checked before the file is read (declared size), and again with the
+ * real size.
+ */
+async function assertUploadAllowed(userId: string, bytes: number): Promise<void> {
+  const [tier, used, today] = await Promise.all([heldTier(userId), consumptionBytes(userId), uploadedLastDayBytes(userId)]);
+  const limitBytes = TIERS[tier].storageBytes;
+  if (used + bytes > limitBytes * STORAGE_BLOCK_RATIO) {
+    throw new ApiError(403, "Your storage is full — upgrade to keep uploading", "STORAGE_FULL", { usedBytes: used, limitBytes, tier });
+  }
+  if (today + bytes > DAILY_UPLOAD_CAP_BYTES) {
+    throw new ApiError(429, "You've reached today's upload limit — try again tomorrow", "UPLOAD_DAILY_LIMIT");
+  }
+}
+
+async function precheckUpload(req: Request, _res: Response, next: NextFunction) {
+  try {
+    const declared = Number(req.get("content-length") ?? 0);
+    await assertUploadAllowed(req.session.userId!, Number.isFinite(declared) ? declared : 0);
+    next();
+  } catch (err) {
+    next(err);
+  }
+}
+
+/** Legal hold (§4): media under an active alarm, or uploaded by a user under one, is gone from the app. */
+async function onLegalHold(asset: { id: string; ownerId: string }): Promise<boolean> {
+  return (
+    (await prisma.alarm.count({
+      where: { status: "ACTIVE", OR: [{ mediaAssetId: asset.id }, { userId: asset.ownerId }] },
+    })) > 0
+  );
+}
 
 export const mediaRouter = Router();
 
@@ -62,9 +103,10 @@ const MIME_BY_EXT: Record<string, string> = {
 const extOf = (key: string) => key.split(".").pop()?.toLowerCase() ?? "";
 const mimeForKey = (key: string): string | undefined => MIME_BY_EXT[extOf(key)];
 
-mediaRouter.post("/upload", requireAuth, upload.single("file"), async (req, res, next) => {
+mediaRouter.post("/upload", requireAuth, precheckUpload, upload.single("file"), async (req, res, next) => {
   try {
     if (!req.file) throw new ApiError(400, "No file uploaded (expected multipart field 'file')");
+    await assertUploadAllowed(req.session.userId!, req.file.size);
     const isVideo = req.file.mimetype.startsWith("video/");
     const ext = EXT_BY_MIME[req.file.mimetype] ?? (isVideo ? "mp4" : "jpg");
     const key = `original/${crypto.randomUUID()}.${ext}`;
@@ -124,6 +166,7 @@ async function loadReadableAsset(userId: string, id: string) {
     })
   );
   if (!asset) throw new ApiError(404, "Media not found");
+  if (await onLegalHold(asset)) throw new ApiError(404, "Media not found");
 
   const denied = () => new ApiError(403, "You don't have access to this media");
   if (asset.moment) {
@@ -282,6 +325,49 @@ mediaRouter.get("/archive", requireAuth, async (req, res, next) => {
   try {
     const ids = typeof req.query.ids === "string" ? req.query.ids.split(",").filter(Boolean) : [];
     await streamArchive(res, req.session.userId!, parseArchiveRequest({ mediaIds: ids, variant: req.query.variant }));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// D5 "download my data": a suspended child is hidden everywhere, but its
+// parents and guardians can still take a zip of its photos and videos from
+// inside the app until the child is deleted on day 90. Uploaders get their
+// originals; everyone else the location-free copy (or the optimized one).
+mediaRouter.get("/suspended/:childId/archive", requireAuth, async (req, res, next) => {
+  try {
+    const userId = req.session.userId!;
+    const { childId } = req.params;
+    const row = await prisma.suspendedChildAccess.findUnique({ where: { childId_userId: { childId, userId } } });
+    if (!row || row.reason !== "CHILD_SUSPENDED" || (row.role !== "PARENT" && row.role !== "GUARDIAN")) {
+      throw new ApiError(404, "Nothing to download");
+    }
+    const assets = await withRlsBypass((tx) =>
+      tx.mediaAsset.findMany({
+        where: {
+          status: "READY",
+          alarms: { none: { status: "ACTIVE" } },
+          OR: [{ moment: { children: { some: { childId } } } }, { avatarForChildId: childId }, { coverForChildId: childId }],
+        },
+        include: { moment: { select: { title: true } } },
+        orderBy: { createdAt: "asc" },
+      })
+    );
+    res.setHeader("Content-Type", "application/zip");
+    res.setHeader("Content-Disposition", `attachment; filename="kidcom-${new Date().toISOString().slice(0, 10)}.zip"`);
+    const zip = archiver("zip", { store: true });
+    zip.on("error", (err) => res.destroy(err));
+    zip.pipe(res);
+    const seen = new Map<string, number>();
+    for (const asset of assets) {
+      const key = asset.ownerId === userId ? asset.originalPath : (asset.sharedOriginalPath ?? asset.derivedPath);
+      if (!key || !(await mediaStorage.exists(key))) continue;
+      const base = slug(asset.moment?.title ?? "kidcom");
+      const n = (seen.get(base) ?? 0) + 1;
+      seen.set(base, n);
+      zip.append(await mediaStorage.readStream(key), { name: `${base}-${n}.${extOf(key)}` });
+    }
+    await zip.finalize();
   } catch (err) {
     next(err);
   }

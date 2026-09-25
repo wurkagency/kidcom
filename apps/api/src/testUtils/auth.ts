@@ -4,6 +4,19 @@ import type { MeResponse } from "@kidcom/shared";
 
 import { mailSender, MemoryMailSender } from "../lib/mailSender";
 import { smsSender, MemorySmsSender } from "../lib/smsSender";
+import { prisma } from "../db";
+import { onCircleActivated } from "../lib/billingActivation";
+
+/** Switches a user's Circle on directly (no QuickPay), paid for a year. */
+export async function giveCircle(userId: string, tier: "PARENTS" | "FAMILY"): Promise<string> {
+  const sub = await prisma.subscription.upsert({
+    where: { ownerId: userId },
+    update: { tier, status: "ACTIVE", billingPeriod: "ANNUAL", currentPeriodEnd: new Date(Date.now() + 365 * 86_400_000) },
+    create: { ownerId: userId, tier, status: "ACTIVE", billingPeriod: "ANNUAL", currentPeriodEnd: new Date(Date.now() + 365 * 86_400_000) },
+  });
+  await onCircleActivated(sub.id);
+  return sub.id;
+}
 
 let counter = 0;
 
@@ -16,7 +29,7 @@ let counter = 0;
 // a supertest agent that carries the session on every subsequent request.
 export async function signupTestUser(
   app: Express,
-  overrides: Partial<{ email: string; firstName: string; lastName: string }> = {}
+  overrides: Partial<{ email: string; firstName: string; lastName: string; plan: "SINGLE" | "PARENTS" | "FAMILY" }> = {}
 ) {
   counter += 1;
   const agent = request.agent(app);
@@ -42,6 +55,12 @@ export async function signupTestUser(
 
   await verifyTestUserPhone(agent, phone);
   await verifyTestUserEmail(agent, email);
+
+  // Subscription model: a Single can't invite anyone and holds 2 children.
+  // Most suites test other features, so a test user gets a Family Circle
+  // unless the test asks for a plan.
+  const plan = overrides.plan ?? "FAMILY";
+  if (plan !== "SINGLE") await giveCircle(body.user.id, plan);
 
   return { agent, userId: body.user.id, email, phone };
 }

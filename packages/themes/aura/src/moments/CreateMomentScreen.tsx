@@ -27,6 +27,8 @@ import { Calendar } from "../ui/calendar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Switch } from "../ui/switch";
+import { PlanNotice } from "../billing/PlanNotice";
+import { isPlanError } from "../billing/errors";
 import { DurationBadge } from "./parts";
 
 // kidcom_create_moment: up to six photos/videos (the first is the cover),
@@ -75,6 +77,7 @@ function MomentForm({ existing }: { existing?: MomentDto }) {
   const [notify, setNotify] = useState(false);
   const [dateOpen, setDateOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [planError, setPlanError] = useState<unknown>(null);
 
   // Before the user picks, the header's selection decides (children load async).
   const childIds = picked ?? selected.map((c) => c.id);
@@ -98,10 +101,11 @@ function MomentForm({ existing }: { existing?: MomentDto }) {
   const submit = (e: FormEvent) => {
     e.preventDefault();
     setError(null);
+    setPlanError(null);
     if (!title.trim()) return setError(t("create.titleRequired"));
     if (!childIds.length) return setError(t("create.childRequired"));
     const fields = { title: title.trim(), text: text.trim(), categoryId, location: location.trim() || null, occurredOn: day, familyVisible };
-    const onError = (err: unknown) => setError(err instanceof Error ? err.message : t("create.failed"));
+    const onError = (err: unknown) => (isPlanError(err) ? setPlanError(err) : setError(err instanceof Error ? err.message : t("create.failed")));
     if (existing) {
       update.mutate(
         { childId: existing.childIds[0]!, momentId: existing.id, body: fields },
@@ -400,6 +404,7 @@ function MomentForm({ existing }: { existing?: MomentDto }) {
         </div>
 
         <FormError message={error} />
+      {planError ? <PlanNotice error={planError} /> : null}
         <div className="pt-3">
           <button
             type="submit"

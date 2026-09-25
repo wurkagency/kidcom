@@ -45,7 +45,6 @@ const CHILD_SCOPED_MODELS_TO_MIGRATE = [
   "calendarEventRequest",
   "swapRequest",
   "listItem",
-  "upgradeRequest",
 ] as const;
 
 // Moves every OTHER member's ChildAccess, plus all real content (moments

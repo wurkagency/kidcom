@@ -1,21 +1,21 @@
 import { Router } from "express";
 import type {
   AccessRole,
-  ChildCoverageStatus,
   ChildDetail,
   ChildGender,
   ChildSummary,
   CreateChildRequest,
   CreateChildResponse,
   CreateMinorMemberRequest,
-  CreateUpgradeRequestResponse,
   MinorMemberDto,
+  MoveChildRequest,
   RelationshipType,
   UpdateChildRequest,
+  SubscriptionTier,
+  SuspendedChildDto,
   UpdateMemberRelationshipRequest,
-  UpgradeRequestDto,
 } from "@kidcom/shared";
-import { ALL_RELATIONSHIP_TYPES, isParentShapedRelationship, isValidEmail, requiredTier } from "@kidcom/shared";
+import { ALL_RELATIONSHIP_TYPES, TIERS, isParentShapedRelationship, isValidEmail } from "@kidcom/shared";
 
 const CHILD_GENDERS: ChildGender[] = ["BOY", "GIRL", "OTHER"];
 const THIRTY_DAYS_MS = 1000 * 60 * 60 * 24 * 30;
@@ -24,12 +24,12 @@ import { prisma } from "../../db";
 import { config } from "../../config";
 import { requireAuth, requireVerifiedEmail } from "../../middleware/session";
 import { requireChildAccess } from "../../middleware/childAccess";
-import { effectiveTier } from "../../middleware/billing";
 import { ApiError } from "../../middleware/errorHandler";
-import { childCapForTier } from "../../lib/billingPricing";
 import { can, requireCapability, type Capability } from "../../lib/permissions";
 import { logAccessGrant } from "../../lib/accessGrantAnalytics";
-import { requireChildEntitlement, isChildSatisfied, childInGraceWindow, childSatisfyingParentIds } from "../../lib/entitlement";
+import { requireTierFeature } from "../../lib/entitlement";
+import { childCapacity, childTier, childTiers, heldCircles } from "../../lib/circles";
+import { moveChildToCircle } from "../../lib/circleLifecycle";
 import { assertUnderChildFairUseCap, assertUnderMemberFairUseCap } from "../../lib/fairUseCaps";
 import { mailSender } from "../../lib/mailSender";
 import { withRls } from "../../lib/rls";
@@ -57,37 +57,72 @@ export const childrenRouter = Router();
 
 childrenRouter.use(requireAuth);
 
-// D3 (spec §4.1, Phase 2) removed the old blanket per-user trial-expiry
-// gate that used to sit here — see that phase's history for why. Phase 7
-// replaces it with the real thing: requireChildEntitlement, mounted per
-// sub-router below, right after requireChildAccess. This is spec §2.2a's
-// T1/T2/T3 paywall made real — a child whose circle has outgrown what
-// anyone covering it is paying for gets its mutations blocked here,
-// regardless of which specific capability the caller would otherwise have.
-//
-// Sub-routers mounted below all use `mergeParams: true` so they see the
-// `:childId` param from these mount paths.
-childrenRouter.use("/:childId/medical-info", requireChildAccess, requireChildEntitlement, medicalInfoRouter);
-childrenRouter.use("/:childId/growth-entries", requireChildAccess, requireChildEntitlement, growthEntriesRouter);
-childrenRouter.use("/:childId/emergency-contacts", requireChildAccess, requireChildEntitlement, emergencyContactsRouter);
-childrenRouter.use("/:childId/schedule", requireChildAccess, requireChildEntitlement, scheduleRouter);
-// No requireChildEntitlement here — spec §4.2's safety floor means custody
-// plan writes for a PARENT-role member must never be blocked by billing
-// status at all. custodyPlanRouter's own PUT handler does a PARENT-aware
-// entitlement check inline instead (GUARDIAN still gated normally).
-childrenRouter.use("/:childId/custody-plan", requireChildAccess, custodyPlanRouter);
-childrenRouter.use("/:childId/calendar", requireChildAccess, requireChildEntitlement, calendarRouter);
-childrenRouter.use("/:childId/calendar-events", requireChildAccess, requireChildEntitlement, calendarEventsRouter);
-childrenRouter.use("/:childId/calendar-event-requests", requireChildAccess, requireChildEntitlement, calendarEventRequestsRouter);
-childrenRouter.use("/:childId/swap-requests", requireChildAccess, requireChildEntitlement, swapRequestsRouter);
-childrenRouter.use("/:childId/moments", requireChildAccess, requireChildEntitlement, momentsRouter);
-childrenRouter.use("/:childId/lists", requireChildAccess, requireChildEntitlement, listItemsRouter);
-childrenRouter.use("/:childId/tasks", requireChildAccess, requireChildEntitlement, tasksRouter);
-childrenRouter.use("/:childId/notes", requireChildAccess, requireChildEntitlement, childNotesRouter);
-childrenRouter.use("/:childId/school-lessons", requireChildAccess, requireChildEntitlement, schoolLessonsRouter);
-childrenRouter.use("/:childId/handover-packing", requireChildAccess, requireChildEntitlement, handoverPackingRouter);
-// Phase 10 (spec 9.21) — no requireChildEntitlement, see deletion.ts's own
-// comment for why.
+// Registered before the /:childId mounts: a suspended child has no live
+// access rows, so requireChildAccess would refuse its parents here.
+childrenRouter.get("/suspended", async (req, res, next) => {
+  try {
+    const rows = await prisma.suspendedChildAccess.findMany({
+      where: { userId: req.session.userId!, reason: "CHILD_SUSPENDED", role: { in: ["PARENT", "GUARDIAN"] } },
+      include: { child: true },
+    });
+    const circles = await heldCircles(req.session.userId!);
+    const room = await Promise.all(
+      circles.map(async (h) => (await prisma.child.count({ where: { circleId: h.circle.id, deletedAt: null } })) < TIERS[h.circle.tier].children)
+    );
+    const canTakeOver = room.some(Boolean);
+    res.json({
+      children: rows
+        .filter((r) => r.child.suspendedAt && !r.child.deletedAt)
+        .map(
+          (r): SuspendedChildDto => ({
+            id: r.child.id,
+            firstName: r.child.firstName,
+            lastName: r.child.lastName,
+            suspendedAt: r.child.suspendedAt!.toISOString(),
+            deleteAfter: r.child.deleteAfter!.toISOString(),
+            canTakeOver,
+          })
+        ),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// D4 take-over: a parent or guardian moves the child into a Circle they own
+// or are a parent member of (also restores a suspended child, D5).
+childrenRouter.post("/:childId/move", async (req, res, next) => {
+  try {
+    const { circleId } = req.body as Partial<MoveChildRequest>;
+    if (!circleId) throw new ApiError(400, "circleId is required");
+    await moveChildToCircle(req.params.childId, req.session.userId!, circleId);
+    res.status(204).end();
+  } catch (err) {
+    next(err);
+  }
+});
+
+
+// Subscription model rule 1: a child's features come from its Circle's tier.
+// Only custody planning (schedules and swaps) is gated per route here; the
+// Media Library is gated where it's listed (moments media), and invites and
+// child limits where they're created. Reads of everything else stay open on
+// every tier. Sub-routers use `mergeParams: true` to see `:childId`.
+childrenRouter.use("/:childId/medical-info", requireChildAccess, medicalInfoRouter);
+childrenRouter.use("/:childId/growth-entries", requireChildAccess, growthEntriesRouter);
+childrenRouter.use("/:childId/emergency-contacts", requireChildAccess, emergencyContactsRouter);
+childrenRouter.use("/:childId/schedule", requireChildAccess, scheduleRouter);
+childrenRouter.use("/:childId/custody-plan", requireChildAccess, requireTierFeature("custodyPlanning"), custodyPlanRouter);
+childrenRouter.use("/:childId/calendar", requireChildAccess, calendarRouter);
+childrenRouter.use("/:childId/calendar-events", requireChildAccess, calendarEventsRouter);
+childrenRouter.use("/:childId/calendar-event-requests", requireChildAccess, calendarEventRequestsRouter);
+childrenRouter.use("/:childId/swap-requests", requireChildAccess, requireTierFeature("custodyPlanning"), swapRequestsRouter);
+childrenRouter.use("/:childId/moments", requireChildAccess, momentsRouter);
+childrenRouter.use("/:childId/lists", requireChildAccess, listItemsRouter);
+childrenRouter.use("/:childId/tasks", requireChildAccess, tasksRouter);
+childrenRouter.use("/:childId/notes", requireChildAccess, childNotesRouter);
+childrenRouter.use("/:childId/school-lessons", requireChildAccess, schoolLessonsRouter);
+childrenRouter.use("/:childId/handover-packing", requireChildAccess, handoverPackingRouter);
 childrenRouter.use("/:childId", requireChildAccess, deletionRouter);
 
 type MyAccess = { role: AccessRole; relationship: RelationshipType | null; isMinorMember?: boolean };
@@ -105,6 +140,7 @@ function toChildSummary(
     coverImageUrl: string | null;
   },
   me: MyAccess,
+  tier: SubscriptionTier,
 ): ChildSummary {
   return {
     id: child.id,
@@ -119,6 +155,7 @@ function toChildSummary(
     myRole: me.role,
     myRelationship: me.relationship,
     canEdit: can(me, "child:edit_basic_info"),
+    tier,
   };
 }
 
@@ -136,7 +173,8 @@ childrenRouter.get("/", async (req, res, next) => {
       include: { access: { where: { userId: req.session.userId! }, take: 1 } },
       orderBy: { createdAt: "asc" },
     });
-    res.json({ children: children.map((c) => toChildSummary(c, c.access[0]!)) });
+    const tiers = await childTiers(children.map((c) => c.id));
+    res.json({ children: children.map((c) => toChildSummary(c, c.access[0]!, tiers.get(c.id) ?? "FREE")) });
   } catch (err) {
     next(err);
   }
@@ -204,38 +242,15 @@ childrenRouter.post("/", requireVerifiedEmail, async (req, res, next) => {
     // GUARDIAN's one child stays entitlement-satisfied forever at FREE tier).
     await assertUnderChildFairUseCap(req.session.userId!);
 
-    // Free caps at 1 child; Parents and Family are both unlimited — counted
-    // as however many children this user currently has PARENT-role
-    // ChildAccess to, however they got it (D6: this only ever counts
-    // genuine parents now that a non-parent creator gets GUARDIAN, not
-    // PARENT — see the proof test for this). Trial accounts (status
-    // TRIALING, trial not yet expired) get the same unlimited cap while
-    // trialing even though their nominal tier is FREE — a trialing account
-    // gets full feature access so they can properly evaluate the paid
-    // tiers, per the product decision this follows; requireChildEntitlement
-    // (mounted on every sub-resource) still gates once the trial expires.
-    const [subscription, existingCount] = await Promise.all([
-      prisma.subscription.upsert({
-        where: { ownerId: req.session.userId! },
-        update: {},
-        create: { ownerId: req.session.userId! },
-      }),
-      prisma.childAccess.count({ where: { userId: req.session.userId!, role: "PARENT" } }),
-    ]);
-    const tier = effectiveTier(subscription);
-    const isTrialing =
-      subscription.status === "TRIALING" &&
-      (!subscription.trialEndsAt || subscription.trialEndsAt.getTime() > Date.now());
-    const cap = isTrialing ? Infinity : childCapForTier(tier);
-    // Deliberately not applied to a bootstrap grant: this cap answers "how
-    // many children do you PARENT," which a GUARDIAN grant never claims to
-    // be. Bootstrap creation is bounded by different, already-existing
-    // mechanisms instead (spec §2.2b): her own one-time trial while it
-    // lasts, then the §4.2 safety floor's deliberate GUARDIAN exclusion
-    // once it doesn't, and the 9.10 soft fair-use cap (Phase 10) for the
-    // mass-creation pattern specifically.
-    if (!isBootstrapGuardian && existingCount >= cap) {
-      throw new ApiError(403, "Your current plan is limited to 1 child — upgrade to Parents or Family for unlimited children");
+    // Rule 1: children count against the Circle the creator adds to (their
+    // own, else the Family Circle they're a parent member of), or against
+    // their free Single (2). The new child goes into that Circle.
+    const capacity = await childCapacity(req.session.userId!);
+    if (capacity.used >= capacity.limit) {
+      throw new ApiError(403, `Your plan allows ${capacity.limit} children`, "CHILD_LIMIT", {
+        limit: capacity.limit,
+        inCircle: capacity.circleId !== null,
+      });
     }
 
     const { child, invite } = await prisma.$transaction(async (tx) => {
@@ -247,6 +262,7 @@ childrenRouter.post("/", requireVerifiedEmail, async (req, res, next) => {
           birthday: new Date(birthday),
           clothingSize: body.clothingSize,
           shoeSize: body.shoeSize,
+          circleId: capacity.circleId,
         },
       });
       await tx.childAccess.create({
@@ -299,7 +315,8 @@ childrenRouter.post("/", requireVerifiedEmail, async (req, res, next) => {
       parentInvite = { token: invite.token, emailSent };
     }
 
-    res.status(201).json({ ...toChildSummary(child, { role, relationship }), parentInvite } satisfies CreateChildResponse);
+    const tier: SubscriptionTier = capacity.circleId ? await childTier(child.id) : "FREE";
+    res.status(201).json({ ...toChildSummary(child, { role, relationship }, tier), parentInvite } satisfies CreateChildResponse);
   } catch (err) {
     next(err);
   }
@@ -312,7 +329,7 @@ childrenRouter.get("/:childId", requireChildAccess, async (req, res, next) => {
   try {
     const child = await prisma.child.findUniqueOrThrow({ where: { id: req.params.childId } });
     const detail: ChildDetail = {
-      ...toChildSummary(child, req.childAccess!),
+      ...toChildSummary(child, req.childAccess!, await childTier(child.id)),
       heightCm: child.heightCm,
       countryCode: child.countryCode,
     };
@@ -325,7 +342,6 @@ childrenRouter.get("/:childId", requireChildAccess, async (req, res, next) => {
 childrenRouter.patch(
   "/:childId",
   requireChildAccess,
-  requireChildEntitlement,
   requireCapability("child:edit_basic_info"),
   async (req, res, next) => {
   try {
@@ -390,7 +406,7 @@ childrenRouter.patch(
       },
     });
     const detail: ChildDetail = {
-      ...toChildSummary(child, req.childAccess!),
+      ...toChildSummary(child, req.childAccess!, await childTier(child.id)),
       heightCm: child.heightCm,
       countryCode: child.countryCode,
     };
@@ -573,124 +589,53 @@ childrenRouter.delete("/:childId/family/:userId", requireChildAccess, async (req
       throw new ApiError(404, "That person doesn't have access to this child");
     }
 
-    const capability: Capability =
-      target.role === "PARENT"
-        ? "member:invite_or_remove_parent"
-        : target.role === "GUARDIAN"
-          ? "member:remove_guardian"
-          : "member:remove_family_or_caregiver";
-    if (!can(req.childAccess, capability)) {
+    const isSelf = target.userId === req.session.userId;
+    if (target.role === "PARENT" || target.role === "GUARDIAN") {
+      // Both parents have legal rights to the child: neither can remove the
+      // other (that goes through support). A parent or guardian may leave,
+      // but never as the last one (every child always has one).
+      if (!isSelf) {
+        throw new ApiError(403, "A parent or guardian can't be removed by another parent. Contact support.", "CANNOT_REMOVE_PARENT");
+      }
+      const keepers = await prisma.childAccess.count({
+        where: { childId: req.params.childId, role: { in: ["PARENT", "GUARDIAN"] } },
+      });
+      if (keepers <= 1) {
+        throw new ApiError(400, "A child must always have a parent or guardian. Invite another before leaving.", "LAST_PARENT");
+      }
+    } else if (!isSelf && !can(req.childAccess, "member:remove_family_or_caregiver")) {
       throw new ApiError(403, "You don't have permission to remove this member");
     }
 
-    if (target.role === "PARENT") {
-      // I-3 (spec §2.2): a child always has at least one coverage-eligible
-      // member. Refuse to remove the last PARENT — a parent may still
-      // target their own row (a "leave this child" action) as long as a
-      // co-parent remains; nothing in spec §1.4 forbids that.
-      const parentCount = await prisma.childAccess.count({
-        where: { childId: req.params.childId, role: "PARENT" },
-      });
-      if (parentCount <= 1) {
-        throw new ApiError(400, "A child must always have at least one parent — invite another parent before removing this one");
+    await prisma.childAccess.delete({ where: { id: target.id } });
+
+    // The parent who sent the invite hears about it (D10 decided).
+    if (!isSelf) {
+      const [removed, invite, actor, child] = await Promise.all([
+        prisma.user.findUnique({ where: { id: target.userId }, select: { email: true, firstName: true } }),
+        prisma.invite.findFirst({
+          where: { childId: req.params.childId, acceptedAt: { not: null } },
+          orderBy: { acceptedAt: "desc" },
+          select: { invitedById: true, email: true },
+        }),
+        prisma.user.findUnique({ where: { id: req.session.userId! }, select: { firstName: true } }),
+        prisma.child.findUnique({ where: { id: req.params.childId }, select: { firstName: true } }),
+      ]);
+      const inviterId =
+        invite && removed && invite.email?.toLowerCase() === removed.email.toLowerCase() ? invite.invitedById : null;
+      if (inviterId && inviterId !== req.session.userId) {
+        await notify([inviterId], {
+          kind: "access.removed",
+          params: { person: removed?.firstName ?? "", child: child?.firstName ?? "", actor: actor?.firstName ?? "" },
+          childId: req.params.childId,
+          actorId: req.session.userId!,
+        });
       }
     }
-
-    await prisma.childAccess.delete({ where: { id: target.id } });
     res.status(204).end();
   } catch (err) {
     next(err);
   }
 });
 
-// Phase 8 (spec §4.2 pt.4) — the data behind a "take over this subscription"
-// prompt: is this child only satisfied because someone's grace window
-// hasn't run out yet, and who's already covering it (so the frontend knows
-// who NOT to nag).
-childrenRouter.get("/:childId/coverage", requireChildAccess, async (req, res, next) => {
-  try {
-    const childId = req.params.childId;
-    const access = await prisma.childAccess.findMany({ where: { childId }, select: { userId: true, role: true } });
-    const members = access.map((a) => ({ userId: a.userId, role: a.role }));
 
-    const [satisfied, inGraceWindow, satisfyingParentIds] = await Promise.all([
-      isChildSatisfied(childId),
-      childInGraceWindow(childId),
-      childSatisfyingParentIds(childId),
-    ]);
-
-    res.json({
-      satisfied,
-      requiredTier: requiredTier(members, req.session.userId!),
-      inGraceWindow,
-      satisfyingParentIds,
-    } satisfies ChildCoverageStatus);
-  } catch (err) {
-    next(err);
-  }
-});
-
-// spec §2.3 — "ask [a co-parent] to upgrade" instead of paying yourself.
-// PARENT-role only, matching who spec's worked example shows sending this
-// ("Ask Charlie to upgrade"). This never moves money — the recipient still
-// subscribes themselves via the existing POST /billing/subscribe; this is
-// purely the notification/ask.
-childrenRouter.post("/:childId/upgrade-requests", requireChildAccess, async (req, res, next) => {
-  try {
-    if (req.childAccess?.role !== "PARENT") {
-      throw new ApiError(403, "Only a parent can ask someone to upgrade");
-    }
-    const childId = req.params.childId;
-    const access = await prisma.childAccess.findMany({ where: { childId }, select: { userId: true, role: true } });
-    const members = access.map((a) => ({ userId: a.userId, role: a.role }));
-    const tierNeeded = requiredTier(members, req.session.userId!);
-
-    const [requester, request] = await Promise.all([
-      prisma.user.findUniqueOrThrow({ where: { id: req.session.userId! } }),
-      prisma.upgradeRequest.create({
-        data: { childId, requestedById: req.session.userId!, requiredTier: tierNeeded },
-      }),
-    ]);
-
-    const otherParents = access.filter((a) => a.role === "PARENT" && a.userId !== req.session.userId);
-    await notify(
-      otherParents.map((p) => p.userId),
-      { kind: "upgrade.requested", params: { actor: requester.firstName, tier: tierNeeded }, url: "/billing", childId, actorId: req.session.userId! }
-    );
-
-    res.status(201).json({
-      id: request.id,
-      requestedById: request.requestedById,
-      requestedByName: `${requester.firstName} ${requester.lastName}`.trim(),
-      requiredTier: request.requiredTier,
-      status: request.status,
-      createdAt: request.createdAt.toISOString(),
-    } satisfies CreateUpgradeRequestResponse);
-  } catch (err) {
-    next(err);
-  }
-});
-
-childrenRouter.get("/:childId/upgrade-requests", requireChildAccess, async (req, res, next) => {
-  try {
-    const requests = await prisma.upgradeRequest.findMany({
-      where: { childId: req.params.childId, status: "PENDING" },
-      include: { requestedBy: true },
-      orderBy: { createdAt: "desc" },
-    });
-    res.json({
-      items: requests.map(
-        (r): UpgradeRequestDto => ({
-          id: r.id,
-          requestedById: r.requestedById,
-          requestedByName: `${r.requestedBy.firstName} ${r.requestedBy.lastName}`.trim(),
-          requiredTier: r.requiredTier,
-          status: r.status,
-          createdAt: r.createdAt.toISOString(),
-        })
-      ),
-    });
-  } catch (err) {
-    next(err);
-  }
-});

@@ -2,6 +2,9 @@ import { Router } from "express";
 
 import { requireAuth } from "../../middleware/session";
 import { withRls } from "../../lib/rls";
+import { prisma } from "../../db";
+import { childTiers } from "../../lib/circles";
+import { tierHasFeature } from "@kidcom/shared";
 import { galleryInclude, galleryWhere, momentInclude, momentWhere, parseMomentFilters, toMomentDto, toMomentMediaDto } from "../../lib/moments";
 
 // The Moments tab: one feed and one gallery across every child the user can
@@ -34,9 +37,20 @@ momentsFeedRouter.get("/", requireAuth, async (req, res, next) => {
 momentsFeedRouter.get("/media", requireAuth, async (req, res, next) => {
   try {
     const userId = req.session.userId!;
+    // Subscription model: the Media Library only shows children whose
+    // Circle includes it (originals are kept either way, §1).
+    const mine = await prisma.childAccess.findMany({ where: { userId }, select: { childId: true } });
+    const tiers = await childTiers(mine.map((m) => m.childId));
+    const allowed = mine.map((m) => m.childId).filter((id) => tierHasFeature(tiers.get(id) ?? "FREE", "mediaLibrary"));
+    const filters = parseMomentFilters(req.query);
+    const childIds = filters.childIds.length ? filters.childIds.filter((id) => allowed.includes(id)) : allowed;
+    if (childIds.length === 0) {
+      res.json({ items: [] });
+      return;
+    }
     const assets = await withRls(userId, (tx) =>
       tx.mediaAsset.findMany({
-        where: galleryWhere(parseMomentFilters(req.query)),
+        where: galleryWhere({ ...filters, childIds }),
         include: galleryInclude(userId),
         orderBy: [{ moment: { createdAt: "desc" } }, { createdAt: "asc" }],
         take: 1000,

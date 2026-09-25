@@ -111,7 +111,8 @@
     "videos_one": "{{count}} video",
     "videos_other": "{{count}} videos",
     "photo": "Photo from {{title}}",
-    "video": "Video from {{title}}"
+    "video": "Video from {{title}}",
+    "needsCircle": "The Media Library comes with a Parent or Family Circle. Your photos and videos are kept safe in full quality until then."
   },
   "viewer": {
     "back": "Back",

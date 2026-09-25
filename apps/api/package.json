@@ -12,7 +12,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "media:encrypt": "tsx src/scripts/encryptMedia.ts",
-    "medical:rekey": "tsx src/scripts/rekeyMedicalInfo.ts"
+    "medical:rekey": "tsx src/scripts/rekeyMedicalInfo.ts",
+    "coupon": "tsx src/scripts/coupon.ts",
+    "alarm": "tsx src/scripts/alarm.ts"
   },
   "dependencies": {
     "@kidcom/db": "*",

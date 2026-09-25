@@ -191,31 +191,20 @@ describe("Permission matrix (spec §1.4) — wired into real routes", () => {
     expect(remaining).toBeNull();
   });
 
-  it("I-3: the sole remaining parent can't remove themselves, but can once a co-parent exists", async () => {
-    const { app, parentAgent, childId, parentId } = await setupChildWithRoles();
+  it("parents and guardians can't remove each other; the last one can't leave", async () => {
+    const { parentAgent, guardianAgent, childId, parentId, guardianId } = await setupChildWithRoles();
 
-    // Only one PARENT exists so far (parentAgent) — removing themselves now
-    // would leave the child with zero PARENT-role members. Must be refused.
-    const selfRemovalAsSoleParent = await parentAgent.delete(`/children/${childId}/family/${parentId}`);
-    expect(selfRemovalAsSoleParent.status).toBe(400);
+    // Both have legal rights to the child: neither removes the other (support does).
+    const parentRemovesGuardian = await parentAgent.delete(`/children/${childId}/family/${guardianId}`);
+    expect(parentRemovesGuardian.status).toBe(403);
+    expect(parentRemovesGuardian.body.code).toBe("CANNOT_REMOVE_PARENT");
 
-    // Bring in a second parent — now removal (including of either parent,
-    // by either party) is safe since one PARENT always remains afterward.
-    const inviteRes = await parentAgent
-      .post("/invites")
-      .send({ childId, relationship: "PARENT", email: "second-parent@example.com" });
-    const secondParentAgent = request.agent(app);
-    await secondParentAgent.post(`/invites/${inviteRes.body.token}/accept`).send({
-      firstName: "Second",
-      lastName: "Parent",
-      password: "password123",
-    });
-
-    const selfRemovalWithCoParent = await parentAgent.delete(`/children/${childId}/family/${parentId}`);
-    expect(selfRemovalWithCoParent.status).toBe(204);
-
-    const remaining = await prisma.childAccess.findMany({ where: { childId, role: "PARENT" } });
-    expect(remaining).toHaveLength(1);
+    // The guardian may leave while a parent remains...
+    expect((await guardianAgent.delete(`/children/${childId}/family/${guardianId}`)).status).toBe(204);
+    // ...but the last parent or guardian can't.
+    const lastLeaves = await parentAgent.delete(`/children/${childId}/family/${parentId}`);
+    expect(lastLeaves.status).toBe(400);
+    expect(lastLeaves.body.code).toBe("LAST_PARENT");
   });
 });
 

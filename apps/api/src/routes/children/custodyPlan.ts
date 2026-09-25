@@ -3,7 +3,7 @@ import type { CustodyPattern, CustodyPlanDto, CustodyPlanStatusResponse, SetCust
 
 import { ApiError } from "../../middleware/errorHandler";
 import { requireCapability } from "../../lib/permissions";
-import { getCustodyPlanLockStatus, isChildSatisfied, isCustodyPlanLockedPendingParent } from "../../lib/entitlement";
+import { getCustodyPlanLockStatus, isCustodyPlanLockedPendingParent } from "../../lib/entitlement";
 import { withRls } from "../../lib/rls";
 
 // Mounted at /children/:childId/custody-plan. One active plan per child —
@@ -63,19 +63,6 @@ custodyPlanRouter.put("/", requireCapability("custody_plan:edit"), async (req: R
       throw new ApiError(
         403,
         "This child's custody plan is locked until a second parent joins — invite them, or ask support if that's not possible."
-      );
-    }
-
-    // spec §4.2 pt.2 — the safety floor: a PARENT-role member's custody-plan
-    // writes never lapse for billing reasons, on any tier, ever. requireCapability
-    // above already limited this route to PARENT/GUARDIAN; only GUARDIAN is
-    // still subject to the normal entitlement gate (spec §4.2/Phase 9 —
-    // deliberate, load-bearing for closing off a bootstrap guardian squatting
-    // on a child for free).
-    if (req.childAccess?.role !== "PARENT" && !(await isChildSatisfied(req.params.childId))) {
-      throw new ApiError(
-        403,
-        "This child's circle needs a paid plan to keep editing — upgrade to keep everyone's access active."
       );
     }
 

@@ -19,8 +19,24 @@ export {
 } from "./custody";
 import type { CustodyPattern } from "./custody";
 
-export type { ChildMember, OwnerEntitlementData } from "./entitlement";
-export { tierAtLeast, requiredTier, effectiveCoverageTier, isSatisfied, satisfyingOwnerIds } from "./entitlement";
+export {
+  TIERS,
+  TIER_PRICES_ORE,
+  TIER_ORDER,
+  TRIAL_DAYS,
+  STORAGE_WARN_RATIO,
+  STORAGE_BLOCK_RATIO,
+  DAILY_UPLOAD_CAP_BYTES,
+  SUSPENSION_DELETE_DAYS,
+  SUSPENSION_NOTICE_DAYS,
+  tierAtLeast,
+  tierHasFeature,
+  tierForFeature,
+  tierForRole,
+  tierBlockReasons,
+} from "./tiers";
+export type { TierFeature, TierLimits, PaidTier, TierBlockReason, TierUsage } from "./tiers";
+import type { TierBlockReason, TierLimits } from "./tiers";
 
 export type { CategoryTone, SystemCategory } from "./categories";
 export { CATEGORY_TONES, SYSTEM_CATEGORIES, systemCategoryId, isCategoryTone } from "./categories";
@@ -213,6 +229,8 @@ export type ChildSummary = {
   myRelationship: RelationshipType | null;
   /** May edit the child's details (child:edit_basic_info) */
   canEdit: boolean;
+  /** Tier of the Circle paying for the child (FREE = its parent's Single). Sets its features. */
+  tier: SubscriptionTier;
 };
 
 export type CreateChildRequest = {
@@ -1161,6 +1179,10 @@ export const NOTIFICATION_KINDS = [
   "message.received",
   "upgrade.requested",
   "payment.failed",
+  "child.suspended",
+  "child.deletion_warning",
+  "trial.ending",
+  "access.removed",
 ] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
@@ -1246,19 +1268,42 @@ export function vatBreakdown(grossMinorUnits: number): VatBreakdown {
   };
 }
 
+/** The Circle the user owns or is a parent member of (subscription model §2). */
+export type CircleDto = {
+  id: string;
+  role: "OWNER" | "MEMBER";
+  tier: Exclude<SubscriptionTier, "FREE">;
+  ownerName: string;
+  childCount: number;
+  /** Other parents invited into the Circle (Family only). */
+  members: { userId: string; name: string }[];
+  /** Pending invitations into the Circle (owner only). */
+  pendingInvites: { id: string; email: string }[];
+};
+
+/** GET /billing/status */
 export type SubscriptionDto = {
+  /** The tier the user holds: their own Circle's, a Circle they're a member of, or FREE (Single). */
   tier: SubscriptionTier;
   status: SubscriptionStatus;
   billingPeriod: BillingPeriod | null;
   trialEndsAt: string | null;
   currentPeriodEnd: string | null;
-  // Derived server-side: true once trialEndsAt has passed while status is
-  // still TRIALING (requireActiveAccess already blocks mutations at that
-  // point — this lets the UI say so instead of showing a stale "Trial ends
-  // <past date>").
   trialExpired: boolean;
+  /** One trial per person, ever (D3). */
+  trialAvailable: boolean;
+  /** A card is authorised with QuickPay, so the plan continues after the trial. */
+  cardOnFile: boolean;
+  /** Redeemed a lifetime coupon: no payment, never renews. */
+  lifetime: boolean;
+  circle: CircleDto | null;
+  /** Consumption by access (§5), against the held tier's limit. */
+  storage: { usedBytes: number; limitBytes: number };
+  /** Every tier with whether the user's current use fits it (downgrade rule, D12). */
+  tiers: { tier: SubscriptionTier; available: boolean; reasons: TierBlockReason[] }[];
 };
 
+/** POST /billing/checkout: add a card for a paid plan (starts the trial if still available). */
 export type SubscribeRequest = {
   tier: SubscriptionTier;
   // Required for PARENTS/FAMILY, ignored for FREE (there's no period to bill).
@@ -1267,11 +1312,25 @@ export type SubscribeRequest = {
   acceptWithdrawalWaiver?: boolean;
 };
 
-/** GET /billing/plans — prices in øre incl. VAT, so the app never hard-codes them. */
+/** POST /billing/trial */
+export type StartTrialRequest = { tier: Exclude<SubscriptionTier, "FREE"> };
+
+/** POST /billing/coupon */
+export type RedeemCouponRequest = { code: string };
+
+/** POST /billing/circle/invites */
+export type CircleInviteRequest = { email: string };
+
+/** GET /billing/plans: every tier with its limits, features and prices (øre incl. VAT; null = free). */
 export type BillingPlansResponse = {
   currency: "DKK";
   vatRate: number;
-  plans: { tier: "PARENTS" | "FAMILY"; prices: Record<BillingPeriod, number> }[];
+  trialDays: number;
+  plans: {
+    tier: SubscriptionTier;
+    prices: Record<BillingPeriod, number> | null;
+    limits: TierLimits;
+  }[];
 };
 
 export type SubscribeResponse = {
@@ -1281,6 +1340,20 @@ export type SubscribeResponse = {
   // see billing/index.ts) and the caller should just re-fetch /billing/status.
   redirectUrl: string | null;
 };
+
+/** A child whose Circle ended and that no one has paid for or taken over (D5). */
+export type SuspendedChildDto = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  suspendedAt: string;
+  deleteAfter: string;
+  /** The requesting parent has a Circle with room to take the child over. */
+  canTakeOver: boolean;
+};
+
+/** POST /children/:childId/move */
+export type MoveChildRequest = { circleId: string };
 
 // ---------------------------------------------------------------------------
 // Push notifications
@@ -1321,35 +1394,6 @@ export type VapidPublicKeyResponse = {
 // ---------------------------------------------------------------------------
 // Entitlement / upgrade requests (Phase 8, spec §2.3/§4.2)
 // ---------------------------------------------------------------------------
-
-// GET /children/:childId/coverage — the "take over this subscription" offer
-// surface (spec §4.2 pt.4). requiredTier/satisfied mirror
-// packages/shared/src/entitlement.ts's formula; inGraceWindow is true only
-// while the child is satisfied *solely* because a covering subscription is
-// inside its 7-day payment-failure grace window (spec 9.12) — the "about to
-// lapse" signal a take-over prompt should key off, before it actually does.
-export type ChildCoverageStatus = {
-  satisfied: boolean;
-  requiredTier: SubscriptionTier;
-  inGraceWindow: boolean;
-  // Every PARENT-role member whose own coverage currently satisfies the
-  // child — i.e. who a "someone else, please take over" prompt should NOT
-  // be shown to (they're already covering it).
-  satisfyingParentIds: string[];
-};
-
-export type UpgradeRequestStatus = "PENDING" | "RESOLVED" | "DISMISSED";
-
-export type UpgradeRequestDto = {
-  id: string;
-  requestedById: string;
-  requestedByName: string;
-  requiredTier: SubscriptionTier;
-  status: UpgradeRequestStatus;
-  createdAt: string;
-};
-
-export type CreateUpgradeRequestResponse = UpgradeRequestDto;
 
 // ---------------------------------------------------------------------------
 // Soft delete / minor member (Phase 10, spec 9.21/9.16)

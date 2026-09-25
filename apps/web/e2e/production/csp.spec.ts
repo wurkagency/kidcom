@@ -10,6 +10,7 @@ import { categories, FIXTURE_NOW, inboundSwap, leoOverview, members, overview } 
 import { augustDetail, contacts, custody, growth, listItems, schedule, stenbeckFamily, stenbecks } from "../support/childrenFixture";
 import { ingerMessages, ingerThread, notifications, threads } from "../support/messagesFixture";
 import { comments, feed, gallery, homeRun, videoInfo } from "../support/momentsFixture";
+import { freeSub, plans } from "../support/billingFixture";
 import { charlie, mockApi } from "../support/mockApi";
 
 // The production build, served with the production security headers
@@ -60,8 +61,8 @@ async function setup(page: Page) {
       "GET /messages/threads/t-inger": ingerThread,
       "GET /messages/threads/t-inger/messages": { items: ingerMessages, hasMore: false },
       "GET /notifications": { items: notifications, unreadCount: 1, nextCursor: null },
-      "GET /billing/status": { tier: "FREE", status: "ACTIVE", billingPeriod: null, trialEndsAt: null, currentPeriodEnd: null, trialExpired: false },
-      "GET /billing/plans": { currency: "DKK", vatRate: 0.25, plans: [{ tier: "PARENTS", prices: { MONTHLY: 2900, ANNUAL: 27500 } }, { tier: "FAMILY", prices: { MONTHLY: 5900, ANNUAL: 55900 } }] },
+      "GET /billing/status": freeSub,
+      "GET /billing/plans": plans,
       "GET /auth/sessions": { otherSessions: 1 },
     },
   });

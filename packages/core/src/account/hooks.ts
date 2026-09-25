@@ -2,7 +2,13 @@ import { useCallback, useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   BillingPlansResponse,
+  CircleInviteRequest,
   InvitePreviewResponse,
+  MoveChildRequest,
+  RedeemCouponRequest,
+  StartTrialRequest,
+  SubscriptionTier,
+  SuspendedChildDto,
   AcceptInviteRequest,
   MeResponse,
   NotificationPreferencesDto,
@@ -187,6 +193,97 @@ export function useCancelSubscription() {
     onSuccess: (sub) => qc.setQueryData(["billing"], sub),
   });
 }
+
+/** Any billing change can move children into or out of a Circle: refresh both. */
+function useBillingMutation<TBody>(fn: (body: TBody) => Promise<SubscriptionDto>) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: (sub) => {
+      qc.setQueryData(["billing"], sub);
+      void qc.invalidateQueries({ queryKey: queryKeys.children });
+      void qc.invalidateQueries({ queryKey: ["suspended-children"] });
+    },
+  });
+}
+
+/** 30 days of a Parent or Family Circle, no card (one trial per person). */
+export function useStartTrial() {
+  return useBillingMutation((body: StartTrialRequest) => api.post<SubscriptionDto>("/billing/trial", body));
+}
+
+/** Switch tier; a downgrade is refused while what's in use doesn't fit (TIER_UNAVAILABLE). */
+export function useChangeTier() {
+  return useBillingMutation((tier: Exclude<SubscriptionTier, "FREE">) => api.post<SubscriptionDto>("/billing/change", { tier }));
+}
+
+export function useRedeemCoupon() {
+  return useBillingMutation((body: RedeemCouponRequest) => api.post<SubscriptionDto>("/billing/coupon", body));
+}
+
+// ---- Circle members (Family Circle) ---------------------------------------
+
+export function useInviteToCircle() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: CircleInviteRequest) => api.post<{ id: string; token: string }>("/billing/circle/invites", body),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["billing"] }),
+  });
+}
+
+export function useCancelCircleInvite() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (inviteId: string) => api.delete<void>(`/billing/circle/invites/${enc(inviteId)}`),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["billing"] }),
+  });
+}
+
+export function useRemoveCircleMember() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (userId: string) => api.delete<void>(`/billing/circle/members/${enc(userId)}`),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["billing"] }),
+  });
+}
+
+export function useLeaveCircle() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.post<void>("/billing/circle/leave"),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["billing"] });
+      void qc.invalidateQueries({ queryKey: queryKeys.children });
+      void qc.invalidateQueries({ queryKey: ["suspended-children"] });
+    },
+  });
+}
+
+// ---- Suspended children (nobody pays for them) ------------------------------
+
+export function useSuspendedChildren() {
+  return useQuery({
+    queryKey: ["suspended-children"],
+    queryFn: async () => (await api.get<{ children: SuspendedChildDto[] }>("/children/suspended")).children,
+  });
+}
+
+/** Take a child over into a Circle you own or belong to (also restores a suspended child). */
+export function useMoveChild() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ childId, circleId }: { childId: string } & MoveChildRequest) =>
+      api.post<void>(`/children/${enc(childId)}/move`, { circleId }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: queryKeys.children });
+      void qc.invalidateQueries({ queryKey: ["suspended-children"] });
+      void qc.invalidateQueries({ queryKey: ["billing"] });
+    },
+  });
+}
+
+/** A suspended child's photos and videos as a zip, for its parents, until it's deleted. */
+export const suspendedChildArchiveUrl = (childId: string) => apiUrl(`/media/suspended/${enc(childId)}/archive`);
 
 // ---- Invites -------------------------------------------------------------
 

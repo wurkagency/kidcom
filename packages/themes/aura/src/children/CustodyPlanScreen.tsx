@@ -7,6 +7,8 @@ import { DateField, EditorTitle, Field, FormCard, FormError, PrimaryButton } fro
 import { Icon } from "../components/Icon";
 import { cn } from "../lib/utils";
 import { Input } from "../ui/input";
+import { PlanNotice } from "../billing/PlanNotice";
+import { isPlanError } from "../billing/errors";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 
 // The custody plan (no Stitch export; DESIGN.md form parts): a rhythm
@@ -36,8 +38,16 @@ function patternFor(days: number[], first: string, second: string): CustodyPatte
 export function CustodyPlanScreen() {
   const { t } = useT("children");
   const { childId } = useParams();
-  const { data: status, isLoading } = useCustodyPlan(childId);
+  const { data: status, isLoading, error } = useCustodyPlan(childId);
   const { data: members = [] } = useChildFamily(childId);
+  if (error && isPlanError(error)) {
+    return (
+      <div className="flex flex-col w-full pb-28 gap-space-lg">
+        <EditorTitle>{t("custody.title")}</EditorTitle>
+        <PlanNotice error={error} />
+      </div>
+    );
+  }
   if (!childId || isLoading || !status) return <EditorTitle>{t("custody.title")}</EditorTitle>;
   return <PlanForm key={status.plan?.id ?? "new"} childId={childId} status={status} members={members} />;
 }
@@ -55,6 +65,7 @@ function PlanForm({ childId, status, members }: { childId: string; status: Custo
   const [time, setTime] = useState(plan?.handoverTime ?? "");
   const [location, setLocation] = useState(plan?.handoverLocation ?? "");
   const [error, setError] = useState<string | null>(null);
+  const [planError, setPlanError] = useState<unknown>(null);
 
   if (parents.length < 2) {
     return (
@@ -68,6 +79,7 @@ function PlanForm({ childId, status, members }: { childId: string; status: Custo
   const submit = (e: FormEvent) => {
     e.preventDefault();
     setError(null);
+    setPlanError(null);
     if (!first || !second || first === second) return setError(t("custody.twoDifferent"));
     if (time && !isHHMM(time)) return setError(t("custody.badTime"));
     const pattern =
@@ -82,7 +94,7 @@ function PlanForm({ childId, status, members }: { childId: string; status: Custo
         handoverTime: time || null,
         handoverLocation: location.trim() || null,
       },
-      { onSuccess: () => navigate(paths.children.profile(childId), { replace: true }), onError: (err) => setError(err instanceof Error ? err.message : t("edit.failed")) },
+      { onSuccess: () => navigate(paths.children.profile(childId), { replace: true }), onError: (err) => (isPlanError(err) ? setPlanError(err) : setError(err instanceof Error ? err.message : t("edit.failed"))) },
     );
   };
 
@@ -163,6 +175,7 @@ function PlanForm({ childId, status, members }: { childId: string; status: Custo
       </FormCard>
 
       <FormError message={error} />
+      {planError ? <PlanNotice error={planError} /> : null}
       <PrimaryButton icon="check" disabled={save.isPending || status.locked}>
         {t("custody.save")}
       </PrimaryButton>

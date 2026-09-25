@@ -29,15 +29,15 @@ describe("POST /billing/subscribe — D9 VAT receipt", () => {
     expect(receipt.subject).toContain("Parents");
     // Gross stays exactly what BILLING_PRICES_ORE already charges (D9 must
     // not touch the price) — net + VAT must sum back to it.
-    expect(receipt.text).toContain("Price excl. VAT: 23.20 kr");
-    expect(receipt.text).toContain("VAT (25%): 5.80 kr");
-    expect(receipt.text).toContain("Total charged: 29.00 kr");
-    expect(receipt.html).toContain("23.20");
-    expect(receipt.html).toContain("5.80");
-    expect(receipt.html).toContain("29.00");
+    expect(receipt.text).toContain("Price excl. VAT: 31.20 kr");
+    expect(receipt.text).toContain("VAT (25%): 7.80 kr");
+    expect(receipt.text).toContain("Total charged: 39.00 kr");
+    expect(receipt.html).toContain("31.20");
+    expect(receipt.html).toContain("7.80");
+    expect(receipt.html).toContain("39.00");
   });
 
-  it("emails a receipt with the Family/annual figures (559 -> 447.20 net + 111.80 VAT)", async () => {
+  it("emails a receipt with the Family/annual figures (621 -> 496.80 net + 124.20 VAT)", async () => {
     const app = createApp();
     const { agent } = await signupTestUser(app);
 
@@ -47,9 +47,9 @@ describe("POST /billing/subscribe — D9 VAT receipt", () => {
     const sender = mailSender as MemoryMailSender;
     const receipts = sender.sent.filter((m) => m.subject.includes("receipt"));
     expect(receipts).toHaveLength(1);
-    expect(receipts[0].text).toContain("Price excl. VAT: 447.20 kr");
-    expect(receipts[0].text).toContain("VAT (25%): 111.80 kr");
-    expect(receipts[0].text).toContain("Total charged: 559.00 kr");
+    expect(receipts[0].text).toContain("Price excl. VAT: 496.80 kr");
+    expect(receipts[0].text).toContain("VAT (25%): 124.20 kr");
+    expect(receipts[0].text).toContain("Total charged: 621.00 kr");
   });
 
   it("does not send a receipt for the FREE tier (nothing was charged)", async () => {

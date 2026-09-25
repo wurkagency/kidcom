@@ -95,7 +95,8 @@
       "nineFive": "9 days, then 5 days",
       "fourteenTwo": "14 days, then 2 days",
       "otherWeekend": "12 days, then a weekend"
-    }
+    },
+    "needsCircle": "Custody planning comes with a Parent or Family Circle."
   },
   "measure": {
     "title": "Measurements",

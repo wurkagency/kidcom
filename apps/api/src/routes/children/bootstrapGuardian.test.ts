@@ -102,41 +102,25 @@ describe("POST /children — 1-child cap (D6: only counts genuine PARENT rows)",
     await resetDb();
   });
 
-  it("a Free-tier user already at their 1-parent cap can still bootstrap-create further children as GUARDIAN", async () => {
+  it("a Single holds 2 children, whether created as parent or as guardian", async () => {
     const app = createApp();
-    const { agent } = await signupTestUser(app, { email: "grandma2@example.com" });
+    const { agent } = await signupTestUser(app, { email: "grandma2@example.com", plan: "SINGLE" });
 
-    // Consume the trial so the FREE 1-child cap is actually in force.
-    await prisma.user.updateMany({ data: { trialEndsAt: new Date(Date.now() - 24 * 60 * 60 * 1000) } });
-
-    const ownChild = await agent
-      .post("/children")
-      .send({ firstName: "OwnKid", gender: "BOY", birthday: "2018-01-01", relationship: "MOTHER" });
-    expect(ownChild.status).toBe(201);
-
-    // Cap is now reached for genuine PARENT rows (1/1) — a further PARENT
-    // creation would be blocked, but a bootstrap GUARDIAN grant must not be.
-    const blockedSecondParentChild = await agent
-      .post("/children")
-      .send({ firstName: "Blocked", gender: "BOY", birthday: "2018-01-01", relationship: "MOTHER" });
-    expect(blockedSecondParentChild.status).toBe(403);
-
-    for (let i = 0; i < 3; i++) {
-      const bootstrapRes = await agent.post("/children").send({
-        firstName: `Grandkid${i}`,
-        gender: "GIRL",
-        birthday: "2021-01-01",
-        relationship: "GRANDMOTHER_MAT",
-        parentContact: { name: `Parent${i}`, wantsClaimLink: true },
-      });
-      expect(bootstrapRes.status).toBe(201);
-    }
-
-    const parentRoleCount = await prisma.childAccess.count({
-      where: { userId: (await prisma.user.findUniqueOrThrow({ where: { email: "grandma2@example.com" } })).id, role: "PARENT" },
+    const own = await agent.post("/children").send({ firstName: "OwnKid", gender: "BOY", birthday: "2018-01-01", relationship: "MOTHER" });
+    expect(own.status).toBe(201);
+    const bootstrapped = await agent.post("/children").send({
+      firstName: "Grandkid",
+      gender: "GIRL",
+      birthday: "2021-01-01",
+      relationship: "GRANDMOTHER_MAT",
+      parentContact: { name: "Parent", wantsClaimLink: true },
     });
-    // Still exactly 1 — the 3 bootstrap grants never counted as PARENT rows.
-    expect(parentRoleCount).toBe(1);
+    expect(bootstrapped.status).toBe(201);
+
+    const third = await agent.post("/children").send({ firstName: "Third", gender: "BOY", birthday: "2019-01-01", relationship: "MOTHER" });
+    expect(third.status).toBe(403);
+    expect(third.body.code).toBe("CHILD_LIMIT");
+    expect(third.body.details).toEqual({ limit: 2, inCircle: false });
   });
 });
 

@@ -21,7 +21,8 @@ export function toMediaDto(m: MediaRow): MediaAssetDto {
 export const momentInclude = (userId: string) =>
   ({
     author: true,
-    media: { orderBy: { createdAt: "asc" } },
+    // Legal hold (§4): media under an active alarm is gone from the app.
+    media: { where: { alarms: { none: { status: "ACTIVE" } } }, orderBy: { createdAt: "asc" } },
     children: { select: { childId: true } },
     _count: { select: { comments: true, reactions: true } },
     reactions: { where: { userId }, select: { userId: true } },
@@ -111,6 +112,7 @@ export function galleryWhere(f: ReturnType<typeof parseMomentFilters>): Prisma.M
   const kinds = f.types.filter((t) => t !== "text");
   return {
     status: "READY",
+    alarms: { none: { status: "ACTIVE" } },
     // `is` makes the moment itself a condition: it must exist *and* be
     // visible (journal_posts RLS) — media_assets' own policy doesn't know
     // about moments hidden from extended family.

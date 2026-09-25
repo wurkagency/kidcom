@@ -7,9 +7,9 @@
   "approved": "approved",
   "declined": "declined",
   "tiers": {
-    "FREE": "Free",
-    "PARENTS": "Parents",
-    "FAMILY": "Family"
+    "FREE": "Single",
+    "PARENTS": "Parent Circle",
+    "FAMILY": "Family Circle"
   },
   "kinds": {
     "moment.shared": {
@@ -54,7 +54,23 @@
     },
     "payment.failed": {
       "title": "A payment failed",
-      "body": "{{children}}'s plan — take over to keep it active."
+      "body": "Your plan has stopped. Update your card to switch it back on."
+    },
+    "child.suspended": {
+      "title": "{{child}} is hidden until someone pays",
+      "body": "Pay or take {{child}} over before {{date}}, or {{child}}'s data is deleted."
+    },
+    "child.deletion_warning": {
+      "title": "{{child}}'s data will be deleted",
+      "body": "On {{date}}, unless someone pays or takes {{child}} over."
+    },
+    "trial.ending": {
+      "title": "Your free trial ends soon",
+      "body": "It ends on {{date}}. Add a card to keep your plan."
+    },
+    "access.removed": {
+      "title": "{{person}} no longer sees {{child}}",
+      "body": "{{actor}} removed them."
     }
   }
 }

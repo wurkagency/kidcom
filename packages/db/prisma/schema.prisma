@@ -143,7 +143,9 @@ model User {
   passwordResetTokens PasswordResetToken[]
   twoFactorCodes LoginTwoFactorCode[]
   calendarEventConfirmations CalendarEventConfirmation[]
-  upgradeRequestsMade UpgradeRequest[]
+  circleMembership CircleMember?
+  suspendedAccess  SuspendedChildAccess[]
+  couponRedemptions CouponRedemption[]
 
   @@map("users")
 }
@@ -210,6 +212,10 @@ model Invite {
   invitedBy   User       @relation("InviteSentBy", fields: [invitedById], references: [id])
   childId     String?
   child       Child?     @relation(fields: [childId], references: [id])
+  // An invitation into a Family Circle as a parent member (subscription
+  // model rule 3): childId is null and circleId is set.
+  circleId    String?
+  circle      Subscription? @relation("CircleInvites", fields: [circleId], references: [id], onDelete: Cascade)
   acceptedAt  DateTime?
   trialEndsAt DateTime?
   createdAt   DateTime   @default(now())
@@ -248,7 +254,22 @@ model Child {
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 
+  // Subscription model rule 1: the Circle that pays for this child and sets
+  // its limits and features. Null = the child is on its parent's free Single.
+  circleId      String?
+  circle        Subscription? @relation("CircleChildren", fields: [circleId], references: [id], onDelete: SetNull)
+  // D5: nobody pays and the child doesn't fit Single. While suspended the
+  // child's access rows sit in suspended_child_access (hidden from every
+  // user, RLS included); deleted at deleteAfter (day 90) unless paid for,
+  // taken over, or held by an active alarm.
+  suspendedAt   DateTime?
+  deleteAfter   DateTime?
+  // Deletion warnings already sent: 1 = day 0, 2 = day 30, 3 = day 83.
+  suspensionNotices Int     @default(0)
+
   access             ChildAccess[]
+  suspendedAccess    SuspendedChildAccess[]
+  alarms             Alarm[]
   medicalInfo        MedicalInfo[]
   growthEntries      GrowthEntry[]
   custodyPlans       CustodyPlan[]
@@ -268,7 +289,6 @@ model Child {
   coverAsset         MediaAsset?               @relation("ChildCover")
   // Media asset id of the cover photo (mirrors profileImageUrl for the avatar).
   coverImageUrl      String?
-  upgradeRequests    UpgradeRequest[]
   deletionRequest    ChildDeletionRequest?
 
   @@map("children")
@@ -301,10 +321,45 @@ model ChildAccess {
   // grant further: journal/media/lists only, medical info always denied
   // regardless of medicalInfoAccess above (see lib/permissions.ts).
   isMinorMember Boolean @default(false)
+  // D10: family and caregivers count under the inviting parent's Circle (or
+  // the child's, when that's what allowed the invite). When that Circle
+  // ends, this row moves to suspended_child_access until it's active again.
+  grantedViaCircleId String?
+  grantedViaCircle   Subscription? @relation("CircleGrantedAccess", fields: [grantedViaCircleId], references: [id], onDelete: SetNull)
   createdAt DateTime   @default(now())
 
   @@unique([childId, userId])
   @@map("child_access")
+}
+
+enum SuspensionReason {
+  CHILD_SUSPENDED // D5: nobody pays for the child
+  CIRCLE_ENDED    // D10: the Circle that granted this invite ended
+  LEGAL_HOLD      // an active alarm on the child
+}
+
+// A child_access row taken out of use. Every RLS policy keys off
+// child_access, so moving the row here hides the child's data for that user
+// everywhere at once; moving it back restores it unchanged.
+model SuspendedChildAccess {
+  id                 String           @id @default(cuid())
+  childId            String
+  child              Child            @relation(fields: [childId], references: [id], onDelete: Cascade)
+  userId             String
+  user               User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role               AccessRole
+  relationship       RelationshipType
+  medicalInfoAccess  Boolean          @default(false)
+  isMinorMember      Boolean          @default(false)
+  grantedViaCircleId String?
+  originalCreatedAt  DateTime
+  reason             SuspensionReason
+  suspendedAt        DateTime         @default(now())
+
+  @@unique([childId, userId])
+  @@index([userId])
+  @@index([grantedViaCircleId])
+  @@map("suspended_child_access")
 }
 
 // Phase 6a (spec §1.5/9.20) — instrumented at the moment of every access
@@ -709,6 +764,7 @@ model MediaAsset {
   sharedOriginalPath  String?
   sharedOriginalBytes Int?
   bookmarks          Bookmark[]
+  alarms             Alarm[]
   createdAt        DateTime         @default(now())
 
   @@map("media_assets")
@@ -935,11 +991,96 @@ model Subscription {
   // order_id of the latest recurring charge — matches QuickPay's payment
   // callbacks back to this subscription.
   lastChargeOrderId      String?
+  // Lifetime coupon (e.g. internal/testing): no QuickPay, never renews.
+  couponId               String?
+  coupon                 Coupon?            @relation(fields: [couponId], references: [id])
+  // The customer authorised a card with QuickPay (during the trial, the
+  // first charge then waits for the trial to end).
+  cardAuthorizedAt       DateTime?
+  trialReminder7SentAt   DateTime?
+  trialReminder1SentAt   DateTime?
   createdAt              DateTime           @default(now())
   updatedAt              DateTime           @updatedAt
 
+  // A PARENTS/FAMILY subscription is a Circle (subscription model §2).
+  children      Child[]        @relation("CircleChildren")
+  members       CircleMember[]
+  grantedAccess ChildAccess[]  @relation("CircleGrantedAccess")
+  invites       Invite[]       @relation("CircleInvites")
+
   @@index([lastChargeOrderId])
   @@map("subscriptions")
+}
+
+// A parent invited into a Family Circle (rule 3): they can put their own
+// children in it, within its tier. A person is a member of at most one.
+model CircleMember {
+  id        String       @id @default(cuid())
+  circleId  String
+  circle    Subscription @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  userId    String       @unique
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime     @default(now())
+
+  @@map("circle_members")
+}
+
+model Coupon {
+  id              String           @id @default(cuid())
+  code            String           @unique
+  tier            SubscriptionTier
+  // Lifetime: the Circle never expires or renews. The only kind so far.
+  lifetime        Boolean          @default(true)
+  maxRedemptions  Int?
+  redemptionCount Int              @default(0)
+  expiresAt       DateTime?
+  active          Boolean          @default(true)
+  note            String?
+  createdAt       DateTime         @default(now())
+
+  redemptions   CouponRedemption[]
+  subscriptions Subscription[]
+
+  @@map("coupons")
+}
+
+model CouponRedemption {
+  id        String   @id @default(cuid())
+  couponId  String
+  coupon    Coupon   @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([couponId, userId])
+  @@map("coupon_redemptions")
+}
+
+enum AlarmStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+// Legal hold (subscription model §4). While ACTIVE, the media, child or
+// user's data is hidden from the app for everyone and never deleted, by any
+// rule. Staff archive it; then normal rules apply again.
+model Alarm {
+  id           String      @id @default(cuid())
+  mediaAssetId String?
+  mediaAsset   MediaAsset? @relation(fields: [mediaAssetId], references: [id])
+  childId      String?
+  child        Child?      @relation(fields: [childId], references: [id])
+  userId       String?
+  reason       String
+  status       AlarmStatus @default(ACTIVE)
+  createdBy    String?
+  createdAt    DateTime    @default(now())
+  archivedAt   DateTime?
+
+  @@index([mediaAssetId])
+  @@index([childId])
+  @@index([userId])
+  @@map("alarms")
 }
 
 // Phase 7 (spec §8) — which subscription(s) currently satisfy which
@@ -951,50 +1092,6 @@ model Subscription {
 // alongside that computation. `since` is when this pairing first started
 // satisfying, for Phase 8's grace-period math. Population is deferred:
 // Phase 7 creates the table; Phase 8 is its first real writer/reader.
-model ChildCoverage {
-  childId        String
-  subscriptionId String
-  since          DateTime @default(now())
-
-  @@id([childId, subscriptionId])
-  @@map("child_coverage")
-}
-
-enum UpgradeRequestStatus {
-  PENDING
-  RESOLVED
-  DISMISSED
-}
-
-// Phase 8 (spec §2.3) — "ask [a co-parent] to upgrade" instead of paying
-// yourself: a lightweight ask, not a payment mechanism (the recipient still
-// subscribes themselves via the existing POST /billing/subscribe — nothing
-// here moves money). RESOLVED means the child became satisfied while this
-// request was pending (by anyone's action, not necessarily the person
-// asked); DISMISSED means a recipient explicitly declined.
-model UpgradeRequest {
-  id            String               @id @default(cuid())
-  childId       String
-  child         Child                @relation(fields: [childId], references: [id], onDelete: Cascade)
-  requestedById String
-  requestedBy   User                 @relation(fields: [requestedById], references: [id])
-  requiredTier  SubscriptionTier
-  status        UpgradeRequestStatus @default(PENDING)
-  createdAt     DateTime             @default(now())
-  resolvedAt    DateTime?
-
-  @@map("upgrade_requests")
-}
-
-// Phase 10 (spec 9.21, §1.4a.4) — "all PARENT members must confirm; if the
-// child has no PARENT member, all GUARDIAN members may confirm instead" is a
-// live, recomputed-on-every-confirm check (apps/api/src/lib/deletion.ts),
-// never a snapshot taken at request time — a member who joins or leaves
-// after the request was opened is picked up correctly rather than working
-// off a stale required set. `confirmedByIds` needs no join table (Postgres
-// native array, via Prisma's String[]) since it's never queried by element,
-// only ever read/written as a whole set. `childId` unique: at most one
-// pending request per child at a time.
 model ChildDeletionRequest {
   id             String   @id @default(cuid())
   childId        String   @unique

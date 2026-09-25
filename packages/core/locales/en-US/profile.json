@@ -16,9 +16,9 @@
   "preferences": "Preferences",
   "preferencesHint": "Language, formats, notifications, security",
   "plan": {
-    "FREE": "Free",
-    "PARENTS": "Parents",
-    "FAMILY": "Family"
+    "FREE": "Single",
+    "PARENTS": "Parent Circle",
+    "FAMILY": "Family Circle"
   },
   "signOut": "Sign out",
   "terms": "Terms",

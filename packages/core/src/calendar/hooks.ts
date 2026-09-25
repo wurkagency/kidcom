@@ -74,11 +74,13 @@ export function useCalendarEvent(childId: string | undefined, eventId: string | 
   });
 }
 
-export function useCustodyPlan(childId: string | undefined) {
+/** `enabled` false skips the request — e.g. a child whose plan doesn't include custody planning. */
+export function useCustodyPlan(childId: string | undefined, enabled = true) {
   return useQuery({
     queryKey: ["custody-plan", childId],
     queryFn: () => api.get<CustodyPlanStatusResponse>(`${child(childId!)}/custody-plan`),
-    enabled: Boolean(childId),
+    enabled: Boolean(childId) && enabled,
+    retry: false,
   });
 }
 

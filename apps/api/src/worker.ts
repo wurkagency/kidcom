@@ -13,8 +13,8 @@ import { withRlsBypass } from "./lib/rls";
 import { bullConnection, type ProcessMediaJob } from "./lib/mediaQueue";
 import { processImage, processVideo, processedColumns } from "./lib/mediaProcessing";
 import { billingQueue, reconciliationQueue, type RenewSubscriptionsJob, type ReconcileSubscriptionsJob } from "./lib/billingQueue";
-import { BILLING_PERIOD_DAYS, BILLING_PRICES_ORE } from "./lib/billingPricing";
-import * as quickpay from "./lib/quickpay";
+import { endCancelledCircles, finishTrials, renewCircles, sendTrialReminders } from "./lib/billing";
+import { deleteExpiredSuspendedChildren, sendSuspensionNotices } from "./lib/circleLifecycle";
 import { reconcilePendingSubscriptions } from "./lib/billingReconciliation";
 import { type PushJob } from "./lib/pushQueue";
 import { sendPushToUser } from "./lib/webPush";
@@ -56,46 +56,26 @@ worker.on("error", (err) => {
   console.error("Media worker error:", err);
 });
 
-// Daily renewal job — charges the next period for any active, non-Free
-// subscription whose currentPeriodEnd has arrived. Optimistic: extends
-// currentPeriodEnd as soon as the QuickPay API call succeeds rather than
-// waiting for the payment webhook, since chargeRecurring's response
-// confirms QuickPay accepted the charge attempt (a subsequent failure would
-// still need to show up via the webhook — same PENDING/PAST_DUE handling as
-// the initial checkout, not duplicated here for now).
+// Daily billing job (subscription model): trial reminders and endings,
+// renewals, cancelled Circles running out, suspension notices (D5 days 0,
+// 30, 83) and day-90 deletion of suspended children (never anything under
+// an active alarm). Declined is declined: a failed charge ends the Circle.
 const billingWorker = new Worker<RenewSubscriptionsJob>(
   "renew-subscriptions",
   async () => {
-    const due = await prisma.subscription.findMany({
-      where: {
-        status: "ACTIVE",
-        tier: { in: ["PARENTS", "FAMILY"] },
-        currentPeriodEnd: { lte: new Date() },
-      },
-    });
-
-    for (const sub of due) {
-      if (!sub.quickpaySubscriptionId || !sub.billingPeriod) continue;
-      try {
-        const amount = BILLING_PRICES_ORE[sub.tier as "PARENTS" | "FAMILY"][sub.billingPeriod as "MONTHLY" | "ANNUAL"];
-        const orderId = `renew${Date.now().toString(36)}${sub.id.slice(-4)}`.slice(0, 20);
-        await quickpay.chargeRecurring({
-          subscriptionId: Number(sub.quickpaySubscriptionId),
-          amountMinorUnits: amount,
-          orderId,
-        });
-        const periodDays = BILLING_PERIOD_DAYS[sub.billingPeriod as "MONTHLY" | "ANNUAL"];
-        await prisma.subscription.update({
-          where: { id: sub.id },
-          // The payment callback finds this subscription by the order_id.
-          data: { currentPeriodEnd: new Date(Date.now() + periodDays * 24 * 60 * 60 * 1000), lastChargeOrderId: orderId },
-        });
-      } catch (err) {
-        // eslint-disable-next-line no-console
-        console.error(`Renewal charge failed for subscription ${sub.id}:`, err);
-        await prisma.subscription.update({ where: { id: sub.id }, data: { status: "PAST_DUE" } });
-      }
-    }
+    const now = new Date();
+    const reminders = await sendTrialReminders(now);
+    const trials = await finishTrials(now);
+    const renewals = await renewCircles(now);
+    const cancelled = await endCancelledCircles(now);
+    const notices = await sendSuspensionNotices(now);
+    const deletion = await deleteExpiredSuspendedChildren(now);
+    // eslint-disable-next-line no-console
+    console.log(
+      `billing: ${reminders} trial reminders, trials charged ${trials.charged}/ended ${trials.ended}, ` +
+        `renewed ${renewals.renewed}/ended ${renewals.ended}, cancelled ended ${cancelled}, ` +
+        `${notices} suspension notices, deleted ${deletion.deleted} (held ${deletion.held})`
+    );
   },
   { connection: bullConnection }
 );

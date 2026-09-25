@@ -1,7 +1,7 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import type { AcceptInviteRequest, CreateInviteRequest, CreateInviteResponse, InvitePreviewResponse, MeResponse } from "@kidcom/shared";
-import { ALL_RELATIONSHIP_TYPES, relationshipTypeToRole, isValidEmail } from "@kidcom/shared";
+import { ALL_RELATIONSHIP_TYPES, relationshipTypeToRole, isValidEmail, tierAtLeast, tierForRole } from "@kidcom/shared";
 
 import { prisma } from "../../db";
 import { config } from "../../config";
@@ -17,10 +17,62 @@ import { bypassRls } from "../../lib/rls";
 import { loadPublicUser } from "../../lib/publicUser";
 import { establishSession } from "../../lib/sessions";
 import { assertStrongPassword } from "../../lib/passwordPolicy";
+import { heldCircles, isCircleActive } from "../../lib/circles";
+import type { Prisma } from "@kidcom/db";
+
+/**
+ * Grants an accepted child invite. Family and caregivers count under the
+ * Circle that allowed the invite (D10): if it has ended in the meantime,
+ * the grant waits in suspended_child_access until it's active again.
+ */
+async function grantChildInvite(
+  tx: Prisma.TransactionClient,
+  invite: { childId: string; circleId: string | null; role: "PARENT" | "GUARDIAN" | "FAMILY"; relationship: NonNullable<Prisma.ChildAccessCreateInput["relationship"]> },
+  userId: string
+): Promise<void> {
+  const grantedViaCircleId = invite.role === "FAMILY" ? invite.circleId : null;
+  if (grantedViaCircleId) {
+    const circle = await tx.subscription.findUnique({ where: { id: grantedViaCircleId } });
+    if (!isCircleActive(circle)) {
+      await tx.suspendedChildAccess.upsert({
+        where: { childId_userId: { childId: invite.childId, userId } },
+        update: {},
+        create: {
+          childId: invite.childId,
+          userId,
+          role: invite.role,
+          relationship: invite.relationship,
+          grantedViaCircleId,
+          originalCreatedAt: new Date(),
+          reason: "CIRCLE_ENDED",
+        },
+      });
+      return;
+    }
+  }
+  await tx.childAccess.upsert({
+    where: { childId_userId: { childId: invite.childId, userId } },
+    update: {},
+    create: { childId: invite.childId, userId, role: invite.role, relationship: invite.relationship, grantedViaCircleId },
+  });
+}
+
+/** Accepting an invitation into a Family Circle (rule 3): the user becomes a parent member. */
+async function joinCircle(tx: Prisma.TransactionClient, circleId: string, userId: string): Promise<void> {
+  const circle = await tx.subscription.findUnique({ where: { id: circleId } });
+  if (!isCircleActive(circle) || circle!.tier !== "FAMILY") {
+    throw new ApiError(409, "This Circle is no longer available", "CIRCLE_UNAVAILABLE");
+  }
+  if (circle!.ownerId === userId) throw new ApiError(409, "You already own this Circle");
+  const existing = await tx.circleMember.findUnique({ where: { userId } });
+  if (existing && existing.circleId !== circleId) {
+    throw new ApiError(409, "You're already a member of another Circle. Leave it first.", "ALREADY_IN_CIRCLE");
+  }
+  await tx.circleMember.upsert({ where: { userId }, update: {}, create: { circleId, userId } });
+}
 
 export const invitesRouter = Router();
 
-const THIRTY_DAYS_MS = 1000 * 60 * 60 * 24 * 30;
 const SALT_ROUNDS = 10;
 
 // POST /invites — creates the invite record and sends the accept link
@@ -87,19 +139,28 @@ invitesRouter.post("/", requireAuth, requireVerifiedEmail, async (req, res, next
 
     // spec 9.10 — fair-use soft cap, checked here so a child already at the
     // member limit doesn't even get a pending invite created for it (still
-    // re-checked at actual accept time below, since membership can change
-    // in between).
+    // re-checked at actual accept time below).
     await assertUnderMemberFairUseCap(childId);
 
-    // NOTE: spec §4.1 also lists "no invites" as part of the finalized Free
-    // tier — deliberately NOT enforced here. Blocking it now, before Phase
-    // 7's per-child entitlement engine exists, would break the existing
-    // first-invite-is-free onboarding flow (a brand-new Free-tier organic
-    // signup inviting their co-parent right after creating their first
-    // child) with no paywall UX in place to explain why. Spec §2.2a's T2
-    // trigger ("adding a second adult raises requiredTier to Parents") is
-    // the real mechanism this restriction depends on — that's Phase 7, not
-    // this defect fix.
+    // Subscription model D1/D2/D10: a co-parent or guardian needs Parent or
+    // higher, family and caregivers need Family, held either by the
+    // inviting parent (own Circle or one they're a member of) or by the
+    // child's Circle. Each parent pays for the family they bring in, so the
+    // inviter's own Circle is preferred as the one the invite counts under.
+    const needed = tierForRole(role);
+    const [inviterCircles, child] = await Promise.all([
+      heldCircles(req.session.userId!),
+      prisma.child.findUniqueOrThrow({ where: { id: childId }, select: { circle: true } }),
+    ]);
+    const viaInviter = inviterCircles.find((h) => tierAtLeast(h.circle.tier, needed))?.circle.id ?? null;
+    const viaChild = isCircleActive(child.circle) && tierAtLeast(child.circle!.tier, needed) ? child.circle!.id : null;
+    const grantingCircleId = viaInviter ?? viaChild;
+    if (!grantingCircleId) {
+      throw new ApiError(403, `Inviting this person needs a ${needed === "FAMILY" ? "Family" : "Parent"} Circle`, "PLAN_REQUIRED", {
+        requiredTier: needed,
+        reason: "INVITE_ROLE",
+      });
+    }
 
     const invite = await prisma.invite.create({
       data: {
@@ -108,7 +169,9 @@ invitesRouter.post("/", requireAuth, requireVerifiedEmail, async (req, res, next
         relationship,
         email: body.email,
         invitedById: req.session.userId!,
-        trialEndsAt: new Date(Date.now() + THIRTY_DAYS_MS),
+        // D10: the Circle this invite counts under (family only lose
+        // access when it ends; parents and guardians never do).
+        circleId: grantingCircleId,
       },
     });
 
@@ -116,7 +179,7 @@ invitesRouter.post("/", requireAuth, requireVerifiedEmail, async (req, res, next
     await mailSender.send({
       to: body.email,
       subject: "You've been invited to KidCom",
-      text: `You've been invited to join KidCom. Accept here: ${acceptUrl}\n\nThis link starts a 30-day free trial.`,
+      text: `You've been invited to join KidCom. Accept here: ${acceptUrl}\n\nJoining is free.`,
     });
 
     res.status(201).json({ id: invite.id, token: invite.token } satisfies CreateInviteResponse);
@@ -253,32 +316,15 @@ invitesRouter.post("/:token/accept", async (req, res, next) => {
           passwordHash,
           firstName,
           lastName,
-          trialStartedAt: now,
-          trialEndsAt: new Date(now.getTime() + THIRTY_DAYS_MS),
         },
       });
-      // Invited users' own Subscription also starts in a 30-day TRIALING
-      // window (PRD pricing section) — this is display/billing-history only
-      // as of Phase 7 (see Subscription.trialEndsAt's schema comment); it no
-      // longer gates anything by itself.
-      await tx.subscription.create({
-        data: {
-          ownerId: account.id,
-          tier: "FREE",
-          status: "TRIALING",
-          trialEndsAt: new Date(now.getTime() + THIRTY_DAYS_MS),
-        },
-      });
+      // Invited people never pay (rule 2): they start on the free Single.
+      await tx.subscription.create({ data: { ownerId: account.id, tier: "FREE", status: "ACTIVE" } });
 
       if (invite.childId) {
-        await tx.childAccess.create({
-          data: {
-            childId: invite.childId,
-            userId: account.id,
-            role: invite.role,
-            relationship: invite.relationship!,
-          },
-        });
+        await grantChildInvite(tx, { childId: invite.childId, circleId: invite.circleId, role: invite.role, relationship: invite.relationship! }, account.id);
+      } else if (invite.circleId) {
+        await joinCircle(tx, invite.circleId, account.id);
       }
 
       await tx.invite.update({
@@ -391,16 +437,10 @@ invitesRouter.post(
           // reconciliation of an existing duplicate, not new organic growth.
           await assertUnderMemberFairUseCap(invite.childId);
         }
-        await tx.childAccess.upsert({
-          where: { childId_userId: { childId: invite.childId, userId: me.id } },
-          update: {},
-          create: {
-            childId: invite.childId,
-            userId: me.id,
-            role: invite.role,
-            relationship: invite.relationship!,
-          },
-        });
+        await grantChildInvite(tx, { childId: invite.childId, circleId: invite.circleId, role: invite.role, relationship: invite.relationship! }, me.id);
+        await tx.invite.update({ where: { id: invite.id }, data: { acceptedAt: new Date() } });
+      } else if (invite.circleId) {
+        await joinCircle(tx, invite.circleId, me.id);
         await tx.invite.update({ where: { id: invite.id }, data: { acceptedAt: new Date() } });
       } else {
         await tx.invite.update({ where: { id: invite.id }, data: { acceptedAt: new Date() } });

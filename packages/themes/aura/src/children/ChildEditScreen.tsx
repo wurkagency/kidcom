@@ -11,6 +11,8 @@ import { paths, useChild, useCreateChild, useNavigate, useParams, useT, useUpdat
 import { DateField, EditorTitle, Field, FormCard, FormError, PrimaryButton } from "../components/Form";
 import { Input } from "../ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import { PlanNotice } from "../billing/PlanNotice";
+import { isPlanError } from "../billing/errors";
 import { ToggleGroup, ToggleGroupItem } from "../ui/toggle-group";
 
 // Add a child / edit a child's basics (no Stitch export; DESIGN.md form
@@ -46,15 +48,17 @@ export function ChildForm({ existing, onCreated, hideTitle }: { existing?: Child
   const [contactName, setContactName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [planError, setPlanError] = useState<unknown>(null);
   const needsParent = !existing && !isParentShapedRelationship(relationship);
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
     setError(null);
+    setPlanError(null);
     if (!firstName.trim()) return setError(t("edit.firstNameRequired"));
     if (!birthday) return setError(t("edit.birthdayRequired"));
     if (needsParent && (!contactName.trim() || !contactEmail.trim())) return setError(t("edit.parentRequired"));
-    const onError = (err: unknown) => setError(err instanceof Error ? err.message : t("edit.failed"));
+    const onError = (err: unknown) => (isPlanError(err) ? setPlanError(err) : setError(err instanceof Error ? err.message : t("edit.failed")));
     const basics = {
       firstName: firstName.trim(),
       lastName: lastName.trim(),
@@ -145,6 +149,7 @@ export function ChildForm({ existing, onCreated, hideTitle }: { existing?: Child
       )}
 
       <FormError message={error} />
+      {planError ? <PlanNotice error={planError} /> : null}
       <PrimaryButton icon="check" disabled={create.isPending || update.isPending}>
         {t(existing ? "edit.save" : "edit.create")}
       </PrimaryButton>

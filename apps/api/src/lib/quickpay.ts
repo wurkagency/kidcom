@@ -142,6 +142,12 @@ export async function getPayment(paymentId: number): Promise<{
   return quickpayFetch(`/payments/${paymentId}`, { method: "GET" });
 }
 
+// POST /subscriptions/:id/cancel — stops the card authorisation, so the
+// subscription can't be charged again (cancelled plan, coupon, deletion).
+export async function cancelSubscription(subscriptionId: number): Promise<void> {
+  await quickpayFetch(`/subscriptions/${subscriptionId}/cancel`, { method: "POST" });
+}
+
 // GET /subscriptions/:id — post-launch backlog Phase E (D7): the missing
 // piece for reconciling a checkout that started (createSubscription above)
 // but whose webhook never arrived, because the customer simply never

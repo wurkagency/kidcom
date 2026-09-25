@@ -1,53 +1,28 @@
 import { prisma } from "../db";
+import { config } from "../config";
 import { mailSender } from "./mailSender";
-import { GRACE_PERIOD_DAYS } from "./entitlement";
 import { notify } from "./notify";
 
-// spec 9.12 — "in-app + email notice to every adult on the child" the
-// moment a payment fails (webhook accepted:false), naming what will be
-// limited and when. Best-effort: a notification failure must never affect
-// the webhook's own 200 ack to QuickPay.
+// D5: "declined is declined". The owner hears about it straight away, with
+// an "update card" link; the other parents get their take-over offer from
+// the suspension notices (circleLifecycle.ts) when the children are hidden.
+// Best-effort: a notification failure must never affect the webhook's 200
+// ack to QuickPay or the renewal job.
 export async function notifyPaymentFailure(ownerId: string): Promise<void> {
   try {
-    const ownedAccess = await prisma.childAccess.findMany({
-      where: { userId: ownerId, role: { in: ["PARENT", "GUARDIAN"] } },
-      select: { childId: true, child: { select: { firstName: true } } },
+    const owner = await prisma.user.findUnique({ where: { id: ownerId }, select: { email: true, deletedAt: true } });
+    if (!owner || owner.deletedAt) return;
+    await notify([ownerId], { kind: "payment.failed", params: { children: "" }, url: "/billing" });
+    await mailSender.send({
+      to: owner.email,
+      subject: "Your KidCom payment failed",
+      text:
+        "We couldn't charge your card for your KidCom plan, so the plan has stopped.\n\n" +
+        "Update your card to switch it back on. Children the free plan can't hold are hidden until someone pays or " +
+        `takes them over, and deleted after 90 days: ${config.webBaseUrl}/billing`,
     });
-    if (ownedAccess.length === 0) return;
-    const childIds = ownedAccess.map((a) => a.childId);
-    const childNameById = new Map(ownedAccess.map((a) => [a.childId, a.child.firstName]));
-
-    const otherMembers = await prisma.childAccess.findMany({
-      where: { childId: { in: childIds }, userId: { not: ownerId } },
-      select: { userId: true, childId: true, user: { select: { email: true } } },
-    });
-
-    // Group affected child names per recipient — one notice per person, not
-    // one per (child, person) pair, even if they share several children
-    // with this owner.
-    const childNamesByRecipient = new Map<string, { email: string; names: Set<string> }>();
-    for (const m of otherMembers) {
-      const entry = childNamesByRecipient.get(m.userId) ?? { email: m.user.email, names: new Set<string>() };
-      entry.names.add(childNameById.get(m.childId) ?? "a child");
-      childNamesByRecipient.set(m.userId, entry);
-    }
-
-    await Promise.all(
-      Array.from(childNamesByRecipient.entries()).map(async ([userId, { email, names }]) => {
-        const childList = Array.from(names).join(", ");
-        const body = `A payment failed on ${childList}'s plan. There's a ${GRACE_PERIOD_DAYS}-day grace period before anything is limited — take over the subscription to keep it active.`;
-        await Promise.all([
-          notify([userId], { kind: "payment.failed", params: { children: childList }, url: "/billing" }),
-          mailSender.send({
-            to: email,
-            subject: `Payment failed for ${childList}'s KidCom plan`,
-            text: `${body}\n\nYou can take over the subscription from the Billing page in the app.`,
-          }),
-        ]);
-      })
-    );
   } catch (err) {
     // eslint-disable-next-line no-console
-    console.error(`Failed to send payment-failure notices for owner ${ownerId}:`, err);
+    console.error(`notifyPaymentFailure(${ownerId}) failed:`, err);
   }
 }

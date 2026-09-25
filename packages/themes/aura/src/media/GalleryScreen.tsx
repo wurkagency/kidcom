@@ -6,6 +6,7 @@ import { EmptyCard } from "../calendar/Sections";
 import { Icon } from "../components/Icon";
 import { cn } from "../lib/utils";
 import { Skeleton } from "../ui/skeleton";
+import { PlanNotice } from "../billing/PlanNotice";
 import { DurationBadge, MomentFilterBar, MomentsTitle } from "../moments/parts";
 
 // kidcom_media_gallery: every photo and video across the selected children,
@@ -71,6 +72,9 @@ export function GalleryScreen() {
         <MomentsTitle view="media" />
         <MomentFilterBar filters={filters} onChange={setFilters} withText={false} />
       </div>
+
+      {/* The Media Library comes with a Parent or Family Circle (originals are kept either way). */}
+      {kids.length > 0 && kids.every((c) => c.tier === "FREE") && <PlanNotice text={t("gallery.needsCircle")} />}
 
       {selection && (
         <div

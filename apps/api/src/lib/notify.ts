@@ -25,6 +25,10 @@ const CATEGORY: Record<NotificationKind, Category> = {
   "message.received": "messages",
   "upgrade.requested": "account",
   "payment.failed": "account",
+  "child.suspended": "account",
+  "child.deletion_warning": "account",
+  "trial.ending": "account",
+  "access.removed": "account",
 };
 
 export type NotifyParams = Record<string, string | number | null>;
@@ -43,6 +47,10 @@ const PUSH_TEXT: Record<NotificationKind, (p: NotifyParams) => { title: string; 
   "message.received": (p) => ({ title: String(p.actor ?? ""), body: String(p.text ?? "") }),
   "upgrade.requested": (p) => ({ title: "Upgrade requested", body: `${p.actor} asks you to upgrade to ${p.tier}` }),
   "payment.failed": (p) => ({ title: "Payment failed", body: String(p.children ?? "") }),
+  "child.suspended": (p) => ({ title: `${p.child} is hidden until someone pays`, body: `Pay or take ${p.child} over before ${p.date}, or ${p.child}'s data is deleted.` }),
+  "child.deletion_warning": (p) => ({ title: `${p.child}'s data will be deleted`, body: `On ${p.date}, unless someone pays or takes ${p.child} over.` }),
+  "trial.ending": (p) => ({ title: "Your free trial ends soon", body: `It ends on ${p.date}. Add a card to keep your plan.` }),
+  "access.removed": (p) => ({ title: `${p.person} no longer sees ${p.child}`, body: `${p.actor} removed them.` }),
 };
 
 type Notice = {

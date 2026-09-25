@@ -23,6 +23,10 @@ const KIND_ICON: Record<NotificationKind, string> = {
   "message.received": "chat",
   "upgrade.requested": "workspace_premium",
   "payment.failed": "credit_card_off",
+  "child.suspended": "visibility_off",
+  "child.deletion_warning": "delete_forever",
+  "trial.ending": "event",
+  "access.removed": "person_remove",
 };
 
 /** Params made readable: dates the country's way, status words translated. */

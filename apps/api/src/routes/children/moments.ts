@@ -10,6 +10,7 @@ import { galleryInclude, galleryWhere, momentInclude, momentWhere, parseMomentFi
 import { copenhagenToday, optionalDateOnly, optionalText, requiredText } from "../../lib/validation";
 import { momentCommentsRouter } from "./momentComments";
 import { momentReactionsRouter } from "./momentReactions";
+import { requireTierFeature } from "../../lib/entitlement";
 import { notify } from "../../lib/notify";
 
 // Mounted at /children/:childId/moments. The cross-child feed and gallery
@@ -50,7 +51,8 @@ momentsRouter.get("/", async (req: Request<ChildParams>, res, next) => {
 
 // Every READY asset on this child's moments (child profile gallery).
 // Registered before "/:postId" so "media" is never read as a post id.
-momentsRouter.get("/media", async (req: Request<ChildParams>, res, next) => {
+// Subscription model: the Media Library needs a Parent or Family Circle.
+momentsRouter.get("/media", requireTierFeature("mediaLibrary"), async (req: Request<ChildParams>, res, next) => {
   try {
     const userId = req.session.userId!;
     const filters = { ...parseMomentFilters(req.query), childIds: [req.params.childId] };

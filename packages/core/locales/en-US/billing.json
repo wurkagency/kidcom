@@ -3,21 +3,21 @@
   "yourPlan": "Your plan",
   "price": "Price",
   "tiers": {
-    "FREE": "Free",
-    "PARENTS": "Parents",
-    "FAMILY": "Family"
+    "FREE": "Single",
+    "PARENTS": "Parent Circle",
+    "FAMILY": "Family Circle"
   },
   "taglines": {
-    "FREE": "You and one child",
-    "PARENTS": "Both parents, every child",
-    "FAMILY": "The whole family circle"
+    "FREE": "Your child's memories, just for you",
+    "PARENTS": "Two homes, one plan",
+    "FAMILY": "The whole family, in one private place"
   },
   "status": {
     "TRIALING": "Trial",
     "PENDING": "Awaiting payment",
     "ACTIVE": "Active",
     "PAST_DUE": "Payment failed",
-    "CANCELED": "Cancelled"
+    "CANCELED": "Ends soon"
   },
   "renewsOn": "Renews on",
   "endsOn": "Ends on",
@@ -26,12 +26,11 @@
   "upgrade": "Upgrade",
   "cancel": "Cancel subscription",
   "cancelTitle": "Cancel your subscription?",
-  "cancelBody": "Your plan stops renewing and your family falls back to Free.",
+  "cancelBody": "Your plan runs to the end of the period you've paid for, then you're on Single.",
   "cancelConfirm": "Cancel subscription",
   "confirming": "Confirming your payment…",
-  "welcome": "Welcome to {{plan}} — thank you!",
+  "welcome": "Welcome to your {{plan}} — thank you!",
   "canceledCheckout": "Payment was cancelled — nothing was charged.",
-  "pastDue": "Your last payment failed. Update your card within 7 days to keep your plan.",
   "secure": "Payments are handled securely by QuickPay. KidCom never sees your card.",
   "checkoutTitle": "Choose your plan",
   "period": "Billing period",
@@ -49,22 +48,25 @@
   "save": "Save {{percent}}",
   "vat": "Prices include {{rate}} VAT.",
   "features": {
-    "oneChild": "One child",
-    "you": "Just you",
-    "unlimitedChildren": "Unlimited children",
+    "children": "Up to {{count}} children",
+    "storage": "{{size}} of storage",
+    "justYou": "Just you — no invites",
     "coParent": "Share with the other parent",
-    "extended": "Grandparents, family and caregivers",
-    "everything": "Calendar, moments, lists and messages"
+    "family": "Grandparents, family and caregivers",
+    "custody": "Custody planning and swaps",
+    "mediaLibrary": "Media Library",
+    "circleMembers": "Invite other parents into your Circle",
+    "everything": "Moments, lists, calendar and health records"
   },
   "consentLabel": "Start now and waive the right of withdrawal",
   "consent": "I want my plan to start straight away, and I understand that I lose my 14-day right of withdrawal once it has started.",
   "terms": "Terms of service",
   "consentRequired": "Please confirm you want the plan to start now.",
   "toPayment": "Continue to secure payment",
-  "chooseFree": "Continue with Free",
+  "chooseFree": "Continue with Single",
   "quickpay": "You'll enter your card on QuickPay's secure page and return here.",
   "failed": "Couldn't start checkout. Please try again.",
-  "declinedBanner": "Your payment didn't go through, so you're still on Free.",
+  "declinedBanner": "Your payment didn't go through.",
   "errors": {
     "PAYMENT_DECLINED": "Your card was declined. Please try another card.",
     "PAYMENT_PROVIDER_ERROR": "The payment service couldn't complete this. Please try again.",
@@ -81,6 +83,95 @@
       "42300": "Your saved card is suspended. Please check out again with another card.",
       "50000": "The payment service had a problem. Please try again in a few minutes.",
       "50300": "We couldn't reach your bank. Please try again in a few minutes."
+    },
+    "TRIAL_USED": "You've already had your free trial.",
+    "ALREADY_SUBSCRIBED": "You already have a plan. Change it here instead.",
+    "LIFETIME_PLAN": "You have a lifetime plan.",
+    "NO_PLAN": "You don't have a plan to change.",
+    "COUPON_INVALID": "That code isn't valid.",
+    "COUPON_USED_UP": "That code has been used up.",
+    "COUPON_ALREADY_REDEEMED": "You've already used that code.",
+    "CIRCLE_FULL": "That Circle is full.",
+    "CIRCLE_UNAVAILABLE": "That Circle is no longer available.",
+    "ALREADY_IN_CIRCLE": "You're already in another Circle. Leave it first.",
+    "NOT_YOUR_CIRCLE": "You don't own or belong to that Circle.",
+    "NOT_PARENT": "Only the child's parent or guardian can do that.",
+    "STORAGE_FULL": "Your storage is full. Upgrade to keep uploading.",
+    "UPLOAD_DAILY_LIMIT": "You've reached today's upload limit. Try again tomorrow.",
+    "CHILD_LIMIT": "Your plan holds {{limit}} children. Upgrade to add more.",
+    "PLAN_REQUIRED": {
+      "default": "This needs a Parent or Family Circle.",
+      "invite": {
+        "PARENTS": "Inviting the other parent needs a Parent Circle.",
+        "FAMILY": "Inviting family and caregivers needs a Family Circle."
+      },
+      "circleMembers": "Inviting other parents into your Circle needs a Family Circle.",
+      "feature": {
+        "custodyPlanning": "Custody planning needs a Parent or Family Circle.",
+        "mediaLibrary": "The Media Library needs a Parent or Family Circle.",
+        "circleMembers": "Inviting other parents into your Circle needs a Family Circle."
+      }
     }
-  }
+  },
+  "lifetime": "Lifetime",
+  "memberOf": "In {{owner}}'s Family Circle",
+  "trialEndsOn": "Free trial ends",
+  "childrenInCircle": "Children in your Circle",
+  "addCard": "Add a card to keep your plan",
+  "tryFree": "Try a Circle free for 30 days",
+  "leaveCircle": "Leave the Circle",
+  "leaveTitle": "Leave this Circle?",
+  "leaveBody": "Your children leave it too. Those your own plan can't hold are hidden until someone pays or takes them over.",
+  "cancelBodyTrial": "Your trial ends now and you're on Single.",
+  "cardAdded": "Card added. Your plan continues after your free trial ends on {{date}}.",
+  "trialNoCard": "Your free trial ends on {{date}}. Add a card to keep your plan.",
+  "storage": "Storage",
+  "storageUsed": "{{used}} of {{limit}}",
+  "storageWarning": "You're close to your limit. At 90% new uploads stop until you upgrade.",
+  "seePlans": "See plans",
+  "switchTo": "Switch to {{plan}}",
+  "switchToSingle": "Switch to Single",
+  "startTrial": "Start {{days}} days free",
+  "trialInfo": "No card needed. We'll remind you 7 days and 1 day before your {{days}}-day trial ends.",
+  "addCardToPlan": "Add card",
+  "cardInTrial": "Nothing is charged now. Your first payment is on {{date}}, when your trial ends.",
+  "suspended": {
+    "title": "Hidden until someone pays",
+    "body": "Nobody pays for these children's plan any more, so they're hidden for everyone.",
+    "deleteOn": "Deleted on {{date}} unless someone pays or takes over",
+    "takeOver": "Take over into my Circle",
+    "pay": "Pay to bring back",
+    "download": "Download photos and videos"
+  },
+  "members": {
+    "title": "Parents in your Circle",
+    "body": "Invite your children or other parents in. They add their own children and decide who sees them.",
+    "remove": "Remove",
+    "pending": "Invited: {{email}}",
+    "cancelInvite": "Cancel",
+    "email": "Their email",
+    "invite": "Invite into my Circle",
+    "sent": "Invitation sent."
+  },
+  "coupon": {
+    "label": "Have a code?",
+    "redeem": "Redeem code"
+  },
+  "reasons": {
+    "CHILDREN": "You have {{count}} children; this plan holds {{limit}}.",
+    "ROLE": {
+      "PARENT": "The other parent is invited — this plan doesn't allow that.",
+      "GUARDIAN": "A guardian is invited — this plan doesn't allow that.",
+      "FAMILY": "Family or caregivers are invited — this plan doesn't allow that."
+    },
+    "CIRCLE_MEMBERS": "Other parents are in your Circle.",
+    "STORAGE": "You use more storage than this plan has.",
+    "FEATURE": {
+      "custodyPlanning": "A custody plan is set up.",
+      "mediaLibrary": "The Media Library is in use.",
+      "circleMembers": "Other parents are in your Circle."
+    }
+  },
+  "trialPill": "Free trial until {{date}}",
+  "trialPillNoCard": "Free trial until {{date}} · Add a card"
 }

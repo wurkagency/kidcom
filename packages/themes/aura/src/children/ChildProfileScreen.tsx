@@ -174,9 +174,11 @@ function Avatar({ child }: { child: ChildDetail }) {
 function CustodyCard({ child }: { child: ChildDetail }) {
   const { t } = useT("children");
   const fmt = useFormat();
-  const { data } = useCustodyPlan(child.id);
+  // Custody planning comes with a Parent or Family Circle (subscription model).
+  const included = child.tier !== "FREE";
+  const { data } = useCustodyPlan(child.id, included);
   const plan = data?.plan;
-  const canEditPlan = child.myRole !== "FAMILY";
+  const canEditPlan = child.myRole !== "FAMILY" && included;
   // Every handover falls on the same weekday when the blocks are whole weeks.
   const sameWeekday = plan?.patternDays.blocks.every((b) => b.days % 7 === 0);
   return (
@@ -201,7 +203,9 @@ function CustodyCard({ child }: { child: ChildDetail }) {
           </p>
         </>
       ) : (
-        <p className="font-body-md text-body-md text-inverse-on-surface leading-snug">{t(canEditPlan ? "custody.noneEditor" : "custody.none")}</p>
+        <p className="font-body-md text-body-md text-inverse-on-surface leading-snug">
+          {included ? t(canEditPlan ? "custody.noneEditor" : "custody.none") : t("custody.needsCircle")}
+        </p>
       )}
     </div>
   );

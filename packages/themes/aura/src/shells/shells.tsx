@@ -1,5 +1,8 @@
 import type { ShellProps } from "@kidcom/theme-kit";
 
+import { Link, paths, useBillingStatus, useFormat, useT } from "@kidcom/core";
+
+import { Icon } from "../components/Icon";
 import { Toaster } from "../ui/sonner";
 import { AppHeader } from "./AppHeader";
 import { Dock } from "./Dock";
@@ -13,6 +16,7 @@ export function AppShell({ children }: ShellProps) {
     <div className="bg-surface font-body-md text-on-surface flex flex-col min-h-screen">
       <AppHeader />
       <main className="flex flex-col relative w-full pt-20 pb-28 bg-surface px-margin">
+        <TrialBanner />
         <div className="flex flex-col w-full">{children}</div>
       </main>
       <Dock />
@@ -44,4 +48,24 @@ export function AuthShell({ children }: ShellProps) {
 /** No chrome at all: media viewer, desktop gate, not found. */
 export function BlankShell({ children }: ShellProps) {
   return <div className="min-h-screen bg-surface font-body-md text-on-surface">{children}</div>;
+}
+
+/**
+ * D3: during a free trial its end date is always visible in the app, not
+ * only on the plan page — with "Add card" until one is on file.
+ */
+function TrialBanner() {
+  const { t } = useT("billing");
+  const fmt = useFormat();
+  const { data: sub } = useBillingStatus();
+  if (sub?.status !== "TRIALING" || !sub.trialEndsAt || sub.circle?.role !== "OWNER") return null;
+  return (
+    <Link
+      to={paths.billing.overview()}
+      className="mb-3 flex items-center gap-2 self-start px-3 py-1.5 rounded-full bg-peach text-on-surface font-label-sm text-label-sm"
+    >
+      <Icon name="event" className="text-[16px]" />
+      {t(sub.cardOnFile ? "trialPill" : "trialPillNoCard", { date: fmt.date(sub.trialEndsAt, { day: "2-digit", month: "2-digit", year: "numeric" }) })}
+    </Link>
+  );
 }

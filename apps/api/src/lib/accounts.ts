@@ -1,7 +1,6 @@
 import { prisma } from "../db";
 
 // I-2 (spec §2.2/§4.3): one 30-day trial per user, granted at account creation.
-const THIRTY_DAYS_MS = 1000 * 60 * 60 * 24 * 30;
 
 /**
  * Creates a new account the way every signup path does (email form or
@@ -27,8 +26,6 @@ export async function createAccount(data: {
         passwordHash: data.passwordHash ?? null,
         emailVerifiedAt: data.emailVerified ? now : null,
         termsAcceptedAt: now,
-        trialStartedAt: now,
-        trialEndsAt: new Date(now.getTime() + THIRTY_DAYS_MS),
         ...(data.oauth ? { oauthAccounts: { create: data.oauth } } : {}),
       },
     });
