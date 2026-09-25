@@ -9,30 +9,30 @@ it once you have done a deploy with this guide.
 
 | Placeholder | Meaning | Value |
 |---|---|---|
-| `APP_HOST` | The app's domain. The API is served on the same domain under `/api`. | `kinnd.eu` |
+| `APP_HOST` | The app's domain. The API is served on the same domain under `/api`. | `app.kinnd.eu` |
 | `REPO` | The git checkout. Plesk never serves it. | `/var/www/vhosts/kinnd.eu/repo` |
-| `SITE` | What Plesk serves and PM2 runs from | `/var/www/vhosts/kinnd.eu/httpdocs` |
+| `SITE` | The subdomain's folder: what Plesk serves and PM2 runs from | `/var/www/vhosts/kinnd.eu/app` |
 | `MEDIA` | Encrypted photos and videos. Never web-served and never inside `SITE`. | `/var/www/vhosts/kinnd.eu/media` |
-| `PLESK_USER` | The subscription's system user, which owns `httpdocs` | `stat -c %U /var/www/vhosts/kinnd.eu/httpdocs` |
+| `PLESK_USER` | The subscription's system user, which owns `SITE` | `stat -c %U /var/www/vhosts/kinnd.eu/app` |
 
 Domains:
 
 | Domain | Role |
 |---|---|
-| `kinnd.eu` | The app, plus the API under `/api` |
-| `www.kinnd.eu` | 301 redirect to `kinnd.eu` |
-| `kinnd.org`, `kinnd.net` | Domain aliases with a 301 redirect to `kinnd.eu` |
-| `manage.kinnd.eu` | The management portal. It is a separate SoW and not part of this deploy: leave it alone. |
+| `app.kinnd.eu` | **The app, plus the API under `/api`.** Subdomain of `kinnd.eu`, folder `SITE`. |
+| `app.kinnd.org`, `app.kinnd.net` | Aliases with a 301 redirect to `app.kinnd.eu` |
+| `kinnd.eu` (`httpdocs`) | The promotional website. Separate scope: this guide doesn't touch it. It also hosts `/privacy`, `/terms` and `/help`, which the app and its emails link to. |
+| `manage.kinnd.eu` | The management portal. Separate SoW: leave it alone. |
 
-**You don't need `api.kinnd.eu`.** The API must live on the app's own domain;
-§1 explains why.
+**You don't need `api.kinnd.eu`.** The API must live on the app's own host,
+`app.kinnd.eu/api`; §1 explains why.
 
 ---
 
 ## 1. What runs where
 
 ```
-Phone (PWA) ──HTTPS──► nginx (Plesk) on kinnd.eu
+Phone (PWA) ──HTTPS──► nginx (Plesk) on app.kinnd.eu
                         ├── /            → SITE/apps/web/dist   (static app, service worker)
                         └── /api/…       → 127.0.0.1:4000       (PM2: kinnd-api)
                                                  │
@@ -42,12 +42,12 @@ Phone (PWA) ──HTTPS──► nginx (Plesk) on kinnd.eu
                  └──────► MEDIA folder (AES-256-GCM encrypted files)
 ```
 
-- **One origin.** The app and the API share `kinnd.eu`, and the API lives under
+- **One origin.** The app and the API share `app.kinnd.eu`, and the API lives under
   `/api`. This is required, not optional:
   - Google/Microsoft sign-in redirects back to same-origin paths.
   - Invite links and QuickPay's return URL are built from the app origin.
-  - The session cookie belongs to `kinnd.eu` only. It is never sent to
-    `manage.kinnd.eu` or any other subdomain.
+  - The session cookie belongs to `app.kinnd.eu` only. It is never sent to
+    the website on `kinnd.eu` or to `manage.kinnd.eu`.
 - **kinnd-api** (`apps/api/dist/server.js`) is the HTTP API.
 - **kinnd-worker** (`apps/api/dist/worker.js`) runs the background jobs:
   - media processing: thumbnails, playable video, GPS-free copies
@@ -69,7 +69,7 @@ Phone (PWA) ──HTTPS──► nginx (Plesk) on kinnd.eu
 
 | | Version | Notes |
 |---|---|---|
-| Node.js | **20 LTS or newer** | The system Node, used by PM2. Don't turn on Plesk's *Node.js* app support for `kinnd.eu`: nginx serves the app and PM2 runs the API. |
+| Node.js | **20 LTS or newer** | The system Node, used by PM2. Don't turn on Plesk's *Node.js* app support for `app.kinnd.eu`: nginx serves the app and PM2 runs the API. |
 | npm | 10 | comes with Node 20 |
 | PostgreSQL | ≥ 14 | The app's role must **not** be superuser and must **not** have `BYPASSRLS` (§5.5). |
 | Redis | ≥ 6.2 | Holds sessions and job queues. Turn on persistence (AOF or RDB) so sign-ins survive a restart. Bind it to localhost. |
@@ -118,11 +118,11 @@ REDIS_URL=redis://localhost:6379
 PORT=4000
 SESSION_SECRET=<openssl rand -hex 32>
 # FIRST origin = the app itself (invite links, QuickPay return URL).
-CORS_ORIGIN=https://kinnd.eu
-# Leave COOKIE_DOMAIN unset: the session cookie then belongs to kinnd.eu only.
-# Setting it to kinnd.eu would also send it to manage.kinnd.eu.
+CORS_ORIGIN=https://app.kinnd.eu
+# Leave COOKIE_DOMAIN unset: the session cookie then belongs to app.kinnd.eu
+# only. Setting it to kinnd.eu would also send it to the website and manage.
 # Public API base (QuickPay sends its payment callback here).
-API_BASE_URL=https://kinnd.eu/api
+API_BASE_URL=https://app.kinnd.eu/api
 
 MEDICAL_INFO_ENCRYPTION_KEY=<openssl rand -hex 32, or the v2 value (§6); never change it directly>
 MEDIA_STORAGE_PATH=/var/www/vhosts/kinnd.eu/media
@@ -159,7 +159,7 @@ SMTP_FROM="Kinnd" <no-reply@kinnd.eu>
 SMS_DAILY_LIMIT=500
 
 # Google / Microsoft sign-in
-OAUTH_REDIRECT_BASE=https://kinnd.eu/api
+OAUTH_REDIRECT_BASE=https://app.kinnd.eu/api
 GOOGLE_CLIENT_ID=<…>
 GOOGLE_CLIENT_SECRET=<…>
 MICROSOFT_CLIENT_ID=<…>
@@ -183,17 +183,18 @@ Lock it down: `chmod 600 SITE/apps/api/.env`.
 Register exactly these redirect URIs:
 
 - Google Cloud Console → Credentials → OAuth client:
-  `https://kinnd.eu/api/auth/oauth/google/callback`
+  `https://app.kinnd.eu/api/auth/oauth/google/callback`
 - Microsoft Entra → App registrations → Authentication (Web):
-  `https://kinnd.eu/api/auth/oauth/microsoft/callback`
+  `https://app.kinnd.eu/api/auth/oauth/microsoft/callback`
 
 In both consoles:
-- The authorised origin and home page are `https://kinnd.eu`.
+- The authorised origin and home page are `https://app.kinnd.eu`.
 - Update the app name to Kinnd, and set the privacy and terms links to
   `https://kinnd.eu/privacy` and `https://kinnd.eu/terms`.
 
 ### 4.2 Brevo
-- **Domain:** add `kinnd.eu` as a sender domain and put the SPF, DKIM and DMARC
+- **Domain:** add `kinnd.eu` as a sender domain (mail comes from
+  `no-reply@kinnd.eu`, not from the app subdomain) and put the SPF, DKIM and DMARC
   records Brevo shows into the Plesk DNS zone. Otherwise mail from
   `no-reply@kinnd.eu` lands in spam.
 - **SMS:** the sender is `Kinnd` (alphanumeric, at most 11 characters). Check
@@ -214,8 +215,8 @@ In both consoles:
 
 ### 4.3 QuickPay
 - The API sets the payment window, return URL and callback for each checkout
-  (`https://kinnd.eu/api/billing/webhook`, returning to
-  `https://kinnd.eu/billing`). There's nothing to configure in the QuickPay
+  (`https://app.kinnd.eu/api/billing/webhook`, returning to
+  `https://app.kinnd.eu/billing`). There's nothing to configure in the QuickPay
   manager beyond the keys.
 - In the QuickPay manager, set the shop name customers see in the payment
   window to **Kinnd**. It currently shows "WURK".
@@ -241,25 +242,35 @@ screen) on iOS 16.4+ and in Android browsers.
 
 ## 5. First-time setup
 
-### 5.1 Plesk: domain, aliases and TLS
-1. **Websites & Domains → kinnd.eu → Hosting settings:**
-   - Preferred domain: **kinnd.eu**, so `www` gets a 301 to the bare domain.
-   - Document root: **`httpdocs/apps/web/dist`**.
-2. **Domain aliases → Add alias** for `kinnd.org`, and again for `kinnd.net`.
-   For each one:
-   - tick *Synchronize DNS zone with the primary domain*
-   - tick *Redirect with the HTTP 301 code*
-   - leave web mail and mail off unless you use them
-3. **SSL/TLS Certificates → Let's Encrypt:** issue one certificate covering
-   `kinnd.eu`, `www.kinnd.eu` and the aliases (with their `www`). Tick
-   *Redirect from HTTP to HTTPS*.
-4. **Apache & nginx settings:** turn **off** *Proxy mode*, so nginx serves the
-   static app itself. Add the directives in §5.6 later, once the build exists.
+### 5.1 Plesk: subdomain, aliases and TLS
+`kinnd.eu` itself is the promotional website (separate scope). The app is the
+subdomain `app.kinnd.eu`.
+
+1. **Websites & Domains → app.kinnd.eu → Hosting settings:**
+   - Document root: **`app/apps/web/dist`**. The subdomain's folder is `SITE`
+     (`/var/www/vhosts/kinnd.eu/app`), and nginx serves the built app from
+     inside it.
+2. **Aliases** `app.kinnd.org` and `app.kinnd.net`, each with a **301
+   redirect** to `https://app.kinnd.eu`:
+   - The DNS zones for `kinnd.org` and `kinnd.net` need an `app` record (A/AAAA
+     or CNAME) pointing at this server.
+   - In Plesk: **Add Domain Alias** with `app.kinnd.eu` as the primary site,
+     and tick *Redirect with the HTTP 301 code*.
+   - If your Plesk only allows aliases of main domains, create `app.kinnd.org`
+     and `app.kinnd.net` as subdomains of `kinnd.org` / `kinnd.net` instead.
+     Give each one *Hosting type → Forwarding*, with *Moved permanently (301)*
+     to `https://app.kinnd.eu`.
+3. **SSL/TLS Certificates → Let's Encrypt:** a certificate for `app.kinnd.eu`,
+   and one for each alias (a redirect over HTTPS still needs a valid
+   certificate). Tick *Redirect from HTTP to HTTPS*.
+4. **Apache & nginx settings (app.kinnd.eu):** turn **off** *Proxy mode*, so
+   nginx serves the static app itself. Add the directives in §5.6 once the
+   build exists.
 
 Check the redirects once DNS has propagated:
 ```bash
-curl -sI https://kinnd.org | grep -i "^HTTP\|^location"    # 301 → https://kinnd.eu/
-curl -sI https://www.kinnd.eu | grep -i "^HTTP\|^location" # 301 → https://kinnd.eu/
+curl -sI https://app.kinnd.org | grep -i "^HTTP\|^location"   # 301 → https://app.kinnd.eu/
+curl -sI https://app.kinnd.net | grep -i "^HTTP\|^location"   # 301 → https://app.kinnd.eu/
 ```
 
 ### 5.2 Database and Redis
@@ -276,17 +287,17 @@ git clone git@github.com:wurkagency/kidcom.git /var/www/vhosts/kinnd.eu/repo
 git -C /var/www/vhosts/kinnd.eu/repo checkout v3.0
 mkdir -p /var/www/vhosts/kinnd.eu/media /var/www/vhosts/kinnd.eu/media-tmp
 rsync -a --exclude='.git' --exclude='node_modules' --exclude='dist' --exclude='.env*' \
-  /var/www/vhosts/kinnd.eu/repo/ /var/www/vhosts/kinnd.eu/httpdocs/
+  /var/www/vhosts/kinnd.eu/repo/ /var/www/vhosts/kinnd.eu/app/
 ```
-Plesk puts a default `index.html` and other files in a new `httpdocs`. Remove
+Plesk may put a default `index.html` and other files in the new `app` folder. Remove
 them before the first `rsync`, but keep `apps/api/.env` if you already made it.
 
-Now create `httpdocs/apps/api/.env` from §3.1. If you are moving the v2 data,
+Now create `app/apps/api/.env` from §3.1. If you are moving the v2 data,
 read §6 first: it needs the v2 medical key.
 
 ### 5.4 Build and migrate
 ```bash
-cd /var/www/vhosts/kinnd.eu/httpdocs
+cd /var/www/vhosts/kinnd.eu/app
 npm ci
 npx dotenv -e apps/api/.env -- npm run build
 npx dotenv -e apps/api/.env -- npx prisma migrate deploy --schema packages/db/prisma/schema.prisma
@@ -361,12 +372,12 @@ location / {
   - Put its seven `add_header … always;` lines at the top level, outside any
     location, so every response gets them.
 - **HSTS `includeSubDomains`** makes browsers use HTTPS on every subdomain,
-  `manage.kinnd.eu` included. Give every subdomain a certificate before it
+  including any below `app.kinnd.eu`. Give every such host a certificate before it
   goes live.
 
 Check that the headers arrive:
 ```bash
-curl -sI https://kinnd.eu/calendar | grep -iE "content-security-policy|strict-transport|x-frame-options"
+curl -sI https://app.kinnd.eu/calendar | grep -iE "content-security-policy|strict-transport|x-frame-options"
 ```
 
 **What the headers do:**
@@ -392,17 +403,17 @@ curl -sI https://kinnd.eu/calendar | grep -iE "content-security-policy|strict-tr
 ### 5.7 Permissions
 nginx runs as its own user and must be able to read the build:
 ```bash
-PLESK_USER=$(stat -c %U /var/www/vhosts/kinnd.eu/httpdocs)
-chmod o+x /var/www/vhosts/kinnd.eu /var/www/vhosts/kinnd.eu/httpdocs
-chown -R "$PLESK_USER":psacln /var/www/vhosts/kinnd.eu/httpdocs/apps/web/dist/
-chmod -R o+rX /var/www/vhosts/kinnd.eu/httpdocs/apps/web/dist/
+PLESK_USER=$(stat -c %U /var/www/vhosts/kinnd.eu/app)
+chmod o+x /var/www/vhosts/kinnd.eu /var/www/vhosts/kinnd.eu/app
+chown -R "$PLESK_USER":psacln /var/www/vhosts/kinnd.eu/app/apps/web/dist/
+chmod -R o+rX /var/www/vhosts/kinnd.eu/app/apps/web/dist/
 chmod 700 /var/www/vhosts/kinnd.eu/media /var/www/vhosts/kinnd.eu/media-tmp
-chmod 600 /var/www/vhosts/kinnd.eu/httpdocs/apps/api/.env
+chmod 600 /var/www/vhosts/kinnd.eu/app/apps/api/.env
 ```
 
 ### 5.8 Start the processes
 ```bash
-cd /var/www/vhosts/kinnd.eu/httpdocs
+cd /var/www/vhosts/kinnd.eu/app
 pm2 start ecosystem.config.cjs
 pm2 save
 pm2 startup      # run the command it prints, so PM2 starts on boot
@@ -412,9 +423,9 @@ pm2 startup      # run the command it prints, so PM2 starts on boot
 
 ### 5.9 Smoke test
 ```bash
-curl -sI https://kinnd.eu/ | head -1            # 200
-curl -s  https://kinnd.eu/api/health            # {"status":"ok",…}
-curl -sI https://kinnd.eu/calendar | head -1    # 200 (SPA fallback)
+curl -sI https://app.kinnd.eu/ | head -1            # 200
+curl -s  https://app.kinnd.eu/api/health            # {"status":"ok",…}
+curl -sI https://app.kinnd.eu/calendar | head -1    # 200 (SPA fallback)
 pm2 status                                      # both online
 pm2 logs kinnd-worker --lines 20 --nostream     # "… worker ready" lines, no errors
 ```
@@ -456,7 +467,7 @@ Plan about an hour, done out of hours.
 6. **Encrypt the media** (safe to re-run; files not yet converted are still
    served until it finishes):
    ```bash
-   cd /var/www/vhosts/kinnd.eu/httpdocs
+   cd /var/www/vhosts/kinnd.eu/app
    npx dotenv -e apps/api/.env -- npm run media:encrypt --workspace=apps/api -- --dry-run
    npx dotenv -e apps/api/.env -- npm run media:encrypt --workspace=apps/api -- --reprocess
    ```
@@ -472,9 +483,10 @@ Plan about an hour, done out of hours.
    ```
    Then give the kept account its Circle with the lifetime coupon (§8.7):
    create it, sign in, and redeem it on Plan & billing.
-8. **Old domains.** Point `kidcom.org` (and `app.`, `www.`, `api.`) to
-   `https://kinnd.eu` with a 301, or retire them. Installed v2 home-screen apps
-   stop working either way; users reinstall from `kinnd.eu`.
+8. **Old domains.** Redirect `app.kidcom.org` and `api.kidcom.org` with a 301
+   to `https://app.kinnd.eu`, and `kidcom.org` / `www.kidcom.org` to
+   `https://kinnd.eu`, or retire them. Installed v2 home-screen apps
+   stop working either way; users reinstall from `app.kinnd.eu`.
 9. Verify with §7.2. Keep the v2 backups for at least 30 days.
 
 ## 7. Every deploy
@@ -484,21 +496,21 @@ Plan about an hour, done out of hours.
 git -C /var/www/vhosts/kinnd.eu/repo pull
 
 rsync -a --exclude='.git' --exclude='node_modules' --exclude='dist' --exclude='.env*' \
-  /var/www/vhosts/kinnd.eu/repo/ /var/www/vhosts/kinnd.eu/httpdocs/
+  /var/www/vhosts/kinnd.eu/repo/ /var/www/vhosts/kinnd.eu/app/
 
-cd /var/www/vhosts/kinnd.eu/httpdocs
+cd /var/www/vhosts/kinnd.eu/app
 rm -rf tasks docs README.md docker-compose.yml .env.example
 npm ci
 npx dotenv -e apps/api/.env -- npm run build
 npx dotenv -e apps/api/.env -- npx prisma migrate deploy --schema packages/db/prisma/schema.prisma
 
-PLESK_USER=$(stat -c %U /var/www/vhosts/kinnd.eu/httpdocs)
-chmod o+x /var/www/vhosts/kinnd.eu /var/www/vhosts/kinnd.eu/httpdocs
+PLESK_USER=$(stat -c %U /var/www/vhosts/kinnd.eu/app)
+chmod o+x /var/www/vhosts/kinnd.eu /var/www/vhosts/kinnd.eu/app
 chown -R "$PLESK_USER":psacln apps/web/dist/
 chmod -R o+rX apps/web/dist/
 
 pm2 restart ecosystem.config.cjs
-curl -sI https://kinnd.eu/ | head -1 && curl -s https://kinnd.eu/api/health
+curl -sI https://app.kinnd.eu/ | head -1 && curl -s https://app.kinnd.eu/api/health
 ```
 
 - Keep `scripts/`: the build and the `budget` check use it.
@@ -533,7 +545,7 @@ curl -sI https://kinnd.eu/ | head -1 && curl -s https://kinnd.eu/api/health
 ```bash
 pm2 logs kinnd-api --lines 100
 pm2 logs kinnd-worker --lines 100
-tail -f /var/www/vhosts/system/kinnd.eu/logs/proxy_error_log   # nginx
+tail -f /var/www/vhosts/system/app.kinnd.eu/logs/proxy_error_log   # nginx
 ```
 
 ### 8.2 Scheduled jobs (worker, Copenhagen time)
@@ -647,22 +659,22 @@ another parent taking the child over, restores it straight away.
 - **The app returns 403/500 but the API is fine:** almost always permissions.
   The build runs as root, so nginx can't read `dist`.
   - Re-run the lines in §5.7.
-  - Plesk can silently reset `httpdocs` to `750`.
+  - Plesk can silently reset the `app` folder to `750`.
   - To confirm, look for `Permission denied` in `proxy_error_log`.
 - **Plesk's default page shows instead of the app:** the document root isn't
-  `httpdocs/apps/web/dist` (§5.1).
+  `app/apps/web/dist` (§5.1).
 - **Sign-in "works" but you land signed out:** the session cookie isn't kept.
   Check that:
   - the site is HTTPS
   - nginx sends `X-Forwarded-Proto`
-  - `COOKIE_DOMAIN` is unset, or exactly `kinnd.eu`
-- **Signed in on kinnd.eu but signed out after a kinnd.org link:** expected.
-  The alias redirects to `kinnd.eu`, and the cookie lives only there. Always
-  link to `kinnd.eu`.
+  - `COOKIE_DOMAIN` is unset, or exactly `app.kinnd.eu`
+- **Signed in on app.kinnd.eu but signed out after an app.kinnd.org link:**
+  expected. The alias redirects to `app.kinnd.eu`, and the cookie lives only
+  there. Always link to `app.kinnd.eu`.
 - **Google or Microsoft sign-in ends on an error page:** the redirect URI isn't
   registered exactly as in §4.1, or `OAUTH_REDIRECT_BASE` is wrong.
 - **Invite emails or QuickPay return to the wrong site:** the first entry of
-  `CORS_ORIGIN` must be `https://kinnd.eu`.
+  `CORS_ORIGIN` must be `https://app.kinnd.eu`.
 - **Photos stay "processing":** the worker isn't running or Redis is down.
   Check `pm2 status` and `pm2 logs kinnd-worker`.
 - **"Missing required environment variable":** `apps/api/.env` is missing, or

@@ -75,7 +75,7 @@ export const config = {
   medicalInfoEncryptionKeysPrevious: list(process.env.MEDICAL_INFO_ENCRYPTION_KEYS_PREVIOUS),
   corsOrigin: (process.env.CORS_ORIGIN ?? "http://localhost:5173").split(","),
   // Unset (recommended): the session cookie belongs to the app's own host
-  // only, so it never reaches other subdomains such as manage.kinnd.eu.
+  // (app.kinnd.eu) only, so it never reaches manage.kinnd.eu or kinnd.eu.
   cookieDomain: process.env.COOKIE_DOMAIN || undefined,
   mediaStoragePath: process.env.MEDIA_STORAGE_PATH ?? "./media",
   // v3.0: every media file is encrypted at rest (lib/mediaCrypto.ts) with a

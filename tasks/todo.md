@@ -120,7 +120,7 @@ see "Decisions" below.
   (rounded-md 6px, "rounded-DEFAULT" = square) — reverses Phase 1's DESIGN.md sm/md
   assumption; Tailwind v3 shadow/blur semantics pinned for ported classes
 - Note: flag emoji don't render on Windows desktop Chromium (shows "DK"); fine on phones
-- Carried: invite-accept screen (Phase 7); production OAuth callbacks on kinnd.eu
+- Carried: invite-accept screen (Phase 7); production OAuth callbacks on app.kinnd.eu
 
 ## Phase 3 — Categories + Today + Calendar
 - [x] API: global `Category` table (system set + per-user custom; enum data migrated), tasks,
@@ -342,7 +342,7 @@ see "Decisions" below.
 ## Credentials (in app/.env, never committed)
 - Google + Microsoft OAuth (Microsoft tenant `common`: any Entra tenant + personal accounts)
 - Brevo API key, SMS sender `Kinnd`, SMTP relay login + key
-- Still to register before launch: production OAuth callbacks on kinnd.eu
+- Still to register before launch: production OAuth callbacks on app.kinnd.eu
 
 ## Needed from Charlie
 - ~~QuickPay test-card credentials~~ (received 2026-09-23; keys in app/.env)

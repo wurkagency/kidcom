@@ -4,10 +4,11 @@ Commands only. Explanations are in [`deployment_guide.md`](deployment_guide.md).
 
 | | |
 |---|---|
-| App + API | `https://kinnd.eu` (API under `/api`; no `api.kinnd.eu`) |
-| Aliases | `kinnd.org`, `kinnd.net`: 301 to `kinnd.eu` |
+| App + API | `https://app.kinnd.eu` (API under `/api`; no `api.kinnd.eu`) |
+| Aliases | `app.kinnd.org`, `app.kinnd.net`: 301 to `app.kinnd.eu` |
+| `kinnd.eu` | promotional website; separate scope, not touched |
 | Repo | `/var/www/vhosts/kinnd.eu/repo` |
-| Site | `/var/www/vhosts/kinnd.eu/httpdocs` |
+| Site | `/var/www/vhosts/kinnd.eu/app` (the `app.kinnd.eu` subdomain's folder) |
 | Media | `/var/www/vhosts/kinnd.eu/media` |
 | Processes | PM2 `kinnd-api`, `kinnd-worker` (Redis queues; RabbitMQ not used) |
 | `manage.kinnd.eu` | separate SoW; not touched |
@@ -19,11 +20,11 @@ git -C /var/www/vhosts/kinnd.eu/repo pull
 ```
 
 ```bash
-rsync -a --exclude='.git' --exclude='node_modules' --exclude='dist' --exclude='.env*' /var/www/vhosts/kinnd.eu/repo/ /var/www/vhosts/kinnd.eu/httpdocs/
+rsync -a --exclude='.git' --exclude='node_modules' --exclude='dist' --exclude='.env*' /var/www/vhosts/kinnd.eu/repo/ /var/www/vhosts/kinnd.eu/app/
 ```
 
 ```bash
-cd /var/www/vhosts/kinnd.eu/httpdocs && rm -rf tasks docs README.md docker-compose.yml .env.example && npm ci && npx dotenv -e apps/api/.env -- npm run build
+cd /var/www/vhosts/kinnd.eu/app && rm -rf tasks docs README.md docker-compose.yml .env.example && npm ci && npx dotenv -e apps/api/.env -- npm run build
 ```
 
 ```bash
@@ -31,7 +32,7 @@ npx dotenv -e apps/api/.env -- npx prisma migrate deploy --schema packages/db/pr
 ```
 
 ```bash
-chmod o+x /var/www/vhosts/kinnd.eu /var/www/vhosts/kinnd.eu/httpdocs && chown -R "$(stat -c %U /var/www/vhosts/kinnd.eu/httpdocs)":psacln apps/web/dist/ && chmod -R o+rX apps/web/dist/
+chmod o+x /var/www/vhosts/kinnd.eu /var/www/vhosts/kinnd.eu/app && chown -R "$(stat -c %U /var/www/vhosts/kinnd.eu/app)":psacln apps/web/dist/ && chmod -R o+rX apps/web/dist/
 ```
 
 ```bash
@@ -39,7 +40,7 @@ pm2 restart ecosystem.config.cjs
 ```
 
 ```bash
-curl -sI https://kinnd.eu/ | head -1 && curl -s https://kinnd.eu/api/health && pm2 status
+curl -sI https://app.kinnd.eu/ | head -1 && curl -s https://app.kinnd.eu/api/health && pm2 status
 ```
 
 ## Before a release with migrations
@@ -50,12 +51,11 @@ npx dotenv -e apps/api/.env -- sh -c 'pg_dump -Fc "$DATABASE_URL"' > /root/backu
 
 ## First time (fresh server)
 
-1. **Plesk → kinnd.eu:**
-   - Hosting settings: preferred domain `kinnd.eu`; document root
-     `httpdocs/apps/web/dist`
-   - Domain aliases: `kinnd.org` and `kinnd.net`, each with *Redirect with the
-     HTTP 301 code*
-   - Let's Encrypt for `kinnd.eu`, `www` and the aliases; HTTP→HTTPS on
+1. **Plesk → app.kinnd.eu** (subdomain, folder `app`):
+   - Hosting settings: document root `app/apps/web/dist`
+   - Aliases `app.kinnd.org` and `app.kinnd.net` (an `app` DNS record in each
+     zone): 301 to `https://app.kinnd.eu`
+   - Let's Encrypt for `app.kinnd.eu` and each alias; HTTP→HTTPS on
    - Apache & nginx settings: Proxy mode **off**; additional nginx directives
      from guide §5.6
 2. **Database:**
@@ -71,22 +71,22 @@ git clone git@github.com:wurkagency/kidcom.git /var/www/vhosts/kinnd.eu/repo && 
 mkdir -p /var/www/vhosts/kinnd.eu/media /var/www/vhosts/kinnd.eu/media-tmp && chmod 700 /var/www/vhosts/kinnd.eu/media /var/www/vhosts/kinnd.eu/media-tmp
 ```
 ```bash
-rsync -a --exclude='.git' --exclude='node_modules' --exclude='dist' --exclude='.env*' /var/www/vhosts/kinnd.eu/repo/ /var/www/vhosts/kinnd.eu/httpdocs/
+rsync -a --exclude='.git' --exclude='node_modules' --exclude='dist' --exclude='.env*' /var/www/vhosts/kinnd.eu/repo/ /var/www/vhosts/kinnd.eu/app/
 ```
-4. **`httpdocs/apps/api/.env`** from guide §3.1, then `chmod 600` it. Secrets:
+4. **`app/apps/api/.env`** from guide §3.1, then `chmod 600` it. Secrets:
 ```bash
 openssl rand -hex 32   # SESSION_SECRET, MEDIA_ENCRYPTION_KEY, MEDICAL_INFO_ENCRYPTION_KEY (each its own)
 ```
 ```bash
 npx web-push generate-vapid-keys
 ```
-   - `CORS_ORIGIN=https://kinnd.eu`
-   - `API_BASE_URL` and `OAUTH_REDIRECT_BASE`: `https://kinnd.eu/api`
+   - `CORS_ORIGIN=https://app.kinnd.eu`
+   - `API_BASE_URL` and `OAUTH_REDIRECT_BASE`: `https://app.kinnd.eu/api`
    - **`COOKIE_DOMAIN`: leave unset**
    - `SMTP_FROM="Kinnd" <no-reply@kinnd.eu>`, `BREVO_SMS_SENDER=Kinnd`
 5. Run **Every deploy** (skip the `git pull`), then:
 ```bash
-cd /var/www/vhosts/kinnd.eu/httpdocs && pm2 start ecosystem.config.cjs && pm2 save && pm2 startup
+cd /var/www/vhosts/kinnd.eu/app && pm2 start ecosystem.config.cjs && pm2 save && pm2 startup
 ```
 6. **RLS check** (expect `f | f`, then `t | t` on every row):
 ```bash
@@ -101,8 +101,8 @@ npx dotenv -e apps/api/.env -- sh -c 'psql "$DATABASE_URL" -f /tmp/rls_check.sql
 ```
 7. **Providers:**
    - Google/Microsoft redirect URIs:
-     - `https://kinnd.eu/api/auth/oauth/google/callback`
-     - `https://kinnd.eu/api/auth/oauth/microsoft/callback`
+     - `https://app.kinnd.eu/api/auth/oauth/google/callback`
+     - `https://app.kinnd.eu/api/auth/oauth/microsoft/callback`
    - Brevo: verify `kinnd.eu` as a sender domain (SPF/DKIM/DMARC in Plesk DNS)
    - QuickPay: shop name "Kinnd"; *allow test transactions* **off** at launch
 
@@ -143,7 +143,7 @@ npx dotenv -e apps/api/.env -- npm run reset:launch --workspace=apps/api -- --co
 ```bash
 npx dotenv -e apps/api/.env -- npm run coupon --workspace=apps/api -- create --tier FAMILY --max 20 --code KC-9GYC-Y46E --note "Internal testing and family"
 ```
-7. 301 the old `kidcom.org` domains to `https://kinnd.eu`.
+7. 301 `app.kidcom.org` and `api.kidcom.org` to `https://app.kinnd.eu`, and `kidcom.org` to `https://kinnd.eu`.
 
 ## After a deploy: check
 
@@ -165,7 +165,7 @@ pm2 logs kinnd-api --lines 100
 pm2 logs kinnd-worker --lines 100
 ```
 ```bash
-tail -f /var/www/vhosts/system/kinnd.eu/logs/proxy_error_log
+tail -f /var/www/vhosts/system/app.kinnd.eu/logs/proxy_error_log
 ```
 ```bash
 pm2 logs kinnd-api --nostream | grep ALERT

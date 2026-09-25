@@ -50,7 +50,7 @@ declare module "express-session" {
 // production (local dev is plain HTTP on localhost, so requiring `secure`
 // there would silently drop the cookie on every request); domain is unset
 // locally, and in production too unless COOKIE_DOMAIN is set: a host-only
-// cookie for the app's own host (kinnd.eu), never shared with subdomains.
+// cookie for the app's own host (app.kinnd.eu), never shared with other hosts.
 // The API is served same-origin under /api (docs/deployment_guide.md).
 export const sessionMiddleware = session({
   store: new RedisStore({ client: redis, prefix: "kinnd:sess:" }),
