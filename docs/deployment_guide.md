@@ -113,7 +113,8 @@ startup and names the key.
 NODE_ENV=production
 
 DATABASE_URL=postgresql://kinnd:<password>@localhost:5432/kinnd
-REDIS_URL=redis://localhost:6379
+# Its own Redis database (/2): other apps on the server use the default 0.
+REDIS_URL=redis://localhost:6379/2
 
 PORT=4000
 SESSION_SECRET=<openssl rand -hex 32>
@@ -441,6 +442,14 @@ pm2 startup      # run the command it prints, so PM2 starts on boot
 `ecosystem.config.cjs` is in the repository. It starts `kinnd-api` and
 `kinnd-worker`, and both read `apps/api/.env`.
 
+The server runs other PM2 apps too, so always address Kinnd's processes by
+name (`pm2 restart kinnd-api kinnd-worker --update-env`), never `pm2 … all`.
+**Port 4000 must be free.** If `kinnd-api` shows `errored` and its log says
+`EADDRINUSE … 4000`, another process holds the port. The old `kidcom-api` did,
+until it was removed with `pm2 delete kidcom-api kidcom-worker && pm2 save`.
+To use another port, set `PORT` in `.env` and change `proxy_pass` in §5.6 to
+match.
+
 ### 5.9 Smoke test
 ```bash
 curl -sI https://app.kinnd.eu/ | head -1            # 200
@@ -530,7 +539,7 @@ chmod o+x /var/www/vhosts/kinnd.eu /var/www/vhosts/kinnd.eu/app
 chown -R "$PLESK_USER":psacln apps/web/dist/
 chmod -R o+rX apps/web/dist/
 
-pm2 restart ecosystem.config.cjs
+pm2 restart kinnd-api kinnd-worker --update-env
 curl -sI https://app.kinnd.eu/ | head -1 && curl -s https://app.kinnd.eu/api/health
 ```
 
@@ -558,7 +567,7 @@ curl -sI https://app.kinnd.eu/ | head -1 && curl -s https://app.kinnd.eu/api/hea
    - in the QuickPay manager, the subscription shows **one** captured payment
      of the right amount
 
-   Then remove `QUICKPAY_ACCEPT_TEST_CARDS` and `pm2 restart ecosystem.config.cjs`.
+   Then remove `QUICKPAY_ACCEPT_TEST_CARDS` and `pm2 restart kinnd-api kinnd-worker --update-env`.
 
 ## 8. Operations
 
@@ -610,7 +619,7 @@ daily limit was reached, which is a sign of SMS pumping. Check `sms_sends`
 2. In `apps/api/.env`, set `MEDICAL_INFO_ENCRYPTION_KEY` to the new key.
    Put the old value in `MEDICAL_INFO_ENCRYPTION_KEYS_PREVIOUS`
    (comma-separate several).
-3. `pm2 restart ecosystem.config.cjs`. Old values can still be read, and
+3. `pm2 restart kinnd-api kinnd-worker --update-env`. Old values can still be read, and
    everything new is written with the new key.
 4. Re-encrypt:
    ```bash
@@ -720,5 +729,5 @@ another parent taking the child over, restores it straight away.
 - **A parent is locked out ("Too many attempts"):** 10 wrong passwords within
   15 minutes. It clears by itself after 15 minutes; a password reset works
   straight away.
-- **After changing `.env`:** `pm2 restart ecosystem.config.cjs`, so both
+- **After changing `.env`:** `pm2 restart kinnd-api kinnd-worker --update-env`, so both
   processes reload it.

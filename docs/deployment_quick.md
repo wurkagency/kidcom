@@ -34,7 +34,7 @@ chmod o+x /var/www/vhosts/kinnd.eu /var/www/vhosts/kinnd.eu/app && chown -R "$(s
 ```
 
 ```bash
-pm2 restart ecosystem.config.cjs
+pm2 restart kinnd-api kinnd-worker --update-env
 ```
 
 ```bash
