@@ -80,7 +80,18 @@ npx dotenv -e apps/api/.env -- npm run media:encrypt --workspace=apps/api -- --d
 ```bash
 npx dotenv -e apps/api/.env -- npm run media:encrypt --workspace=apps/api -- --reprocess
 ```
-8. Redirect `www.kidcom.org` with a 301 to `https://app.kidcom.org`.
+8. Launch reset: back up first, then remove every v2 user except charlie@wurk.dk:
+```bash
+npx dotenv -e apps/api/.env -- npm run reset:launch --workspace=apps/api
+```
+```bash
+npx dotenv -e apps/api/.env -- npm run reset:launch --workspace=apps/api -- --confirm
+```
+9. Create the lifetime coupon, then redeem it on Plan & billing:
+```bash
+npx dotenv -e apps/api/.env -- npm run coupon --workspace=apps/api -- create --tier FAMILY --max 20 --note "Internal testing and family"
+```
+10. Redirect `www.kidcom.org` with a 301 to `https://app.kidcom.org`.
 
 ### nginx directives (app.kidcom.org)
 
@@ -223,6 +234,14 @@ Direct API calls (scripts, `curl`) must send `X-KidCom-Client: 1` on POST/PATCH/
 Declined payments and QuickPay's error text (the app only gets the `qp_status_code`):
 ```bash
 pm2 logs kidcom-api --lines 1000 | grep -i quickpay
+```
+
+Coupons and legal hold:
+```bash
+npx dotenv -e apps/api/.env -- npm run coupon --workspace=apps/api -- list
+```
+```bash
+npx dotenv -e apps/api/.env -- npm run alarm --workspace=apps/api -- list
 ```
 
 Look for SMS pumping alerts:

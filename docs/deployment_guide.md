@@ -124,6 +124,9 @@ MEDIA_TEMP_PATH=/var/www/vhosts/kidcom.org/media-tmp
 # QuickPay (test keys = test payments; live keys = real money)
 QUICKPAY_API_KEY=<API user key>
 QUICKPAY_PRIVATE_KEY=<private key>
+# Only while testing a deployment with QuickPay test cards. Leave unset in
+# production: a test-card authorisation then never activates a paid plan.
+# QUICKPAY_ACCEPT_TEST_CARDS=true
 # true = paid plans switch on WITHOUT payment (only while testing a deployment)
 BILLING_TEST_MODE=false
 
@@ -199,13 +202,18 @@ In both consoles, the authorised origin or home page is `https://APP_HOST`.
 - The payment window, return URL and callback are set per checkout by the API
   (`API_BASE_URL/billing/webhook`, return to `https://APP_HOST/billing`), so
   there's nothing to configure in the QuickPay manager beyond the keys.
-- **Test vs live** is decided by the keys: test-mode keys take the published
-  test cards (https://learn.quickpay.net/tech-talk/appendixes/test/), and live
-  keys take real money.
-  - Check in the QuickPay manager that the account is in test mode before any
-    test.
-  - (2026-09-23: the configured account already holds a subscription marked
-    `test_mode: false`. Confirm the keys before testing.)
+- **Test vs live.** The configured merchant account ("WURK") is live and has
+  *allow test transactions* switched on, so it takes both real cards and the
+  published test cards (https://learn.quickpay.net/tech-talk/appendixes/test/).
+  QuickPay marks a test-card subscription `test_mode: true`, and no money moves.
+  - In production the API refuses a test-card authorisation: the checkout ends
+    as declined and the plan isn't activated. Set
+    `QUICKPAY_ACCEPT_TEST_CARDS=true` only while testing a deployment, then
+    remove it again.
+  - At launch, switch *allow test transactions* off in the QuickPay manager
+    (Settings → Merchant), unless you want to keep testing in production.
+  - A real card on this account is charged for real, including in development.
+    Test with test cards only.
 - Payment status is confirmed twice, safely: once when the customer returns
   (`POST /billing/confirm`) and once by QuickPay's callback. The first period is
   charged exactly once, whichever arrives first. The nightly reconciliation
@@ -443,10 +451,17 @@ minutes, done out of hours.
    ```
    `--reprocess` also backfills capture metadata and the location-free copies
    for older uploads.
-7. **What users will notice:**
-   - Accounts without a verified mobile number are asked to add one and confirm
-     it by SMS at their next sign-in.
-   - Everyone else carries on as before.
+7. **Launch reset (subscription model D8).** Every v2 user and their data is
+   removed, except `charlie@wurk.dk`, which keeps its children. Take the
+   database and media backup first (§8.3). The QuickPay subscriptions of
+   removed users are cancelled before anything is deleted.
+   ```bash
+   npx dotenv -e apps/api/.env -- npm run reset:launch --workspace=apps/api
+   npx dotenv -e apps/api/.env -- npm run reset:launch --workspace=apps/api -- --confirm
+   ```
+   The first command only reports what would go. Then give the kept account
+   its Circle with the lifetime coupon (§8.7): create it, sign in, and redeem
+   it on Plan & billing.
 8. Verify with §7.2, then remove the old OAuth redirect URIs.
 
 ## 7. Every deploy
@@ -506,13 +521,38 @@ tail -f /var/www/vhosts/system/kidcom.org/logs/proxy_error_log   # nginx
 | When | Job |
 |---|---|
 | hourly | appointment reminders (next 24 h) |
-| 03:00 | renew subscriptions due today (QuickPay recurring charge) |
+| 03:00 | billing (subscription model): trial reminders (7 and 1 days before), trials ending (charge the card on file, or end the Circle), renewals (a declined charge ends the Circle at once), cancelled Circles past their paid period, suspension notices (days 0, 30, 83) and day-90 deletion of suspended children, never anything under an active alarm |
 | 03:30 | reconcile checkouts left pending > 24 h |
 | 04:00 | purge: deleted children past the restore window, login events > 12 months, notifications and the SMS send log > 90 days, media scratch files |
 
 **Alert:** `pm2 logs kidcom-api | grep ALERT` shows when the SMS daily limit
 was reached, which is a sign of SMS pumping. Check `sms_sends` (numbers and
 countries) before raising `SMS_DAILY_LIMIT`.
+
+### 8.7 Plans, coupons and legal hold
+**Coupons.** A lifetime coupon gives the Circle that redeems it a tier for
+good: no card, no renewals. The code is printed once.
+```bash
+npx dotenv -e apps/api/.env -- npm run coupon --workspace=apps/api -- create --tier FAMILY --max 20 --note "Internal testing and family"
+npx dotenv -e apps/api/.env -- npm run coupon --workspace=apps/api -- list
+npx dotenv -e apps/api/.env -- npm run coupon --workspace=apps/api -- deactivate KC-XXXX-XXXX
+```
+`--code` sets a code of your own; deactivating stops new redemptions, and
+Circles already on it keep their plan.
+
+**Legal hold (alarms).** Until the management application has a screen for
+it: an active alarm hides the media, child or user's data from the app for
+everyone and blocks every deletion; archiving releases it to the normal rules.
+```bash
+npx dotenv -e apps/api/.env -- npm run alarm --workspace=apps/api -- create --media <mediaAssetId> --reason "..."
+npx dotenv -e apps/api/.env -- npm run alarm --workspace=apps/api -- archive <alarmId>
+npx dotenv -e apps/api/.env -- npm run alarm --workspace=apps/api -- list
+```
+
+**Suspended children.** When nobody pays for a child that the free Single
+can't hold, it's hidden for everyone (its access moves to
+`suspended_child_access`) and deleted on day 90. Paying, or another parent
+taking it over, restores it at once.
 
 ### 8.3 Backups
 - **Database:** nightly `pg_dump -Fc`; keep 30 days; copy off the server.

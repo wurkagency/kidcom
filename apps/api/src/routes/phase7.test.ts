@@ -216,6 +216,30 @@ describe("Checkout", () => {
   });
 });
 
+describe("Test cards in production", () => {
+  beforeEach(async () => {
+    await resetDb();
+    vi.clearAllMocks();
+    config.quickpayApiKey = "test-key";
+  });
+
+  it("a test-card authorisation doesn't buy a plan unless test cards are allowed", async () => {
+    const app = createApp();
+    const me = await signupTestUser(app, { plan: "SINGLE" });
+    vi.mocked(quickpay.getSubscription).mockResolvedValueOnce({ id: 4242, accepted: true, test_mode: true });
+    config.quickpayAcceptTestCards = false;
+    try {
+      await me.agent.post("/billing/checkout").send({ tier: "PARENTS", billingPeriod: "MONTHLY", acceptWithdrawalWaiver: true });
+      const res = await me.agent.post("/billing/confirm");
+      expect(res.status).toBe(402);
+      expect(quickpay.chargeRecurring).not.toHaveBeenCalled();
+      expect(await prisma.subscription.findUniqueOrThrow({ where: { ownerId: me.userId } })).toMatchObject({ tier: "FREE", quickpaySubscriptionId: null });
+    } finally {
+      config.quickpayAcceptTestCards = true;
+    }
+  });
+});
+
 describe("Trial (D3: no card at signup)", () => {
   beforeEach(async () => {
     await resetDb();

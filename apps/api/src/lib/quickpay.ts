@@ -157,6 +157,8 @@ export async function cancelSubscription(subscriptionId: number): Promise<void> 
 export async function getSubscription(subscriptionId: number): Promise<{
   id: number;
   accepted: boolean;
+  /** Authorised with a QuickPay test card (no money moves). */
+  test_mode?: boolean;
 }> {
   return quickpayFetch(`/subscriptions/${subscriptionId}`, { method: "GET" });
 }

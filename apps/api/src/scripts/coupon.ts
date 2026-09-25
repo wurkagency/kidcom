@@ -14,7 +14,7 @@ import crypto from "node:crypto";
 import type { SubscriptionTier } from "@kidcom/db";
 
 import { prisma } from "../db";
-import { normalizeCouponCode } from "../lib/billing";
+import { normalizeCouponCode } from "../lib/coupons";
 
 // No 0/O/1/I/L: easy to read out loud and type on a phone.
 const ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";

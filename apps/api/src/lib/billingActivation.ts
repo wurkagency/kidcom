@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { TIERS } from "@kidcom/shared";
 
 import { prisma } from "../db";
+import { config } from "../config";
 import { BILLING_PERIOD_DAYS, BILLING_PRICES_ORE } from "./billingPricing";
 import { endCircle, reactivateCircle } from "./circleLifecycle";
 import * as quickpay from "./quickpay";
@@ -61,6 +62,19 @@ export async function activateAfterAuthorization(subscriptionRowId: string, now 
 
   const real = await quickpay.getSubscription(Number(sub.quickpaySubscriptionId));
   if (!real.accepted) return done("pending");
+  if (real.test_mode && !config.quickpayAcceptTestCards) {
+    // A QuickPay test card: no money would move. Not accepted in production.
+    // eslint-disable-next-line no-console
+    console.error(`Subscription ${sub.id}: refused a test-card authorisation (QUICKPAY_ACCEPT_TEST_CARDS is off)`);
+    await prisma.subscription.update({
+      where: { id: sub.id },
+      data:
+        sub.status === "PENDING"
+          ? { tier: "FREE", status: "ACTIVE", billingPeriod: null, quickpaySubscriptionId: null, cardAuthorizedAt: null }
+          : { quickpaySubscriptionId: null, cardAuthorizedAt: null },
+    });
+    return done("declined");
+  }
 
   // D3: during the trial the card is only recorded; the first charge waits.
   if (trialRunning) {

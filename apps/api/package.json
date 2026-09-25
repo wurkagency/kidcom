@@ -14,7 +14,8 @@
     "media:encrypt": "tsx src/scripts/encryptMedia.ts",
     "medical:rekey": "tsx src/scripts/rekeyMedicalInfo.ts",
     "coupon": "tsx src/scripts/coupon.ts",
-    "alarm": "tsx src/scripts/alarm.ts"
+    "alarm": "tsx src/scripts/alarm.ts",
+    "reset:launch": "tsx src/scripts/resetForLaunch.ts"
   },
   "dependencies": {
     "@kidcom/db": "*",

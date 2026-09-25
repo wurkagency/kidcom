@@ -107,6 +107,11 @@ export const config = {
   quickpayApiKey: process.env.QUICKPAY_API_KEY,
   quickpayPrivateKey: process.env.QUICKPAY_PRIVATE_KEY,
   quickpayBaseUrl: process.env.QUICKPAY_BASE_URL ?? "https://api.quickpay.net",
+  // The QuickPay account allows test transactions, so a public test card
+  // could otherwise buy a real plan. Production refuses test-card
+  // authorisations unless this is explicitly "true" (e.g. while testing a
+  // deployment); development and tests always accept them.
+  quickpayAcceptTestCards: !isProduction || process.env.QUICKPAY_ACCEPT_TEST_CARDS === "true",
   // Optional — same "fails clearly at send-time, not at boot" treatment as
   // the QuickPay keys. Generate a pair with `npx web-push generate-vapid-keys`.
   vapidPublicKey: process.env.VAPID_PUBLIC_KEY,

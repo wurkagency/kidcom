@@ -13,6 +13,7 @@ import { endCircle, suspendChild } from "./circleLifecycle";
 import { mailSender } from "./mailSender";
 import { notify } from "./notify";
 import { notifyPaymentFailure } from "./paymentFailureNotice";
+import { normalizeCouponCode } from "./coupons";
 import * as quickpay from "./quickpay";
 import { paymentOutcome, type Payment } from "./quickpay";
 
@@ -221,9 +222,7 @@ export async function cancelCircle(userId: string, now = new Date()): Promise<vo
   await prisma.subscription.update({ where: { id: own.id }, data: { status: "CANCELED", quickpaySubscriptionId: null } });
 }
 
-export function normalizeCouponCode(code: string): string {
-  return code.trim().toUpperCase().replace(/\s+/g, "");
-}
+export { normalizeCouponCode };
 
 /** POST /billing/coupon — a lifetime coupon switches the owner's Circle on, never billed. */
 export async function redeemCoupon(userId: string, rawCode: string, now = new Date()): Promise<void> {
