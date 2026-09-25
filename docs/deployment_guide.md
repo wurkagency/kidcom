@@ -75,7 +75,7 @@ Phone (PWA) ──HTTPS──► nginx (Plesk) on app.kinnd.eu
 | Redis | ≥ 6.2 | Holds sessions and job queues. Turn on persistence (AOF or RDB) so sign-ins survive a restart. Bind it to localhost. |
 | PM2 | current | `npm i -g pm2` |
 | Plesk Obsidian + nginx | | Let's Encrypt extension for TLS |
-| git | | The server needs read access to `https://github.com/wurkagency/kinnd.git`. Use a read-only deploy key (GitHub → repo → Settings → Deploy keys) and clone over SSH. |
+| Plesk Git extension | | Pulls `https://github.com/wurkagency/kinnd.git` with its own SSH deploy key (read-only, set up in Plesk → Git) and deploys the files into `REPO`. The terminal needs no GitHub access. |
 | Disk | | Media grows with use. Keep `MEDIA` on local disk with room to grow, and back it up (§8.3). |
 
 ## 3. Secrets and keys
@@ -282,9 +282,29 @@ CREATE DATABASE kinnd OWNER kinnd;
 Redis: persistence on (`appendonly yes`), bound to `127.0.0.1`.
 
 ### 5.3 Code
+The code arrives through **Plesk's Git extension**, which keeps the git
+repository itself and copies the files of the chosen branch into `REPO`.
+`REPO` is outside every document root, so the source is never web-served.
+
+1. Create the folder, so Plesk's folder picker can show it:
+   ```bash
+   mkdir -p /var/www/vhosts/kinnd.eu/repo
+   chown "$(stat -c %U /var/www/vhosts/kinnd.eu/app)":psacln /var/www/vhosts/kinnd.eu/repo
+   ```
+2. **Plesk → kinnd.eu → Git → Add Repository** (remote,
+   `git@github.com:wurkagency/kinnd.git`). Plesk shows an SSH key: add it on
+   GitHub under **wurkagency/kinnd → Settings → Deploy keys**, read-only.
+3. **Repository settings:**
+   - Branch: `v3.0`
+   - Deployment mode: **Manual**, so you choose when a version lands
+   - Deployment path: **`/repo`**. That's the folder next to `httpdocs` and
+     `app`, **never** `httpdocs`, which would publish the source code on the
+     website.
+4. **Pull updates**, then **Deploy**. Check: `ls /var/www/vhosts/kinnd.eu/repo`
+   lists `apps`, `packages`, `ecosystem.config.cjs` and so on.
+5. Media folders, and the copy into `SITE`:
+
 ```bash
-git clone git@github.com:wurkagency/kinnd.git /var/www/vhosts/kinnd.eu/repo
-git -C /var/www/vhosts/kinnd.eu/repo checkout v3.0
 mkdir -p /var/www/vhosts/kinnd.eu/media /var/www/vhosts/kinnd.eu/media-tmp
 rsync -a --exclude='.git' --exclude='node_modules' --exclude='dist' --exclude='.env*' \
   /var/www/vhosts/kinnd.eu/repo/ /var/www/vhosts/kinnd.eu/app/
@@ -492,9 +512,10 @@ Plan about an hour, done out of hours.
 ## 7. Every deploy
 
 ### 7.1 Routine
-```bash
-git -C /var/www/vhosts/kinnd.eu/repo pull
+First, in **Plesk → kinnd.eu → Git**, click **Pull updates** and then
+**Deploy**, which puts the new version into `REPO`. Then:
 
+```bash
 rsync -a --exclude='.git' --exclude='node_modules' --exclude='dist' --exclude='.env*' \
   /var/www/vhosts/kinnd.eu/repo/ /var/www/vhosts/kinnd.eu/app/
 
@@ -638,27 +659,29 @@ another parent taking the child over, restores it straight away.
 
 ## 9. Rollback
 
-- **Code only** (no new migrations in the release):
-  ```bash
-  git -C /var/www/vhosts/kinnd.eu/repo checkout <previous tag or commit>
-  ```
-  Then run §7.1 without `git pull` and without the migrate step.
+- **Code only** (no new migrations in the release): revert the release on
+  GitHub (`git revert <commit>` locally, then push to `v3.0`). Then run §7.1:
+  Plesk → Git → Pull updates → Deploy, then the commands. You can skip the
+  migrate step.
 - **The release included migrations:** they are forward-only.
   1. Restore the pre-deploy dump:
      `pg_restore --clean --no-owner -d "$DATABASE_URL" <dump>`
-  2. Check out the previous code and rebuild.
+  2. Revert the code on GitHub as above, then run §7.1 without the migrate
+     step.
   - Media written since the dump keeps working: it's encrypted with the same
     key.
   - Rows created after the dump are lost.
 
 ## 10. Known gotchas
 
-- **A checkout made before the repository was renamed** still points at
-  `wurkagency/kidcom`. GitHub redirects it for now, but switch it over:
-  `git -C /var/www/vhosts/kinnd.eu/repo remote set-url origin git@github.com:wurkagency/kinnd.git`
-- **`git pull` fails with "local changes would be overwritten":**
-  `package-lock.json` or `tsconfig.tsbuildinfo` drifted in `REPO`. Run
-  `git -C /var/www/vhosts/kinnd.eu/repo stash`, then pull again.
+- **`git clone`/`git pull` in the terminal says "Permission denied
+  (publickey)":** expected. Only Plesk's Git extension has the deploy key;
+  deploy through Plesk → Git.
+- **Plesk's Pull fails with "Permission denied (publickey)":** Plesk's SSH key
+  isn't (or is no longer) a deploy key on `wurkagency/kinnd`. Copy it from the
+  repository's settings in Plesk and add it on GitHub again.
+- **`ls REPO` shows old files after a deploy:** you pulled but didn't click
+  **Deploy**, or the deployment path isn't `/repo`.
 - **The app returns 403/500 but the API is fine:** almost always permissions.
   The build runs as root, so nginx can't read `dist`.
   - Re-run the lines in §5.7.

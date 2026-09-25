@@ -15,9 +15,7 @@ Commands only. Explanations are in [`deployment_guide.md`](deployment_guide.md).
 
 ## Every deploy
 
-```bash
-git -C /var/www/vhosts/kinnd.eu/repo pull
-```
+Plesk → kinnd.eu → **Git** → **Pull updates** → **Deploy** (into `/repo`). Then:
 
 ```bash
 rsync -a --exclude='.git' --exclude='node_modules' --exclude='dist' --exclude='.env*' /var/www/vhosts/kinnd.eu/repo/ /var/www/vhosts/kinnd.eu/app/
@@ -65,8 +63,14 @@ CREATE DATABASE kinnd OWNER kinnd;
 ```
 3. **Code and folders:**
 ```bash
-git clone git@github.com:wurkagency/kinnd.git /var/www/vhosts/kinnd.eu/repo && git -C /var/www/vhosts/kinnd.eu/repo checkout v3.0
+mkdir -p /var/www/vhosts/kinnd.eu/repo && chown "$(stat -c %U /var/www/vhosts/kinnd.eu/app)":psacln /var/www/vhosts/kinnd.eu/repo
 ```
+   Plesk → kinnd.eu → **Git** → repository `git@github.com:wurkagency/kinnd.git`
+   (Plesk's SSH key added on GitHub as a read-only deploy key):
+   - branch `v3.0`, deployment mode Manual, deployment path **`/repo`** (never
+     `httpdocs`)
+   - **Pull updates** → **Deploy**; `ls /var/www/vhosts/kinnd.eu/repo` shows
+     `apps`, `packages`, …
 ```bash
 mkdir -p /var/www/vhosts/kinnd.eu/media /var/www/vhosts/kinnd.eu/media-tmp && chmod 700 /var/www/vhosts/kinnd.eu/media /var/www/vhosts/kinnd.eu/media-tmp
 ```
@@ -84,7 +88,7 @@ npx web-push generate-vapid-keys
    - `API_BASE_URL` and `OAUTH_REDIRECT_BASE`: `https://app.kinnd.eu/api`
    - **`COOKIE_DOMAIN`: leave unset**
    - `SMTP_FROM="Kinnd" <no-reply@kinnd.eu>`, `BREVO_SMS_SENDER=Kinnd`
-5. Run **Every deploy** (skip the `git pull`), then:
+5. Run the **Every deploy** commands (Plesk has already deployed), then:
 ```bash
 cd /var/www/vhosts/kinnd.eu/app && pm2 start ecosystem.config.cjs && pm2 save && pm2 startup
 ```
@@ -202,14 +206,12 @@ npx dotenv -e apps/api/.env -- npm run medical:rekey --workspace=apps/api
 
 ## Rollback
 
-Code only (no migrations in the release):
-```bash
-git -C /var/www/vhosts/kinnd.eu/repo checkout <previous commit>
-```
-Then run **Every deploy** without `git pull` and without the migrate step.
+Code only (no migrations in the release): `git revert <commit>` locally, push
+to `v3.0`, then run **Every deploy** (Plesk Pull → Deploy, then the commands;
+you can skip the migrate step).
 
-With migrations: restore the pre-deploy dump, then check out the previous
-commit and rebuild.
+With migrations: restore the pre-deploy dump, then revert the code as above and
+run **Every deploy** without the migrate step.
 ```bash
 npx dotenv -e apps/api/.env -- sh -c 'pg_restore --clean --no-owner -d "$DATABASE_URL" /root/backup/<dump>'
 ```
