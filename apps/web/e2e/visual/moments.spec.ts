@@ -49,32 +49,32 @@ async function check(page: Page, folder: string, limit: number) {
   expect(mismatch).toBeLessThan(limit);
 }
 
-test("moments feed matches kidcom_moments_feed_1", async ({ page }) => {
-  await open(page, "kidcom_moments_feed_1", "/moments");
+test("moments feed matches kinnd_moments_feed_1", async ({ page }) => {
+  await open(page, "kinnd_moments_feed_1", "/moments");
   await expect(page.getByRole("link", { name: "First Home Run at Little League!" })).toBeVisible();
   await expect(page.getByText("Today, 02:20 PM")).toBeVisible();
-  await check(page, "kidcom_moments_feed_1", 0.025);
+  await check(page, "kinnd_moments_feed_1", 0.025);
 });
 
-test("moment post matches kidcom_moments_feed_2", async ({ page }) => {
-  await open(page, "kidcom_moments_feed_2", "/children/c-leo/moments/m-homerun");
+test("moment post matches kinnd_moments_feed_2", async ({ page }) => {
+  await open(page, "kinnd_moments_feed_2", "/children/c-leo/moments/m-homerun");
   await expect(page.getByText("Oakwood Little League Field, Pasadena")).toBeVisible();
   await expect(page.getByText("Grandma Inger")).toBeVisible();
-  await check(page, "kidcom_moments_feed_2", 0.045);
+  await check(page, "kinnd_moments_feed_2", 0.045);
 });
 
-test("download matches kidcom_download_preview", async ({ page }) => {
-  await open(page, "kidcom_download_preview", `/media/download?ids=${gallery.map((g) => g.id).join(",")}`);
+test("download matches kinnd_download_preview", async ({ page }) => {
+  await open(page, "kinnd_download_preview", `/media/download?ids=${gallery.map((g) => g.id).join(",")}`);
   await expect(page.getByRole("button", { name: /Download selected media/ })).toBeVisible();
-  await check(page, "kidcom_download_preview", 0.12);
+  await check(page, "kinnd_download_preview", 0.12);
 });
 
-test("video viewer with details matches kidcom_media_viewer_player", async ({ page }) => {
-  await open(page, "kidcom_media_viewer_player", "/media/v-1");
+test("video viewer with details matches kinnd_media_viewer_player", async ({ page }) => {
+  await open(page, "kinnd_media_viewer_player", "/media/v-1");
   await page.getByRole("button", { name: "More options" }).click();
   await page.getByRole("menuitem", { name: "Details" }).click();
   await expect(page.getByText("H.265 (HEVC)")).toBeVisible();
   await expect(page.getByText("UHD • 3840 x 2160")).toBeVisible();
   await page.waitForTimeout(500);
-  await check(page, "kidcom_media_viewer_player", 0.16);
+  await check(page, "kinnd_media_viewer_player", 0.16);
 });

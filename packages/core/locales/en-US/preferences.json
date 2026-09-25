@@ -35,7 +35,7 @@
       "on": "On for this phone",
       "off": "Off",
       "denied": "Blocked in the phone's settings",
-      "unsupported": "Add KidCom to your home screen to get notifications"
+      "unsupported": "Add Kinnd to your home screen to get notifications"
     },
     "about": "Tell me about",
     "categoryCalendar": "Calendar, swaps and requests",
@@ -58,7 +58,7 @@
     "save": "Update password",
     "changed": "Your password was changed.",
     "incomplete": "Fill in your current password and a valid new one.",
-    "noPassword": "You sign in with Google or Microsoft — there's no KidCom password to change.",
+    "noPassword": "You sign in with Google or Microsoft — there's no Kinnd password to change.",
     "devices": "Devices",
     "otherDevices_zero": "Only this device is signed in",
     "otherDevices_one": "Signed in on {{count}} other device",

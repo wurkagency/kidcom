@@ -17,7 +17,7 @@ import {
   useT,
   useVerifyEmail,
   useVerifyPhone,
-} from "@kidcom/core";
+} from "@kinnd/core";
 
 import { Icon } from "../components/Icon";
 import { AuthBrand, AuthCard, AuthPage, AuthTitle, ErrorBanner, SecurityShield, SubmitButton, SuccessBanner } from "./AuthParts";

@@ -1,4 +1,4 @@
-import type { CategoryDto } from "@kidcom/shared";
+import type { CategoryDto } from "@kinnd/shared";
 
 import { Icon } from "../components/Icon";
 import { cn } from "../lib/utils";

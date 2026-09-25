@@ -1,5 +1,5 @@
-import { ApiError } from "@kidcom/core";
-import type { TierBlockReason } from "@kidcom/shared";
+import { ApiError } from "@kinnd/core";
+import type { TierBlockReason } from "@kinnd/shared";
 
 type T = (key: string, params?: Record<string, unknown>) => string;
 

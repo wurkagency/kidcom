@@ -1,7 +1,7 @@
 import { Router, type Request } from "express";
-import type { ChildScheduleResponse, ScheduleItem, UpdateScheduleOccurrenceRequest } from "@kidcom/shared";
+import type { ChildScheduleResponse, ScheduleItem, UpdateScheduleOccurrenceRequest } from "@kinnd/shared";
 
-import type { Prisma } from "@kidcom/db";
+import type { Prisma } from "@kinnd/db";
 
 import { prisma } from "../../db";
 import { ApiError } from "../../middleware/errorHandler";

@@ -1,5 +1,5 @@
 import { lazy, type ComponentType } from "react";
-import type { ThemeManifest } from "@kidcom/theme-kit";
+import type { ThemeManifest } from "@kinnd/theme-kit";
 
 import { DesktopGateScreen, NotFoundScreen } from "../system/SystemScreens";
 

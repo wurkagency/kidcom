@@ -1,7 +1,7 @@
 import { useState, type FormEvent, type ReactNode } from "react";
 import { toast } from "sonner";
-import { ALL_RELATIONSHIP_TYPES, type RelationshipType } from "@kidcom/shared";
-import { useActiveChildren, useCreateInvite, useNavigate, useSearchParams, useT } from "@kidcom/core";
+import { ALL_RELATIONSHIP_TYPES, type RelationshipType } from "@kinnd/shared";
+import { useActiveChildren, useCreateInvite, useNavigate, useSearchParams, useT } from "@kinnd/core";
 
 import { ChildField, EditorTitle, Field, FormCard, FormError, PrimaryButton } from "../components/Form";
 import { Input } from "../ui/input";

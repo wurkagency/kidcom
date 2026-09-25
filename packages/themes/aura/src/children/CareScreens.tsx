@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import type { EmergencyContactCategory, EmergencyContactDto, MedicalInfoCategory, MedicalInfoEntry } from "@kidcom/shared";
+import type { EmergencyContactCategory, EmergencyContactDto, MedicalInfoCategory, MedicalInfoEntry } from "@kinnd/shared";
 import {
   dateKey,
   Link,
@@ -18,7 +18,7 @@ import {
   useSaveMedicalInfo,
   useSearchParams,
   useT,
-} from "@kidcom/core";
+} from "@kinnd/core";
 
 import { EmptyCard, SectionHeader } from "../calendar/Sections";
 import { ConfirmDialog } from "../components/ConfirmDialog";

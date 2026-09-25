@@ -1,4 +1,4 @@
-import type { CategoryTone } from "@kidcom/shared";
+import type { CategoryTone } from "@kinnd/shared";
 
 // Category tones → classes, as the calendar/today exports draw them:
 // sage (Routine chip, first note card), rose (Health), sand (Sport, second

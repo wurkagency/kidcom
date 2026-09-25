@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import request from "supertest";
-import type { MeResponse } from "@kidcom/shared";
+import type { MeResponse } from "@kinnd/shared";
 
 import { mailSender, MemoryMailSender } from "../lib/mailSender";
 import { smsSender, MemorySmsSender } from "../lib/smsSender";

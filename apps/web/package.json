@@ -1,9 +1,9 @@
 {
-  "name": "@kidcom/web",
+  "name": "@kinnd/web",
   "private": true,
   "version": "3.0.0",
   "type": "module",
-  "description": "Host app: boots @kidcom/core with the installed themes. Contains no UI of its own.",
+  "description": "Host app: boots @kinnd/core with the installed themes. Contains no UI of its own.",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
@@ -12,10 +12,10 @@
     "test:csp": "playwright test -c playwright.production.config.ts"
   },
   "dependencies": {
-    "@kidcom/core": "*",
-    "@kidcom/shared": "*",
-    "@kidcom/theme-aura": "*",
-    "@kidcom/theme-kit": "*",
+    "@kinnd/core": "*",
+    "@kinnd/shared": "*",
+    "@kinnd/theme-aura": "*",
+    "@kinnd/theme-kit": "*",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"
   },

@@ -1,5 +1,5 @@
-import type { BillingPeriod, SubscriptionDto, SubscriptionTier, TierLimits } from "@kidcom/shared";
-import { useBillingPlans, useFormat, useT } from "@kidcom/core";
+import type { BillingPeriod, SubscriptionDto, SubscriptionTier, TierLimits } from "@kinnd/shared";
+import { useBillingPlans, useFormat, useT } from "@kinnd/core";
 
 import { Icon } from "../components/Icon";
 import { cn } from "../lib/utils";

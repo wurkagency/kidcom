@@ -1,5 +1,5 @@
-import type { Prisma } from "@kidcom/db";
-import type { NotificationKind } from "@kidcom/shared";
+import type { Prisma } from "@kinnd/db";
+import type { NotificationKind } from "@kinnd/shared";
 
 import { prisma } from "../db";
 import { pushQueue } from "./pushQueue";

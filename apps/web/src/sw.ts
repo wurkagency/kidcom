@@ -31,7 +31,7 @@ type PushPayload = {
 };
 
 self.addEventListener("push", (event: PushEvent) => {
-  let payload: PushPayload = { title: "KidCom", body: "" };
+  let payload: PushPayload = { title: "Kinnd", body: "" };
   try {
     if (event.data) {
       payload = event.data.json();
@@ -39,7 +39,7 @@ self.addEventListener("push", (event: PushEvent) => {
   } catch {
     // Non-JSON push payload — fall back to a generic notification rather
     // than dropping it silently.
-    payload = { title: "KidCom", body: event.data?.text() ?? "" };
+    payload = { title: "Kinnd", body: event.data?.text() ?? "" };
   }
 
   event.waitUntil(

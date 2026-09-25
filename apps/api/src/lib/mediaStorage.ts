@@ -60,7 +60,7 @@ export class EncryptedDiskStorage implements MediaStorage {
   constructor(
     root: string,
     private readonly keys: MasterKeys,
-    scratch = path.join(os.tmpdir(), "kidcom-media"),
+    scratch = path.join(os.tmpdir(), "kinnd-media"),
   ) {
     this.root = path.resolve(root);
     this.scratch = path.resolve(scratch);

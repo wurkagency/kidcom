@@ -1,20 +1,29 @@
-# KidCom v3.0 — Deployment (quick)
+# Kinnd v3.0 — Deployment (quick)
 
 Commands only. Explanations are in [`deployment_guide.md`](deployment_guide.md).
-`APP_HOST` = `app.kidcom.org`.
+
+| | |
+|---|---|
+| App + API | `https://kinnd.eu` (API under `/api`; no `api.kinnd.eu`) |
+| Aliases | `kinnd.org`, `kinnd.net`: 301 to `kinnd.eu` |
+| Repo | `/var/www/vhosts/kinnd.eu/repo` |
+| Site | `/var/www/vhosts/kinnd.eu/httpdocs` |
+| Media | `/var/www/vhosts/kinnd.eu/media` |
+| Processes | PM2 `kinnd-api`, `kinnd-worker` (Redis queues; RabbitMQ not used) |
+| `manage.kinnd.eu` | separate SoW; not touched |
 
 ## Every deploy
 
 ```bash
-git -C /var/www/vhosts/kidcom.org/api pull
+git -C /var/www/vhosts/kinnd.eu/repo pull
 ```
 
 ```bash
-rsync -a --exclude='.git' --exclude='node_modules' --exclude='dist' --exclude='.env*' /var/www/vhosts/kidcom.org/api/ /var/www/vhosts/kidcom.org/httpdocs/
+rsync -a --exclude='.git' --exclude='node_modules' --exclude='dist' --exclude='.env*' /var/www/vhosts/kinnd.eu/repo/ /var/www/vhosts/kinnd.eu/httpdocs/
 ```
 
 ```bash
-cd /var/www/vhosts/kidcom.org/httpdocs && rm -rf tasks docs README.md docker-compose.yml .env.example && npm ci && npx dotenv -e apps/api/.env -- npm run build
+cd /var/www/vhosts/kinnd.eu/httpdocs && rm -rf tasks docs README.md docker-compose.yml .env.example && npm ci && npx dotenv -e apps/api/.env -- npm run build
 ```
 
 ```bash
@@ -22,7 +31,7 @@ npx dotenv -e apps/api/.env -- npx prisma migrate deploy --schema packages/db/pr
 ```
 
 ```bash
-chmod o+x /var/www/vhosts/kidcom.org /var/www/vhosts/kidcom.org/httpdocs && chown -R kidcom.org:psacln /var/www/vhosts/kidcom.org/httpdocs/apps/web/dist/ && chmod -R o+rX /var/www/vhosts/kidcom.org/httpdocs/apps/web/dist/
+chmod o+x /var/www/vhosts/kinnd.eu /var/www/vhosts/kinnd.eu/httpdocs && chown -R "$(stat -c %U /var/www/vhosts/kinnd.eu/httpdocs)":psacln apps/web/dist/ && chmod -R o+rX apps/web/dist/
 ```
 
 ```bash
@@ -30,236 +39,177 @@ pm2 restart ecosystem.config.cjs
 ```
 
 ```bash
-curl -sI https://app.kidcom.org/ | head -1 && curl -s https://app.kidcom.org/api/health && pm2 status
+curl -sI https://kinnd.eu/ | head -1 && curl -s https://kinnd.eu/api/health && pm2 status
 ```
 
 ## Before a release with migrations
 
 ```bash
-pg_dump -Fc "$DATABASE_URL" > /root/backup/kidcom-$(date +%F-%H%M).dump
+npx dotenv -e apps/api/.env -- sh -c 'pg_dump -Fc "$DATABASE_URL"' > /root/backup/kinnd-$(date +%F-%H%M).dump
 ```
 
-## One-time: upgrade v2 → v3.0
+## First time (fresh server)
 
-1. Back up the database and media:
+1. **Plesk → kinnd.eu:**
+   - Hosting settings: preferred domain `kinnd.eu`; document root
+     `httpdocs/apps/web/dist`
+   - Domain aliases: `kinnd.org` and `kinnd.net`, each with *Redirect with the
+     HTTP 301 code*
+   - Let's Encrypt for `kinnd.eu`, `www` and the aliases; HTTP→HTTPS on
+   - Apache & nginx settings: Proxy mode **off**; additional nginx directives
+     from guide §5.6
+2. **Database:**
+```sql
+CREATE ROLE kinnd LOGIN PASSWORD '<password>' NOSUPERUSER NOBYPASSRLS;
+CREATE DATABASE kinnd OWNER kinnd;
+```
+3. **Code and folders:**
 ```bash
-pg_dump -Fc "$DATABASE_URL" > /root/backup/kidcom-pre-v3-$(date +%F).dump
+git clone git@github.com:wurkagency/kidcom.git /var/www/vhosts/kinnd.eu/repo && git -C /var/www/vhosts/kinnd.eu/repo checkout v3.0
 ```
 ```bash
-tar czf /root/backup/media-pre-v3-$(date +%F).tgz -C /var/www/vhosts/kidcom.org/media .
+mkdir -p /var/www/vhosts/kinnd.eu/media /var/www/vhosts/kinnd.eu/media-tmp && chmod 700 /var/www/vhosts/kinnd.eu/media /var/www/vhosts/kinnd.eu/media-tmp
 ```
-2. Plesk → `app.kidcom.org`:
-   - Let's Encrypt, with the HTTP→HTTPS redirect on
-   - Document root `httpdocs/apps/web/dist`
-   - Proxy mode **off**
-   - Additional nginx directives: the block below
-3. `apps/api/.env`: set
-   - `CORS_ORIGIN`, `COOKIE_DOMAIN`, `API_BASE_URL`, `OAUTH_REDIRECT_BASE`,
-     all for `app.kidcom.org`
-   - `MEDIA_ENCRYPTION_KEY`, `MEDIA_TEMP_PATH`, `BILLING_TEST_MODE`,
-     `SMS_DELIVERY=brevo`, `BREVO_*`, `SMS_DAILY_LIMIT`, `SMTP_*`
-   - Keys under 32 characters or placeholders are refused at startup:
-     - `SESSION_SECRET`: generate a new one.
-     - `MEDICAL_INFO_ENCRYPTION_KEY`: weak or never set? Follow **Rotate the
-       medical-info key** below; don't just replace it.
-4. Google and Microsoft consoles: add
-   - `https://app.kidcom.org/api/auth/oauth/google/callback`
-   - `https://app.kidcom.org/api/auth/oauth/microsoft/callback`
-5. Switch the checkout to v3.0:
 ```bash
-git -C /var/www/vhosts/kidcom.org/api fetch && git -C /var/www/vhosts/kidcom.org/api checkout v3.0
+rsync -a --exclude='.git' --exclude='node_modules' --exclude='dist' --exclude='.env*' /var/www/vhosts/kinnd.eu/repo/ /var/www/vhosts/kinnd.eu/httpdocs/
 ```
-6. Run **Every deploy** above, then replace the PM2 processes:
+4. **`httpdocs/apps/api/.env`** from guide §3.1, then `chmod 600` it. Secrets:
 ```bash
-pm2 delete all && cd /var/www/vhosts/kidcom.org/httpdocs && pm2 start ecosystem.config.cjs && pm2 save
+openssl rand -hex 32   # SESSION_SECRET, MEDIA_ENCRYPTION_KEY, MEDICAL_INFO_ENCRYPTION_KEY (each its own)
 ```
-7. Encrypt the existing media:
+```bash
+npx web-push generate-vapid-keys
+```
+   - `CORS_ORIGIN=https://kinnd.eu`
+   - `API_BASE_URL` and `OAUTH_REDIRECT_BASE`: `https://kinnd.eu/api`
+   - **`COOKIE_DOMAIN`: leave unset**
+   - `SMTP_FROM="Kinnd" <no-reply@kinnd.eu>`, `BREVO_SMS_SENDER=Kinnd`
+5. Run **Every deploy** (skip the `git pull`), then:
+```bash
+cd /var/www/vhosts/kinnd.eu/httpdocs && pm2 start ecosystem.config.cjs && pm2 save && pm2 startup
+```
+6. **RLS check** (expect `f | f`, then `t | t` on every row):
+```bash
+cat > /tmp/rls_check.sql <<'SQL'
+SELECT rolbypassrls, rolsuper FROM pg_roles WHERE rolname = current_user;
+SELECT relname, relrowsecurity, relforcerowsecurity FROM pg_class
+ WHERE relname IN ('medical_info','media_assets','journal_posts','growth_entries');
+SQL
+```
+```bash
+npx dotenv -e apps/api/.env -- sh -c 'psql "$DATABASE_URL" -f /tmp/rls_check.sql'
+```
+7. **Providers:**
+   - Google/Microsoft redirect URIs:
+     - `https://kinnd.eu/api/auth/oauth/google/callback`
+     - `https://kinnd.eu/api/auth/oauth/microsoft/callback`
+   - Brevo: verify `kinnd.eu` as a sender domain (SPF/DKIM/DMARC in Plesk DNS)
+   - QuickPay: shop name "Kinnd"; *allow test transactions* **off** at launch
+
+## One time: move the v2 data
+
+Skip this for a clean start. Details: guide §6.
+
+1. Stop the v2 processes by name (`pm2 status` lists them), then back up:
+```bash
+pg_dump -Fc "<v2 DATABASE_URL>" > /root/backup/v2-final-$(date +%F).dump && tar czf /root/backup/v2-media-$(date +%F).tgz -C <v2 MEDIA_STORAGE_PATH> .
+```
+2. Restore into `kinnd`, and copy the media:
+```bash
+pg_restore --no-owner --role=kinnd -d "postgresql://kinnd:<password>@localhost:5432/kinnd" /root/backup/v2-final-$(date +%F).dump
+```
+```bash
+tar xzf /root/backup/v2-media-$(date +%F).tgz -C /var/www/vhosts/kinnd.eu/media
+```
+3. `.env`: set `MEDICAL_INFO_ENCRYPTION_KEY` to the **v2 value**. If v2 never
+   set it, the value is `dev-only-medical-encryption-key-change-me`. If the API
+   refuses the value as weak, follow **Rotate the medical-info key** below.
+4. Run **Every deploy** (it migrates), then encrypt the media:
 ```bash
 npx dotenv -e apps/api/.env -- npm run media:encrypt --workspace=apps/api -- --dry-run
 ```
 ```bash
 npx dotenv -e apps/api/.env -- npm run media:encrypt --workspace=apps/api -- --reprocess
 ```
-8. Launch reset: back up first, then remove every v2 user except charlie@wurk.dk:
+5. Launch reset (keeps `charlie@wurk.dk` only). Report first, then confirm:
 ```bash
 npx dotenv -e apps/api/.env -- npm run reset:launch --workspace=apps/api
 ```
 ```bash
 npx dotenv -e apps/api/.env -- npm run reset:launch --workspace=apps/api -- --confirm
 ```
-9. Create the lifetime coupon, then redeem it on Plan & billing:
+6. Create the internal lifetime coupon, then sign in and redeem it on Plan &
+   billing:
 ```bash
-npx dotenv -e apps/api/.env -- npm run coupon --workspace=apps/api -- create --tier FAMILY --max 20 --note "Internal testing and family"
+npx dotenv -e apps/api/.env -- npm run coupon --workspace=apps/api -- create --tier FAMILY --max 20 --code KC-9GYC-Y46E --note "Internal testing and family"
 ```
-10. Redirect `www.kidcom.org` with a 301 to `https://app.kidcom.org`.
+7. 301 the old `kidcom.org` domains to `https://kinnd.eu`.
 
-### nginx directives (app.kidcom.org)
+## After a deploy: check
 
-```nginx
-location /api/ {
-    proxy_pass http://127.0.0.1:4000/;
-    proxy_http_version 1.1;
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-    proxy_buffering off;
-    proxy_request_buffering off;
-    proxy_read_timeout 300s;
-    client_max_body_size 60m;
-}
-location /assets/ { expires 1y; try_files $uri =404; }
-location = /sw.js { expires -1; try_files $uri =404; }
-location / {
-    expires -1;
-    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; media-src 'self' blob:; font-src 'self' data:; connect-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests" always;
-    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
-    add_header X-Frame-Options "DENY" always;
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-    add_header Permissions-Policy "camera=(self), microphone=(self), geolocation=(), payment=()" always;
-    add_header Cross-Origin-Opener-Policy "same-origin" always;
-    try_files $uri $uri/ /index.html;
-}
-```
+1. Sign in with a password; the email code arrives.
+2. Sign in with Google and with Microsoft.
+3. Sign up with a new number; the SMS arrives.
+4. Upload a photo, and view a photo and a video.
+5. Push notifications arrive.
+6. Plan & billing shows DKK 39 / 69, and a trial starts.
+7. Test-card checkout, only while `QUICKPAY_ACCEPT_TEST_CARDS=true`. Remove the
+   variable and restart afterwards.
 
-If Plesk rejects `location /`:
-- replace the `location /` block with `error_page 404 = /index.html;`
-- move its seven `add_header … always;` lines to the top level, outside any location
-
-Check the headers:
-```bash
-curl -sI https://app.kidcom.org/calendar | grep -iE "content-security-policy|strict-transport|x-frame-options"
-```
-
-The old `api.kidcom.org` vhost must also proxy to `http://127.0.0.1:4000`, not `localhost`.
-
-## One-time: fresh server
-
-```sql
-CREATE ROLE kidcom LOGIN PASSWORD '<password>' NOSUPERUSER NOBYPASSRLS;
-CREATE DATABASE kidcom OWNER kidcom;
-```
+## Operations
 
 ```bash
-git clone git@github.com:wurkagency/kidcom.git /var/www/vhosts/kidcom.org/api && git -C /var/www/vhosts/kidcom.org/api checkout v3.0
-```
-
-```bash
-mkdir -p /var/www/vhosts/kidcom.org/media /var/www/vhosts/kidcom.org/media-tmp && chmod 700 /var/www/vhosts/kidcom.org/media /var/www/vhosts/kidcom.org/media-tmp
-```
-
-```bash
-openssl rand -hex 32; openssl rand -hex 32; openssl rand -hex 32; npx web-push generate-vapid-keys
-```
-
-Create `httpdocs/apps/api/.env` from the template in the full guide (§3.1), then:
-
-```bash
-chmod 600 /var/www/vhosts/kidcom.org/httpdocs/apps/api/.env
-```
-
-Run **Every deploy**, then:
-
-```bash
-cd /var/www/vhosts/kidcom.org/httpdocs && pm2 start ecosystem.config.cjs && pm2 save && pm2 startup
-```
-
-## Checks
-
-RLS (expect `f`, `f`, then `t` / `t` on every row):
-```bash
-printf "SELECT rolname, rolbypassrls, rolsuper FROM pg_roles WHERE rolname = current_user;\nSELECT relname, relrowsecurity, relforcerowsecurity FROM pg_class WHERE relname IN ('growth_entries','medical_info','journal_posts','media_assets');\n" > /tmp/rls_check.sql && npx dotenv -e apps/api/.env -- sh -c 'psql "$DATABASE_URL" -f /tmp/rls_check.sql'
-```
-
-Performance budget:
-```bash
-npm run budget
-```
-
-Logs:
-```bash
-pm2 logs kidcom-api --lines 100
+pm2 logs kinnd-api --lines 100
 ```
 ```bash
-pm2 logs kidcom-worker --lines 100
+pm2 logs kinnd-worker --lines 100
 ```
-
-After each deploy:
-- password sign-in and its email code
-- Google and Microsoft sign-in
-- an SMS code at sign-up
-- photo upload, seen by the other parent
-- a push notification
-- a test-card checkout: QuickPay shows **one** payment
-
-## Rollback
-
-Code only:
 ```bash
-git -C /var/www/vhosts/kidcom.org/api checkout <previous-commit>
+tail -f /var/www/vhosts/system/kinnd.eu/logs/proxy_error_log
 ```
-Then run **Every deploy** without the migrate step.
-
-With migrations:
 ```bash
-pg_restore --clean -d "$DATABASE_URL" /root/backup/<dump-file>
-```
-Then check out the previous commit and run **Every deploy** without the migrate step.
-
-## Rotate the medical-info key
-
-1. Set `MEDICAL_INFO_ENCRYPTION_KEY` to the new key (`openssl rand -hex 32`) and `MEDICAL_INFO_ENCRYPTION_KEYS_PREVIOUS` to the old one. If the variable was never set before, the old one is `dev-only-medical-encryption-key-change-me`. Then:
-```bash
-pm2 restart ecosystem.config.cjs
-```
-2. Re-encrypt, repeating until it reports `0 value(s) re-encrypted, 0 unreadable`:
-```bash
-npx dotenv -e apps/api/.env -- npm run medical:rekey --workspace=apps/api
-```
-3. Clear `MEDICAL_INFO_ENCRYPTION_KEYS_PREVIOUS`, then:
-```bash
-pm2 restart ecosystem.config.cjs
+pm2 logs kinnd-api --nostream | grep ALERT
 ```
 
-## Security checks
-
-Test the CSP against the production build (before a release that adds a dependency or an outside resource):
-```bash
-npm run test:csp --workspace=apps/web
-```
-
-Direct API calls (scripts, `curl`) must send `X-KidCom-Client: 1` on POST/PATCH/PUT/DELETE.
-
-Declined payments and QuickPay's error text (the app only gets the `qp_status_code`):
-```bash
-pm2 logs kidcom-api --lines 1000 | grep -i quickpay
-```
-
-Coupons and legal hold:
+**Coupons:**
 ```bash
 npx dotenv -e apps/api/.env -- npm run coupon --workspace=apps/api -- list
 ```
 ```bash
+npx dotenv -e apps/api/.env -- npm run coupon --workspace=apps/api -- deactivate KC-XXXX-XXXX
+```
+
+**Legal hold:**
+```bash
 npx dotenv -e apps/api/.env -- npm run alarm --workspace=apps/api -- list
 ```
 
-Look for SMS pumping alerts:
-```bash
-pm2 logs kidcom-api --lines 1000 | grep ALERT
-```
-
-## Rotate the media key
-
-1. Set `MEDIA_ENCRYPTION_KEY` to the new key and `MEDIA_ENCRYPTION_KEYS_PREVIOUS` to the old one. Then:
-```bash
-pm2 restart ecosystem.config.cjs
-```
-2. Rewrap, repeating until it reports `0 re-wrapped`:
+**Rotate the media key:** set the new key in `MEDIA_ENCRYPTION_KEY` and the old
+one in `MEDIA_ENCRYPTION_KEYS_PREVIOUS`, restart, then run this until it
+reports `0 re-wrapped`. Then remove the old key and restart.
 ```bash
 npx dotenv -e apps/api/.env -- npm run media:encrypt --workspace=apps/api -- --rewrap
 ```
-3. Clear `MEDIA_ENCRYPTION_KEYS_PREVIOUS`, then:
+
+**Rotate the medical-info key:** set the new key in
+`MEDICAL_INFO_ENCRYPTION_KEY` and the old one in
+`MEDICAL_INFO_ENCRYPTION_KEYS_PREVIOUS`, restart, then run this until it
+reports `0 … re-encrypted, 0 unreadable`. Then empty the previous-keys variable
+and restart.
 ```bash
-pm2 restart ecosystem.config.cjs
+npx dotenv -e apps/api/.env -- npm run medical:rekey --workspace=apps/api
+```
+
+## Rollback
+
+Code only (no migrations in the release):
+```bash
+git -C /var/www/vhosts/kinnd.eu/repo checkout <previous commit>
+```
+Then run **Every deploy** without `git pull` and without the migrate step.
+
+With migrations: restore the pre-deploy dump, then check out the previous
+commit and rebuild.
+```bash
+npx dotenv -e apps/api/.env -- sh -c 'pg_restore --clean --no-owner -d "$DATABASE_URL" /root/backup/<dump>'
 ```

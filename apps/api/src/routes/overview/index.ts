@@ -1,6 +1,6 @@
 import { Router } from "express";
-import type { ChildOverview, CustodyNow, CustodyPattern, OverviewResponse } from "@kidcom/shared";
-import { findNextHandover, resolveCustodyBlockProgress, resolveCustodyForDate } from "@kidcom/shared";
+import type { ChildOverview, CustodyNow, CustodyPattern, OverviewResponse } from "@kinnd/shared";
+import { findNextHandover, resolveCustodyBlockProgress, resolveCustodyForDate } from "@kinnd/shared";
 
 import { prisma } from "../../db";
 import { requireAuth } from "../../middleware/session";

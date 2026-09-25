@@ -15,9 +15,9 @@ export async function notifyPaymentFailure(ownerId: string): Promise<void> {
     await notify([ownerId], { kind: "payment.failed", params: { children: "" }, url: "/billing" });
     await mailSender.send({
       to: owner.email,
-      subject: "Your KidCom payment failed",
+      subject: "Your Kinnd payment failed",
       text:
-        "We couldn't charge your card for your KidCom plan, so the plan has stopped.\n\n" +
+        "We couldn't charge your card for your Kinnd plan, so the plan has stopped.\n\n" +
         "Update your card to switch it back on. Children the free plan can't hold are hidden until someone pays or " +
         `takes them over, and deleted after 90 days: ${config.webBaseUrl}/billing`,
     });

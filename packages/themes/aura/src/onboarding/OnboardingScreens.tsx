@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Link, paths, useCurrentUser, useNavigate, useT } from "@kidcom/core";
+import { Link, paths, useCurrentUser, useNavigate, useT } from "@kinnd/core";
 
 import { CheckoutForm } from "../billing/BillingScreens";
 import { ChildForm } from "../children/ChildEditScreen";

@@ -1,4 +1,4 @@
-import { Link, paths, useT } from "@kidcom/core";
+import { Link, paths, useT } from "@kinnd/core";
 
 import { Icon } from "../components/Icon";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "../ui/sheet";

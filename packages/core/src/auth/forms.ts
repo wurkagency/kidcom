@@ -5,8 +5,8 @@
 // ---------------------------------------------------------------------------
 
 // The supported countries (and the ranges never texted) live in
-// @kidcom/shared, so the API enforces exactly the list offered here.
-import { DEFAULT_PHONE_COUNTRY, PHONE_COUNTRIES, type PhoneCountry } from "@kidcom/shared";
+// @kinnd/shared, so the API enforces exactly the list offered here.
+import { DEFAULT_PHONE_COUNTRY, PHONE_COUNTRIES, type PhoneCountry } from "@kinnd/shared";
 
 export { DEFAULT_PHONE_COUNTRY, PHONE_COUNTRIES };
 export type { PhoneCountry };

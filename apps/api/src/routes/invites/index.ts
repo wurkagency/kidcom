@@ -1,7 +1,7 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
-import type { AcceptInviteRequest, CreateInviteRequest, CreateInviteResponse, InvitePreviewResponse, MeResponse } from "@kidcom/shared";
-import { ALL_RELATIONSHIP_TYPES, relationshipTypeToRole, isValidEmail, tierAtLeast, tierForRole } from "@kidcom/shared";
+import type { AcceptInviteRequest, CreateInviteRequest, CreateInviteResponse, InvitePreviewResponse, MeResponse } from "@kinnd/shared";
+import { ALL_RELATIONSHIP_TYPES, relationshipTypeToRole, isValidEmail, tierAtLeast, tierForRole } from "@kinnd/shared";
 
 import { prisma } from "../../db";
 import { config } from "../../config";
@@ -18,7 +18,7 @@ import { loadPublicUser } from "../../lib/publicUser";
 import { establishSession } from "../../lib/sessions";
 import { assertStrongPassword } from "../../lib/passwordPolicy";
 import { heldCircles, isCircleActive } from "../../lib/circles";
-import type { Prisma } from "@kidcom/db";
+import type { Prisma } from "@kinnd/db";
 
 /**
  * Grants an accepted child invite. Family and caregivers count under the
@@ -178,8 +178,8 @@ invitesRouter.post("/", requireAuth, requireVerifiedEmail, async (req, res, next
     const acceptUrl = `${config.corsOrigin[0]}/invite/${invite.token}`;
     await mailSender.send({
       to: body.email,
-      subject: "You've been invited to KidCom",
-      text: `You've been invited to join KidCom. Accept here: ${acceptUrl}\n\nJoining is free.`,
+      subject: "You've been invited to Kinnd",
+      text: `You've been invited to join Kinnd. Accept here: ${acceptUrl}\n\nJoining is free.`,
     });
 
     res.status(201).json({ id: invite.id, token: invite.token } satisfies CreateInviteResponse);

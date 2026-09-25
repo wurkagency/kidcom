@@ -32,7 +32,7 @@ declare module "express-session" {
     pendingResetPhone?: string;
     // Google/Microsoft round trip (lib/oauth.ts).
     oauth?: { provider: "google" | "microsoft"; state: string; verifier: string; next: string; acceptedTerms: boolean };
-    // A Google/Microsoft identity with no KidCom account yet, waiting for the
+    // A Google/Microsoft identity with no Kinnd account yet, waiting for the
     // user to accept the terms on the sign-up screen.
     pendingOAuthSignup?: {
       provider: "google" | "microsoft";
@@ -49,12 +49,13 @@ declare module "express-session" {
 // the jobs chunk will use for BullMQ. httpOnly always; `secure` only in
 // production (local dev is plain HTTP on localhost, so requiring `secure`
 // there would silently drop the cookie on every request); domain is unset
-// locally and COOKIE_DOMAIN (the app's host, app.kidcom.org) in production —
-// the API is served same-origin under /api (docs/deployment_guide.md).
+// locally, and in production too unless COOKIE_DOMAIN is set: a host-only
+// cookie for the app's own host (kinnd.eu), never shared with subdomains.
+// The API is served same-origin under /api (docs/deployment_guide.md).
 export const sessionMiddleware = session({
-  store: new RedisStore({ client: redis, prefix: "kidcom:sess:" }),
+  store: new RedisStore({ client: redis, prefix: "kinnd:sess:" }),
   secret: config.sessionSecret,
-  name: "kidcom.sid",
+  name: "kinnd.sid",
   resave: false,
   saveUninitialized: false,
   // Sliding expiry: every response pushes the cookie and the Redis TTL out
@@ -64,7 +65,7 @@ export const sessionMiddleware = session({
     httpOnly: true,
     sameSite: "lax",
     secure: config.isProduction,
-    domain: config.isProduction ? config.cookieDomain : undefined,
+    domain: config.isProduction ? config.cookieDomain : undefined, // undefined = host-only
     maxAge: SESSION_IDLE_MS,
   },
 });

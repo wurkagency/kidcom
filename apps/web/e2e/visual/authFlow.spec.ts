@@ -1,5 +1,5 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
-import type { PublicUser } from "@kidcom/shared";
+import type { PublicUser } from "@kinnd/shared";
 
 import { leo } from "../support/mockApi";
 

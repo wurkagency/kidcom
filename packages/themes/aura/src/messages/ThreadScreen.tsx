@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import type { MessageDto } from "@kidcom/shared";
+import type { MessageDto } from "@kinnd/shared";
 import {
   addDays,
   dateKey,
@@ -14,7 +14,7 @@ import {
   useT,
   useThread,
   useUploadMedia,
-} from "@kidcom/core";
+} from "@kinnd/core";
 
 import { Icon } from "../components/Icon";
 import { PersonAvatar } from "../components/PersonAvatar";
@@ -22,7 +22,7 @@ import { cn } from "../lib/utils";
 import { Skeleton } from "../ui/skeleton";
 import { threadTitle } from "./InboxScreen";
 
-// kidcom_calendar_5: the conversation. Day separators, received messages
+// kinnd_calendar_5: the conversation. Day separators, received messages
 // with the sender's photo and name, sent ones on the right in the mint
 // bubble, photos as cards with their caption and a download button. No
 // presence, calls or thread details (not built).

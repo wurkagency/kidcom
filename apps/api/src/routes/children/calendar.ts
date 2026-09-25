@@ -1,8 +1,8 @@
 import { Router, type Request } from "express";
-import { resolveCustodyForDate, systemCategoryId } from "@kidcom/shared";
-import type { CalendarRangeResponse, CustodyPattern } from "@kidcom/shared";
+import { resolveCustodyForDate, systemCategoryId } from "@kinnd/shared";
+import type { CalendarRangeResponse, CustodyPattern } from "@kinnd/shared";
 
-import type { Prisma } from "@kidcom/db";
+import type { Prisma } from "@kinnd/db";
 
 import { ApiError } from "../../middleware/errorHandler";
 import { getDkHolidays } from "../../lib/dkHolidays";

@@ -1,6 +1,6 @@
 # Data retention policy
 
-What KidCom keeps, for how long, and by what mechanism. First written in the
+What Kinnd keeps, for how long, and by what mechanism. First written in the
 v2 post-launch GDPR pass; kept current through v3.0 (`tasks/todo.md`).
 
 ## Account data (a user's own profile, moments, personal notes, etc.)
@@ -64,8 +64,8 @@ rows, plus every account whose access is **only** to those children.
    9. the children (cascades access, medical info, growth, schedule, custody,
       calendar, lists, moment tags, deletion requests)
    10. the accounts (cascades tokens, codes, sign-in links, notes, push, prefs)
-4. **Revoke sessions** in Redis: each account's `kidcom:usess:<userId>` index and
-   the `kidcom:sess:*` keys it lists.
+4. **Revoke sessions** in Redis: each account's `kinnd:usess:<userId>` index and
+   the `kinnd:sess:*` keys it lists.
 5. **Remove media files** for the deleted `MediaAsset` rows from media storage.
 6. **Verify** with RLS bypassed that no rows reference the deleted ids.
 
@@ -111,11 +111,11 @@ database (only `charlie@wurk.dk` and its children kept).
   remove location before upload, so coverage is partial.
 - **Upload origin**: the uploader's IP address and user agent
   (`MediaAsset.uploadIp`, `uploadUserAgent`).
-- **Purpose**: abuse and fraud detection in the admin tool (manage.kidcom.org),
+- **Purpose**: abuse and fraud detection in the admin tool (manage.kinnd.eu),
   e.g. comparing where media was taken and uploaded from with where accounts
   sign in. Lawful basis proposed: legitimate interest (GDPR Art. 6(1)(f)) in
   protecting children and accounts — **to be confirmed by Charlie / legal, with
-  a DPIA, before manage.kidcom.org uses it, and named in the privacy notice.**
+  a DPIA, before manage.kinnd.eu uses it, and named in the privacy notice.**
 - **Never shown in the app** to anyone, including the uploader: no API
   response includes these fields (covered by `routes/mediaPrivacy.test.ts`).
 - **Location inside files**: the uploader can download their original as
@@ -141,7 +141,7 @@ database (only `charlie@wurk.dk` and its children kept).
   purpose (verify number / password reset), the account it was sent for, and
   the time.
 - **Purpose:** the SMS toll-fraud guard caps texts per number and in total, and
-  the log is an abuse signal for manage.kidcom.org. The legal basis is
+  the log is an abuse signal for manage.kinnd.eu. The legal basis is
   legitimate interest (fraud prevention).
 - **Retention:** deleted after **90 days** by the daily 04:00 job. It is kept
   through an account deletion, for the same fraud-prevention reason as sign-in

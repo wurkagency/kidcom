@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
-import { CATEGORY_TONES, type CategoryDto, type CategoryTone } from "@kidcom/shared";
-import { useCategories, useCreateCategory, useDeleteCategory, useT, useUpdateCategory } from "@kidcom/core";
+import { CATEGORY_TONES, type CategoryDto, type CategoryTone } from "@kinnd/shared";
+import { useCategories, useCreateCategory, useDeleteCategory, useT, useUpdateCategory } from "@kinnd/core";
 
 import { CategoryChip } from "../calendar/CategoryChip";
 import { useCategoryName } from "../calendar/people";

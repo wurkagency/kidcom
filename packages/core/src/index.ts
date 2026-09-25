@@ -1,8 +1,8 @@
-// @kidcom/core — the headless application. Themes build every pixel from
+// @kinnd/core — the headless application. Themes build every pixel from
 // what is exported here; nothing in core renders styled UI.
 
 // App composition (used by the host app only)
-export { KidcomApp, useDesktopGateState } from "./KidcomApp";
+export { KinndApp, useDesktopGateState } from "./KinndApp";
 
 // HTTP
 export { api, apiUrl, ApiError } from "./api/client";

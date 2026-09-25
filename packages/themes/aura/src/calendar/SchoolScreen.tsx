@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import type { SchoolLessonDto } from "@kidcom/shared";
+import type { SchoolLessonDto } from "@kinnd/shared";
 import {
   dateKey,
   isoWeekday,
@@ -10,7 +10,7 @@ import {
   useSchoolLessons,
   useT,
   useUpdateLesson,
-} from "@kidcom/core";
+} from "@kinnd/core";
 
 import { Field, FormError, PrimaryButton, SecondaryButton } from "../components/Form";
 import { Input } from "../ui/input";

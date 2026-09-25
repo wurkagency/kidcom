@@ -1,5 +1,5 @@
 {
-  "name": "@kidcom/db",
+  "name": "@kinnd/db",
   "private": true,
   "version": "0.1.0",
   "main": "generated/client/index.js",

@@ -1,7 +1,7 @@
 import exifr from "exifr";
 
 // Capture metadata (where / when / which device) read from uploads for
-// manage.kidcom.org's abuse and fraud checks, and lossless removal of the
+// manage.kinnd.eu's abuse and fraud checks, and lossless removal of the
 // location from files handed to anyone but the uploader. Location is only
 // ever as good as what the phone left in the file: mobile browsers often
 // remove it before upload.

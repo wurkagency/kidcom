@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import type { CategoryDto, ChildFamilyMember, ChildNoteDto, SchoolLessonDto, SwapRequestDto, TaskDto } from "@kidcom/shared";
+import type { CategoryDto, ChildFamilyMember, ChildNoteDto, SchoolLessonDto, SwapRequestDto, TaskDto } from "@kinnd/shared";
 import {
   dateKey,
   Link,
@@ -11,7 +11,7 @@ import {
   useResolveSwap,
   useT,
   useToggleTask,
-} from "@kidcom/core";
+} from "@kinnd/core";
 
 import { Icon } from "../components/Icon";
 import { PersonAvatar } from "../components/PersonAvatar";
@@ -23,7 +23,7 @@ import { findMember, usePersonName, usePersonWithRelationship } from "./people";
 import { toneOf } from "./tones";
 
 // The lower sections shared by Today and every calendar view, ported from
-// kidcom_calendar_1-3: section headers with a count pill, the swap-request
+// kinnd_calendar_1-3: section headers with a count pill, the swap-request
 // card, the school routine reminder, Reminders & Tasks, and Notes.
 
 export const menuContentClass =

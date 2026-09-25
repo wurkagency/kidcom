@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { useT } from "@kidcom/core";
+import { useT } from "@kinnd/core";
 
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "../ui/dialog";
 

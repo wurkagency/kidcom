@@ -1,12 +1,12 @@
 import { useState, type FormEvent } from "react";
-import { Link, paths, useAcceptInvite, useAcceptInviteAsMe, useInvitePreview, useMe, useNavigate, useParams, useT } from "@kidcom/core";
+import { Link, paths, useAcceptInvite, useAcceptInviteAsMe, useInvitePreview, useMe, useNavigate, useParams, useT } from "@kinnd/core";
 
 import { AuthBrand, AuthCard, AuthPage, AuthTitle, ErrorBanner, IconField, SecurityShield, SubmitButton } from "./AuthParts";
 import { authErrorText } from "./errors";
 import { PasswordFields, passwordFormReady } from "./PasswordFields";
 
 // An invite link (no Stitch export; built from the sign-up screen's parts).
-// Signed in already: add the child to this account. New to KidCom: name and
+// Signed in already: add the child to this account. New to Kinnd: name and
 // password here, then the mobile number is verified like any sign-up.
 
 export function InviteAcceptScreen() {

@@ -58,7 +58,7 @@ describe("Account deletion", () => {
 
     const row = await prisma.user.findUniqueOrThrow({ where: { id: dad.userId } });
     expect(row).toMatchObject({ firstName: "Former member", lastName: "", phone: null, passwordHash: null, avatarUrl: null });
-    expect(row.email).toMatch(/@kidcom\.invalid$/);
+    expect(row.email).toMatch(/@kinnd\.invalid$/);
     expect(row.deletedAt).not.toBeNull();
     expect(await prisma.childAccess.count({ where: { userId: dad.userId } })).toBe(0);
 

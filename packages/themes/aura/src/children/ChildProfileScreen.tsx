@@ -1,5 +1,5 @@
 import { useRef, useState, type KeyboardEvent } from "react";
-import { ALL_RELATIONSHIP_TYPES, type ChildDetail, type ChildFamilyMember, type RelationshipType } from "@kidcom/shared";
+import { ALL_RELATIONSHIP_TYPES, type ChildDetail, type ChildFamilyMember, type RelationshipType } from "@kinnd/shared";
 import {
   dateKey,
   Link,
@@ -21,7 +21,7 @@ import {
   useUpdateChild,
   useUpdateMemberRelationship,
   useUploadMedia,
-} from "@kidcom/core";
+} from "@kinnd/core";
 
 import { EmptyCard } from "../calendar/Sections";
 import { ConfirmDialog } from "../components/ConfirmDialog";
@@ -36,7 +36,7 @@ import { childAge } from "./age";
 import { clothingAgeRange, custodyRhythm, parentNames } from "./format";
 import { GrowthChart, paceKey, summarizeGrowth } from "./growth";
 
-// kidcom_child_profile_1: cover photo and avatar, name and age, parents,
+// kinnd_child_profile_1: cover photo and avatar, name and age, parents,
 // the custody plan, measurements (edited in place), the WHO growth curve,
 // medical info and contacts, and the family around the child.
 

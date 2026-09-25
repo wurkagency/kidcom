@@ -1,4 +1,4 @@
-import type { Formatters } from "@kidcom/core";
+import type { Formatters } from "@kinnd/core";
 
 // Labels for the viewer's details sheet and the Download screen.
 

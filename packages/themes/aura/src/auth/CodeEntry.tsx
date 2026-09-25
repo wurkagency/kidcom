@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { REGEXP_ONLY_DIGITS } from "input-otp";
-import { useT } from "@kidcom/core";
+import { useT } from "@kinnd/core";
 
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "../ui/input-otp";
 

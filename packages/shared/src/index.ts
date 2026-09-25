@@ -97,7 +97,7 @@ export type PublicUser = {
 
 export type OAuthProviderId = "google" | "microsoft";
 
-// Signup form (kidcom_sign_up): name, email, mobile, consent. The password is
+// Signup form (kinnd_sign_up): name, email, mobile, consent. The password is
 // set afterwards (POST /auth/password), once the phone is verified; the
 // optional `password` here is for clients that collect it up front.
 export type SignupRequest = {
@@ -538,7 +538,7 @@ export type AcceptInviteRequest = {
   // for themselves here.
   // Required only for a shareable claim-link (spec §2.2b point 3) — an
   // invite created with no email on file (Invite.email null), shared over
-  // whatever channel is convenient rather than sent by KidCom itself. A
+  // whatever channel is convenient rather than sent by Kinnd itself. A
   // normal invite ignores this field (the account is created for
   // Invite.email, not whatever the acceptor types here).
   email?: string;
@@ -795,7 +795,7 @@ export type ChildNoteDto = {
   title: string;
   text: string | null;
   categoryId: string | null;
-  /** null once the author has left KidCom ("Former member") */
+  /** null once the author has left Kinnd ("Former member") */
   authorUserId: string | null;
   createdAt: string;
   updatedAt: string;
@@ -1237,7 +1237,7 @@ export type SubscriptionTier = "FREE" | "PARENTS" | "FAMILY";
 export type SubscriptionStatus = "TRIALING" | "PENDING" | "ACTIVE" | "PAST_DUE" | "CANCELED";
 export type BillingPeriod = "MONTHLY" | "ANNUAL";
 
-// Danish consumer VAT rate. The prices KidCom charges (BILLING_PRICES_ORE in
+// Danish consumer VAT rate. The prices Kinnd charges (BILLING_PRICES_ORE in
 // apps/api/src/lib/billingPricing.ts, and PLANS in BillingPage.tsx) are
 // already gross/VAT-inclusive — confirmed as the correct, legally-required
 // consumer-facing figure (spec 9.14). This is only for *displaying* the

@@ -6,7 +6,7 @@ import { ApiError } from "../middleware/errorHandler";
 export const SALT_ROUNDS = 10;
 const REUSE_WINDOW_MS = 1000 * 60 * 60 * 24 * 90; // 90 days
 
-// The rules shown on the reset/create password screen (kidcom_reset_password):
+// The rules shown on the reset/create password screen (kinnd_reset_password):
 // at least 8 characters, includes a number or symbol, not used in the past
 // 90 days. The client shows them live; the server is what enforces them.
 export function assertStrongPassword(password: unknown): asserts password is string {

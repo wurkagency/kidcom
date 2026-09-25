@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
-import { Link, paths, useDesktopGateState, useT } from "@kidcom/core";
+import { Link, paths, useDesktopGateState, useT } from "@kinnd/core";
 
 import { Icon } from "../components/Icon";
 import { Button } from "../ui/button";
@@ -72,7 +72,7 @@ export function DesktopGateScreen() {
   return (
     <div className="flex min-h-screen items-center justify-center px-margin py-space-xl">
       <div className="flex w-full max-w-md flex-col items-center gap-space-lg rounded-[32px] border border-hairline bg-surface-container-lowest p-space-xl text-center shadow-float">
-        <img src="/logo.svg" alt="KidCom" className="h-12 w-12" />
+        <img src="/logo.svg" alt="Kinnd" className="h-12 w-12" />
         <div className="flex flex-col gap-space-xs">
           <h1 className="font-headline-md text-headline-md text-on-surface">{t("desktopGate.title")}</h1>
           <p className="font-body-md text-body-md text-on-surface-variant">{t("desktopGate.body")}</p>

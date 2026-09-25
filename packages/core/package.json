@@ -1,5 +1,5 @@
 {
-  "name": "@kidcom/core",
+  "name": "@kinnd/core",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -13,8 +13,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@kidcom/shared": "*",
-    "@kidcom/theme-kit": "*",
+    "@kinnd/shared": "*",
+    "@kinnd/theme-kit": "*",
     "@tanstack/react-query": "^5.103.2",
     "date-fns": "^4.4.0",
     "i18next": "^26.4.2",

@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import type { ChildFamilyMember, CommentDto } from "@kidcom/shared";
+import type { ChildFamilyMember, CommentDto } from "@kinnd/shared";
 import {
   paths,
   useAddComment,
@@ -13,7 +13,7 @@ import {
   useNavigate,
   useParams,
   useT,
-} from "@kidcom/core";
+} from "@kinnd/core";
 
 import { EmptyCard, menuContentClass, menuItemClass } from "../calendar/Sections";
 import { ConfirmDialog } from "../components/ConfirmDialog";
@@ -24,7 +24,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Skeleton } from "../ui/skeleton";
 import { MomentCard } from "./MomentCard";
 
-// kidcom_moments_feed_2: one moment with its location, then the comments
+// kinnd_moments_feed_2: one moment with its location, then the comments
 // and the "Write a warm comment…" composer. (No @mentions or attachments.)
 
 const initials = (name: string) => name.split(" ").map((p) => p.charAt(0)).join("").slice(0, 2);

@@ -3,23 +3,23 @@
 # the API/web dev servers (run natively via `npm run dev`) have something to
 # talk to on localhost, mirroring prod connectivity without mirroring prod's
 # process model.
-name: kidcom-dev
+name: kinnd-dev
 
 services:
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: kidcom
-      POSTGRES_PASSWORD: kidcom
-      POSTGRES_DB: kidcom
+      POSTGRES_USER: kinnd
+      POSTGRES_PASSWORD: kinnd
+      POSTGRES_DB: kinnd
     ports:
       # Loopback only: the dev database has a public default password.
       - "127.0.0.1:5432:5432"
     volumes:
-      - kidcom-postgres-data:/var/lib/postgresql/data
+      - kinnd-postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U kidcom -d kidcom"]
+      test: ["CMD-SHELL", "pg_isready -U kinnd -d kinnd"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -31,7 +31,7 @@ services:
       # Loopback only: Redis has no password here.
       - "127.0.0.1:6379:6379"
     volumes:
-      - kidcom-redis-data:/data
+      - kinnd-redis-data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -39,5 +39,5 @@ services:
       retries: 10
 
 volumes:
-  kidcom-postgres-data:
-  kidcom-redis-data:
+  kinnd-postgres-data:
+  kinnd-redis-data:

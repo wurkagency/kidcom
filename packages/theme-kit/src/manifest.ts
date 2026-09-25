@@ -1,6 +1,6 @@
 import type { ComponentType, LazyExoticComponent, ReactNode } from "react";
 import { z } from "zod";
-import { THEME_IDS, type ThemeId } from "@kidcom/shared";
+import { THEME_IDS, type ThemeId } from "@kinnd/shared";
 
 import { SCREEN_IDS, SHELL_KINDS, type ScreenId, type ShellKind } from "./screens";
 

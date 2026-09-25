@@ -1,4 +1,4 @@
-import type { CalendarEventDto } from "@kidcom/shared";
+import type { CalendarEventDto } from "@kinnd/shared";
 
 // Shared row -> DTO mapping for CalendarEvent, used by the range/overview
 // endpoints and single-event CRUD alike, so the copies can't drift.

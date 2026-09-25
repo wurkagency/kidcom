@@ -4,7 +4,7 @@ import { requireAuth } from "../../middleware/session";
 import { withRls } from "../../lib/rls";
 import { prisma } from "../../db";
 import { childTiers } from "../../lib/circles";
-import { tierHasFeature } from "@kidcom/shared";
+import { tierHasFeature } from "@kinnd/shared";
 import { galleryInclude, galleryWhere, momentInclude, momentWhere, parseMomentFilters, toMomentDto, toMomentMediaDto } from "../../lib/moments";
 
 // The Moments tab: one feed and one gallery across every child the user can

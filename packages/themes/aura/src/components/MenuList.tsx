@@ -1,10 +1,10 @@
 import { Children, type ReactNode } from "react";
-import { Link } from "@kidcom/core";
+import { Link } from "@kinnd/core";
 
 import { cn } from "../lib/utils";
 import { Icon } from "./Icon";
 
-// The grouped list card (the Measurements card of kidcom_child_profile_1:
+// The grouped list card (the Measurements card of kinnd_child_profile_1:
 // white card, hairline dividers, label left, value/chevron right), used by
 // the profile menu, account, preferences and billing screens.
 

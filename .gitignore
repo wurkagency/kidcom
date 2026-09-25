@@ -29,7 +29,7 @@ apps/web/e2e/.results/
 playwright-report/
 
 # i18n machine-translation exchange files
-i18n/
+/i18n/
 
 # Secrets and keys — never committed
 *.pem

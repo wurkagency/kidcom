@@ -23,13 +23,13 @@ describe("CSRF client header", () => {
     config.requireClientHeader = false;
   });
 
-  it("refuses a state-changing request without X-KidCom-Client, and accepts it with", async () => {
+  it("refuses a state-changing request without X-Kinnd-Client, and accepts it with", async () => {
     const app = createApp();
     const refused = await request(app).post("/auth/login").send({ email: "a@example.com", password: "x" });
     expect(refused.status).toBe(403);
     expect(refused.body.code).toBe("CLIENT_HEADER_REQUIRED");
 
-    const allowed = await request(app).post("/auth/login").set("X-KidCom-Client", "1").send({ email: "a@example.com", password: "x" });
+    const allowed = await request(app).post("/auth/login").set("X-Kinnd-Client", "1").send({ email: "a@example.com", password: "x" });
     expect(allowed.status).toBe(401);
   });
 
@@ -66,7 +66,7 @@ describe("per-account sign-in limit", () => {
 
 describe("sessions", () => {
   const maxAgeOf = (res: request.Response) => {
-    const cookie = ([] as string[]).concat(res.headers["set-cookie"] ?? []).find((c) => c.startsWith("kidcom.sid="));
+    const cookie = ([] as string[]).concat(res.headers["set-cookie"] ?? []).find((c) => c.startsWith("kinnd.sid="));
     return cookie ? new Date(/Expires=([^;]+)/i.exec(cookie)![1]).getTime() - Date.now() : null;
   };
 

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import type { MomentDto } from "@kidcom/shared";
+import type { MomentDto } from "@kinnd/shared";
 import {
   dateKey,
   mediaUrl,
@@ -14,7 +14,7 @@ import {
   useT,
   useUpdateMoment,
   useUploadMedia,
-} from "@kidcom/core";
+} from "@kinnd/core";
 
 import { useCategoryName } from "../calendar/people";
 import { menuContentClass } from "../calendar/Sections";
@@ -31,7 +31,7 @@ import { PlanNotice } from "../billing/PlanNotice";
 import { isPlanError } from "../billing/errors";
 import { DurationBadge } from "./parts";
 
-// kidcom_create_moment: up to six photos/videos (the first is the cover),
+// kinnd_create_moment: up to six photos/videos (the first is the cover),
 // headline, story, tagged children, category, date, a typed location,
 // audience (family or parents only) and an optional notification.
 // ?edit=<id>&child=<id> reopens a moment for its author (media stays).

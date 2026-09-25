@@ -1,5 +1,5 @@
 import { Router } from "express";
-import type { BookmarksResponse, CreateBookmarkRequest } from "@kidcom/shared";
+import type { BookmarksResponse, CreateBookmarkRequest } from "@kinnd/shared";
 
 import { requireAuth } from "../../middleware/session";
 import { ApiError } from "../../middleware/errorHandler";

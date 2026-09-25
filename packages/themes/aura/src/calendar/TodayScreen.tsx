@@ -1,5 +1,5 @@
-import type { SchoolLessonDto } from "@kidcom/shared";
-import { dateKey, isoWeekday, Link, paths, useCurrentUser, useT } from "@kidcom/core";
+import type { SchoolLessonDto } from "@kinnd/shared";
+import { dateKey, isoWeekday, Link, paths, useCurrentUser, useT } from "@kinnd/core";
 
 import { Icon } from "../components/Icon";
 import { CustodyCard } from "./CustodyCard";
@@ -7,7 +7,7 @@ import { EventCard } from "./EventCard";
 import { EmptyCard, SectionHeader, SwapCard } from "./Sections";
 import { useCalendarData } from "./useCalendarData";
 
-// kidcom_today_screen_updated_note: greeting over the soft gradient, the
+// kinnd_today_screen_updated_note: greeting over the soft gradient, the
 // custody card with packing + Request Swap, today's appointments, today's
 // school timetable and the "in sync" reassurance line.
 

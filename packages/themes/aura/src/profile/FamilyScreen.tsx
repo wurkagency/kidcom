@@ -1,5 +1,5 @@
-import type { ChildFamilyMember } from "@kidcom/shared";
-import { Link, paths, useChildren, useCurrentUser, useFamilies, useT } from "@kidcom/core";
+import type { ChildFamilyMember } from "@kinnd/shared";
+import { Link, paths, useChildren, useCurrentUser, useFamilies, useT } from "@kinnd/core";
 
 import { EmptyCard } from "../calendar/Sections";
 import { MenuGroup } from "../components/MenuList";

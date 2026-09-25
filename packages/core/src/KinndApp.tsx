@@ -1,8 +1,8 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { I18nextProvider } from "react-i18next";
-import { isThemeId } from "@kidcom/shared";
-import { ThemeProvider, readCachedThemeId, useTheme, type ThemeRegistry } from "@kidcom/theme-kit";
+import { isThemeId } from "@kinnd/shared";
+import { ThemeProvider, readCachedThemeId, useTheme, type ThemeRegistry } from "@kinnd/theme-kit";
 
 import { configureApi } from "./api/client";
 import { createQueryClient } from "./api/queryClient";
@@ -20,7 +20,7 @@ const DesktopGateContext = createContext<DesktopGate | null>(null);
 /** For the theme's system.desktopGate screen: the handoff URL and "continue anyway". */
 export function useDesktopGateState(): DesktopGate {
   const ctx = useContext(DesktopGateContext);
-  if (!ctx) throw new Error("useDesktopGateState used outside <KidcomApp>");
+  if (!ctx) throw new Error("useDesktopGateState used outside <KinndApp>");
   return ctx;
 }
 
@@ -75,7 +75,7 @@ function ThemedApp({ registry, splash }: { registry: ThemeRegistry; splash: Reac
   );
 }
 
-type KidcomAppProps = {
+type KinndAppProps = {
   /** Every installed theme, lazily imported. */
   registry: ThemeRegistry;
   /** API origin; "/api" in dev (Vite proxy). */
@@ -84,7 +84,7 @@ type KidcomAppProps = {
   splash: ReactNode;
 };
 
-export function KidcomApp({ registry, apiBaseUrl, splash }: KidcomAppProps) {
+export function KinndApp({ registry, apiBaseUrl, splash }: KinndAppProps) {
   const [{ queryClient, i18n }] = useState(() => {
     configureApi({ baseUrl: apiBaseUrl });
     return { queryClient: createQueryClient(), i18n: createI18n() };

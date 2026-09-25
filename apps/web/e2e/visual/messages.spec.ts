@@ -58,21 +58,21 @@ const refSize = (folder: string) => {
   return { width: ref.width / 1.5, height: Math.round(ref.height / 1.5) };
 };
 
-test("inbox matches kidcom_messages_1", async ({ page }) => {
-  await open(page, "/messages", refSize("kidcom_messages_1"));
+test("inbox matches kinnd_messages_1", async ({ page }) => {
+  await open(page, "/messages", refSize("kinnd_messages_1"));
   await expect(page.getByText("Yesterday")).toBeVisible();
   await expect(page.getByText("19.09.2026").first()).toBeVisible();
   await expect(page.getByText("1", { exact: true })).toBeVisible(); // Peter's unread count
-  await check(page, "kidcom_messages_1", 0.055);
+  await check(page, "kinnd_messages_1", 0.055);
 });
 
-test("conversation matches kidcom_calendar_5", async ({ page }) => {
-  await open(page, "/messages/t-inger", refSize("kidcom_calendar_5"));
+test("conversation matches kinnd_calendar_5", async ({ page }) => {
+  await open(page, "/messages/t-inger", refSize("kinnd_calendar_5"));
   await page.evaluate(() => window.scrollTo(0, 0));
   await expect(page.getByText("Art for Grandma")).toBeVisible();
   await expect(page.getByText(/^Today • 12 October 2026$/i)).toBeVisible();
   // Most of the gap: the export's two full-colour photos (flat grey here) and its "Active now" line (no presence).
-  await check(page, "kidcom_calendar_5", 0.205);
+  await check(page, "kinnd_calendar_5", 0.205);
 });
 
 const body = (r: Request) => r.postDataJSON() as Record<string, unknown>;
@@ -117,7 +117,7 @@ test("notifications list new ones tinted and marks them read", async ({ page }) 
 
 test("search finds across the app and opens the result", async ({ page }) => {
   await open(page, "/search");
-  await page.getByRole("searchbox", { name: "Search KidCom" }).fill("den");
+  await page.getByRole("searchbox", { name: "Search Kinnd" }).fill("den");
   await expect(page.getByText("Calendar", { exact: true })).toBeVisible();
   await page.getByRole("link", { name: /Dentist/ }).click();
   await expect(page).toHaveURL(/\/children\/c-leo\/events\/e-dentist$/);

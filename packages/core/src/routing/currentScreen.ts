@@ -1,5 +1,5 @@
 import { createContext, useContext } from "react";
-import type { ScreenId } from "@kidcom/theme-kit";
+import type { ScreenId } from "@kinnd/theme-kit";
 
 // Which screen id is rendering. Lets a shell mark the active dock tab, and
 // lets one screen component serving several routes (the calendar views)

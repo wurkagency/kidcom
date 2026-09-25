@@ -1,5 +1,5 @@
-import type { PhoneCodePurpose } from "@kidcom/db";
-import { isE164, isSupportedPhone } from "@kidcom/shared";
+import type { PhoneCodePurpose } from "@kinnd/db";
+import { isE164, isSupportedPhone } from "@kinnd/shared";
 
 import { config } from "../config";
 import { prisma } from "../db";
@@ -17,13 +17,13 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
  * A number we may text: well-formed and in a country the app offers, outside
- * the premium/foreign ranges (@kidcom/shared phone.ts). Checked before any
+ * the premium/foreign ranges (@kinnd/shared phone.ts). Checked before any
  * account is created, and again right before every SMS.
  */
 export function assertPhoneAllowed(phone: unknown): asserts phone is string {
   if (!isE164(phone)) throw new ApiError(400, "Please enter a valid mobile number", "PHONE_INVALID");
   if (!isSupportedPhone(phone)) {
-    throw new ApiError(400, "KidCom can't send text messages to this number's country yet", "PHONE_COUNTRY_UNSUPPORTED");
+    throw new ApiError(400, "Kinnd can't send text messages to this number's country yet", "PHONE_COUNTRY_UNSUPPORTED");
   }
 }
 
@@ -55,10 +55,10 @@ function smsText(purpose: PhoneCodePurpose, code: string): string {
   const minutes = PHONE_CODE_TTL_MS / 60_000;
   const intro =
     purpose === "PASSWORD_RESET"
-      ? `KidCom: ${code} is your password reset code.`
-      : `KidCom: ${code} is your verification code.`;
+      ? `Kinnd: ${code} is your password reset code.`
+      : `Kinnd: ${code} is your verification code.`;
   // Last line: the WebOTP / iOS domain-bound format, so the phone offers to
-  // fill the code into the KidCom page (and only that page) automatically.
+  // fill the code into the Kinnd page (and only that page) automatically.
   const host = new URL(config.webBaseUrl).host;
   return `${intro} It expires in ${minutes} minutes. Never share it with anyone.\n\n@${host} #${code}`;
 }

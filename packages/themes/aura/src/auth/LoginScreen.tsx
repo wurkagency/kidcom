@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Link, oauthStartUrl, paths, safeNextPath, useLogin, useNavigate, useSearchParams, useT } from "@kidcom/core";
+import { Link, oauthStartUrl, paths, safeNextPath, useLogin, useNavigate, useSearchParams, useT } from "@kinnd/core";
 
 import heroPhoto from "../assets/auth-hero.jpg";
 import { BrandMark, GoogleLogo, MicrosoftLogo } from "../components/BrandMark";
@@ -9,7 +9,7 @@ import { Label } from "../ui/label";
 import { ErrorBanner } from "./AuthParts";
 import { authErrorText } from "./errors";
 
-// docs/design/aura/kidcom_login — photographic layout, ported class for class.
+// docs/design/aura/kinnd_login — photographic layout, ported class for class.
 
 const OAUTH_ERRORS = ["cancelled", "expired", "account_exists", "no_email", "unavailable"] as const;
 

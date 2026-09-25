@@ -1,6 +1,6 @@
 import { useState } from "react";
-import type { ChildOverview } from "@kidcom/shared";
-import { Link, paths, useFormat, useSetPacking, useT, useTogglePacking } from "@kidcom/core";
+import type { ChildOverview } from "@kinnd/shared";
+import { Link, paths, useFormat, useSetPacking, useT, useTogglePacking } from "@kinnd/core";
 
 import { Icon } from "../components/Icon";
 import { cn } from "../lib/utils";
@@ -10,8 +10,8 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { findMember, usePersonName } from "./people";
 
 // The custody card ("MOM’S — Day 7 — DAD’S") from
-// kidcom_today_screen_updated_note (variant "today": roomier, Request Swap
-// inside) and kidcom_calendar_1-3 (variant "calendar").
+// kinnd_today_screen_updated_note (variant "today": roomier, Request Swap
+// inside) and kinnd_calendar_1-3 (variant "calendar").
 
 function Arc() {
   return (

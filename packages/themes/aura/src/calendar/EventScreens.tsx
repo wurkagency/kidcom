@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import type { CalendarEventDto, CreateCalendarEventRequest } from "@kidcom/shared";
+import type { CalendarEventDto, CreateCalendarEventRequest } from "@kinnd/shared";
 import {
   copenhagenInstant,
   dateKey,
@@ -20,7 +20,7 @@ import {
   useT,
   useToggleChecklistItem,
   useUpdateEvent,
-} from "@kidcom/core";
+} from "@kinnd/core";
 
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Icon } from "../components/Icon";
@@ -48,7 +48,7 @@ import { findMember, usePersonName } from "./people";
 import { toneOf } from "./tones";
 
 // Event detail and create/edit. No Stitch export: built from the event card
-// (kidcom_calendar_1-3) and DESIGN.md form parts.
+// (kinnd_calendar_1-3) and DESIGN.md form parts.
 
 const NONE = "none";
 

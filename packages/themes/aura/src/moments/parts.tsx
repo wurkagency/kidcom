@@ -1,4 +1,4 @@
-import type { ChildFamilyMember } from "@kidcom/shared";
+import type { ChildFamilyMember } from "@kinnd/shared";
 import {
   dateKey,
   addDays,
@@ -9,7 +9,7 @@ import {
   useNavigate,
   useT,
   type MomentFilters,
-} from "@kidcom/core";
+} from "@kinnd/core";
 
 import { useCategoryName } from "../calendar/people";
 import { menuContentClass } from "../calendar/Sections";
@@ -25,7 +25,7 @@ import {
 } from "../ui/dropdown-menu";
 
 // Pieces shared by the Moments feed and the Media gallery
-// (kidcom_moments_feed_1, kidcom_media_gallery): the title row with the
+// (kinnd_moments_feed_1, kinnd_media_gallery): the title row with the
 // Feed/Media switch, the Categories/Types filters, author and time labels.
 
 type MomentsView = "feed" | "media";

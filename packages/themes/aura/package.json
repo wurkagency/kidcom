@@ -1,5 +1,5 @@
 {
-  "name": "@kidcom/theme-aura",
+  "name": "@kinnd/theme-aura",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -15,9 +15,9 @@
   },
   "dependencies": {
     "@fontsource-variable/plus-jakarta-sans": "^5.2.8",
-    "@kidcom/core": "*",
-    "@kidcom/shared": "*",
-    "@kidcom/theme-kit": "*",
+    "@kinnd/core": "*",
+    "@kinnd/shared": "*",
+    "@kinnd/theme-kit": "*",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "input-otp": "^1.5.0",

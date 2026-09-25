@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from "react";
-import { ENABLED_LOCALES, THEME_IDS, type Locale, type NotificationPreferencesDto, type ThemeId } from "@kidcom/shared";
+import { ENABLED_LOCALES, THEME_IDS, type Locale, type NotificationPreferencesDto, type ThemeId } from "@kinnd/shared";
 import {
   createFormatters,
   detectRegion,
@@ -14,7 +14,7 @@ import {
   useT,
   useUpdateNotificationPreferences,
   useUpdateProfile,
-} from "@kidcom/core";
+} from "@kinnd/core";
 
 import { authErrorText } from "../auth/errors";
 import { PasswordFields, passwordFormReady } from "../auth/PasswordFields";

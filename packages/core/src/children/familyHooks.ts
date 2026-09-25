@@ -23,7 +23,7 @@ import type {
   UpdateListItemRequest,
   UpdateMedicalInfoRequest,
   UpdateScheduleOccurrenceRequest,
-} from "@kidcom/shared";
+} from "@kinnd/shared";
 
 import { api } from "../api/client";
 import { queryKeys } from "../api/queryClient";

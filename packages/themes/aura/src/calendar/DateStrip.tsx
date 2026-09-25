@@ -1,10 +1,10 @@
-import { addDays, isoWeek, monthGrid, monthOf, useFormat, useT, weekDays, type DateKey } from "@kidcom/core";
+import { addDays, isoWeek, monthGrid, monthOf, useFormat, useT, weekDays, type DateKey } from "@kinnd/core";
 
 import { Icon } from "../components/Icon";
 import { cn } from "../lib/utils";
 
-// The week strip (kidcom_calendar_2, and on peach in kidcom_calendar_3) and
-// the month grid (kidcom_calendar_1). The shaded band is the selected day's
+// The week strip (kinnd_calendar_2, and on peach in kinnd_calendar_3) and
+// the month grid (kinnd_calendar_1). The shaded band is the selected day's
 // custody block; dots mark days with appointments or due tasks.
 
 export type DayMarks = Record<DateKey, { rose: boolean }[]>;

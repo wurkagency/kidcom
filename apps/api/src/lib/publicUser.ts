@@ -1,5 +1,5 @@
-import type { OAuthProviderId, PublicUser } from "@kidcom/shared";
-import { isLocale, isRegion, isThemeId } from "@kidcom/shared";
+import type { OAuthProviderId, PublicUser } from "@kinnd/shared";
+import { isLocale, isRegion, isThemeId } from "@kinnd/shared";
 
 import { prisma } from "../db";
 

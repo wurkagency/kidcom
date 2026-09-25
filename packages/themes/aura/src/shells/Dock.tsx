@@ -1,6 +1,6 @@
 import { useState } from "react";
-import type { ScreenId } from "@kidcom/theme-kit";
-import { Link, paths, useCurrentScreen, useT } from "@kidcom/core";
+import type { ScreenId } from "@kinnd/theme-kit";
+import { Link, paths, useCurrentScreen, useT } from "@kinnd/core";
 
 import { Icon } from "../components/Icon";
 import { cn } from "../lib/utils";

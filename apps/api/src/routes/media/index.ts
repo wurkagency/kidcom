@@ -2,7 +2,7 @@ import { Router, type Response } from "express";
 import multer from "multer";
 import crypto from "node:crypto";
 import archiver from "archiver";
-import type { MediaArchiveRequest, MediaDownloadVariant, MediaInfoDto, MediaUploadResponse } from "@kidcom/shared";
+import type { MediaArchiveRequest, MediaDownloadVariant, MediaInfoDto, MediaUploadResponse } from "@kinnd/shared";
 
 import { config } from "../../config";
 import { prisma } from "../../db";
@@ -15,7 +15,7 @@ import { renderDownloadLinkHtml } from "../../lib/emailTemplates/downloadLink";
 import { toMediaDto } from "../../lib/moments";
 import { withRls, withRlsBypass } from "../../lib/rls";
 import { consumptionBytes, heldTier, uploadedLastDayBytes } from "../../lib/circles";
-import { DAILY_UPLOAD_CAP_BYTES, STORAGE_BLOCK_RATIO, TIERS } from "@kidcom/shared";
+import { DAILY_UPLOAD_CAP_BYTES, STORAGE_BLOCK_RATIO, TIERS } from "@kinnd/shared";
 import type { NextFunction, Request } from "express";
 
 /**
@@ -121,7 +121,7 @@ mediaRouter.post("/upload", requireAuth, precheckUpload, upload.single("file"), 
           originalPath: key,
           mimeType: req.file!.mimetype,
           originalBytes: req.file!.size,
-          // For manage.kidcom.org's abuse and fraud checks; never sent to clients.
+          // For manage.kinnd.eu's abuse and fraud checks; never sent to clients.
           uploadIp: req.ip ?? null,
           uploadUserAgent: req.get("user-agent")?.slice(0, 500) ?? null,
         },
@@ -270,7 +270,7 @@ const slug = (text: string) =>
     .replace(/[^a-zA-Z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .toLowerCase()
-    .slice(0, 60) || "kidcom";
+    .slice(0, 60) || "kinnd";
 
 // ---------------------------------------------------------------------------
 // Archives (Download screen): a zip streamed straight to the device, or a
@@ -296,14 +296,14 @@ async function streamArchive(res: Response, userId: string, { mediaIds, variant 
   }
 
   res.setHeader("Content-Type", "application/zip");
-  res.setHeader("Content-Disposition", `attachment; filename="kidcom-${new Date().toISOString().slice(0, 10)}.zip"`);
+  res.setHeader("Content-Disposition", `attachment; filename="kinnd-${new Date().toISOString().slice(0, 10)}.zip"`);
   const zip = archiver("zip", { store: true }); // photos/videos are already compressed
   zip.on("error", (err) => res.destroy(err));
   zip.pipe(res);
   const seen = new Map<string, number>();
   for (const { asset, key } of files) {
     if (!(await mediaStorage.exists(key))) continue;
-    const base = slug(asset.moment?.title ?? "kidcom");
+    const base = slug(asset.moment?.title ?? "kinnd");
     const n = (seen.get(base) ?? 0) + 1;
     seen.set(base, n);
     zip.append(await mediaStorage.readStream(key), { name: `${base}-${n}.${extOf(key)}` });
@@ -354,7 +354,7 @@ mediaRouter.get("/suspended/:childId/archive", requireAuth, async (req, res, nex
       })
     );
     res.setHeader("Content-Type", "application/zip");
-    res.setHeader("Content-Disposition", `attachment; filename="kidcom-${new Date().toISOString().slice(0, 10)}.zip"`);
+    res.setHeader("Content-Disposition", `attachment; filename="kinnd-${new Date().toISOString().slice(0, 10)}.zip"`);
     const zip = archiver("zip", { store: true });
     zip.on("error", (err) => res.destroy(err));
     zip.pipe(res);
@@ -362,7 +362,7 @@ mediaRouter.get("/suspended/:childId/archive", requireAuth, async (req, res, nex
     for (const asset of assets) {
       const key = asset.ownerId === userId ? asset.originalPath : (asset.sharedOriginalPath ?? asset.derivedPath);
       if (!key || !(await mediaStorage.exists(key))) continue;
-      const base = slug(asset.moment?.title ?? "kidcom");
+      const base = slug(asset.moment?.title ?? "kinnd");
       const n = (seen.get(base) ?? 0) + 1;
       seen.set(base, n);
       zip.append(await mediaStorage.readStream(key), { name: `${base}-${n}.${extOf(key)}` });
@@ -394,7 +394,7 @@ mediaRouter.post("/archive/email", requireAuth, async (req, res, next) => {
     const link = `${config.webBaseUrl}/media/download?token=${token}`;
     await mailSender.send({
       to: user.email,
-      subject: "Your KidCom download is ready",
+      subject: "Your Kinnd download is ready",
       text: `Hi ${user.firstName},\n\nYour ${request.mediaIds.length} files are ready to download for the next ${DOWNLOAD_LINK_TTL_DAYS} days:\n${link}\n\nSign in with this account to download them.`,
       html: renderDownloadLinkHtml({ firstName: user.firstName, count: request.mediaIds.length, link, ttlDays: DOWNLOAD_LINK_TTL_DAYS }),
     });
@@ -463,7 +463,7 @@ mediaRouter.get("/:id", requireAuth, async (req, res, next) => {
     const asset = await loadReadableAsset(req.session.userId!, req.params.id);
     const variant = typeof req.query.variant === "string" ? req.query.variant : undefined;
     const key = keyFor(asset, variant, req.session.userId!);
-    const attachment = variant === "source" ? `${slug(asset.moment?.title ?? "kidcom")}.${extOf(key)}` : undefined;
+    const attachment = variant === "source" ? `${slug(asset.moment?.title ?? "kinnd")}.${extOf(key)}` : undefined;
     await sendFile(res, key, req.headers.range, attachment);
   } catch (err) {
     next(err);

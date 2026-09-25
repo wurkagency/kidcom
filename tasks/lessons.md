@@ -22,7 +22,7 @@ scratch database seeded with rows **under RLS** (see the Phase 3 entry in
 
 ## Never point Prisma's shadow database at a real database (2026-09-25)
 `prisma migrate diff --shadow-database-url <url>` **wipes** that database to replay migrations.
-Pointing it at `splitkid_test` reset the test DB (recovered with `migrate reset` on the _test
+Pointing it at `kinnd_test` reset the test DB (recovered with `migrate reset` on the _test
 URL). To check schema ↔ migrations, diff against the migrated test DB with `--from-url`
 instead, or use a throwaway shadow database — never dev.
 

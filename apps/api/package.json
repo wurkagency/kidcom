@@ -1,5 +1,5 @@
 {
-  "name": "@kidcom/api",
+  "name": "@kinnd/api",
   "private": true,
   "version": "0.1.0",
   "main": "dist/server.js",
@@ -18,8 +18,8 @@
     "reset:launch": "tsx src/scripts/resetForLaunch.ts"
   },
   "dependencies": {
-    "@kidcom/db": "*",
-    "@kidcom/shared": "*",
+    "@kinnd/db": "*",
+    "@kinnd/shared": "*",
     "archiver": "^7.0.1",
     "bcryptjs": "^2.4.3",
     "bullmq": "^5.13.2",

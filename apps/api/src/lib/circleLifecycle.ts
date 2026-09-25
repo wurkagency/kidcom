@@ -1,5 +1,5 @@
-import type { Prisma, SuspensionReason } from "@kidcom/db";
-import { SUSPENSION_DELETE_DAYS, TIERS, tierBlockReasons } from "@kidcom/shared";
+import type { Prisma, SuspensionReason } from "@kinnd/db";
+import { SUSPENSION_DELETE_DAYS, TIERS, tierBlockReasons } from "@kinnd/shared";
 
 import { prisma } from "../db";
 import { ApiError } from "../middleware/errorHandler";
@@ -207,10 +207,10 @@ export async function sendSuspensionNotices(now = new Date(), onlyChildId?: stri
       stage === 1 ? `${child.firstName} is hidden until someone pays` : `${child.firstName}'s data will be deleted on ${deleteOn}`;
     const text =
       (stage === 1
-        ? `Nobody pays for ${child.firstName}'s plan any more, so ${child.firstName} is hidden in KidCom for everyone.`
+        ? `Nobody pays for ${child.firstName}'s plan any more, so ${child.firstName} is hidden in Kinnd for everyone.`
         : `${child.firstName} has been hidden since ${fmtDate(child.suspendedAt!)}.`) +
       `\n\nOn ${deleteOn}, ${child.firstName}'s entries and media are deleted, unless someone pays or takes ${child.firstName} over into their own plan.` +
-      `\n\nOpen KidCom to pay, take over, or download your data: ${config.webBaseUrl}${url}`;
+      `\n\nOpen Kinnd to pay, take over, or download your data: ${config.webBaseUrl}${url}`;
     for (const u of users) {
       try {
         await mailSender.send({ to: u.email, subject, text });

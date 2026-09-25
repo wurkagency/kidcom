@@ -1,13 +1,13 @@
 import type { ReactNode } from "react";
-import type { ChildSummary } from "@kidcom/shared";
-import { Link, paths, useActiveChildren, useFormat, useNavigate, useT } from "@kidcom/core";
+import type { ChildSummary } from "@kinnd/shared";
+import { Link, paths, useActiveChildren, useFormat, useNavigate, useT } from "@kinnd/core";
 
 import { Icon } from "../components/Icon";
 import { PersonAvatar } from "../components/PersonAvatar";
 import { cn } from "../lib/utils";
 import { childAge } from "./age";
 
-// kidcom_children: every child you're connected to — pick which ones the
+// kinnd_children: every child you're connected to — pick which ones the
 // app shows (the same selection as the header's child selector), open or
 // edit a profile, add or connect a child. "My children" are those you're a
 // parent or guardian of; "Children in family" those you follow as family.

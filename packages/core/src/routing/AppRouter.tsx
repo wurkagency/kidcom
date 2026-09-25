@@ -1,6 +1,6 @@
 import { Component, Suspense, type ErrorInfo, type ReactNode } from "react";
 import { createBrowserRouter, Navigate, Outlet, RouterProvider, ScrollRestoration, useLocation } from "react-router";
-import { useTheme, type ScreenId, type ShellKind } from "@kidcom/theme-kit";
+import { useTheme, type ScreenId, type ShellKind } from "@kinnd/theme-kit";
 
 import { useMe } from "../auth/hooks";
 import { useChildren } from "../children/hooks";

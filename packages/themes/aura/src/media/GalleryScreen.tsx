@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from "react";
-import type { MomentMediaDto } from "@kidcom/shared";
-import { mediaUrl, paths, useActiveChildren, useFormat, useMomentFilters, useMomentsGallery, useNavigate, useT } from "@kidcom/core";
+import type { MomentMediaDto } from "@kinnd/shared";
+import { mediaUrl, paths, useActiveChildren, useFormat, useMomentFilters, useMomentsGallery, useNavigate, useT } from "@kinnd/core";
 
 import { EmptyCard } from "../calendar/Sections";
 import { Icon } from "../components/Icon";
@@ -9,11 +9,11 @@ import { Skeleton } from "../ui/skeleton";
 import { PlanNotice } from "../billing/PlanNotice";
 import { DurationBadge, MomentFilterBar, MomentsTitle } from "../moments/parts";
 
-// kidcom_media_gallery: every photo and video across the selected children,
+// kinnd_media_gallery: every photo and video across the selected children,
 // by month. Long-press a tile to start selecting; the batch bar then offers
 // Select all and Download (→ the Download screen).
 
-const TIP_KEY = "kidcom.galleryTipDismissed";
+const TIP_KEY = "kinnd.galleryTipDismissed";
 const LONG_PRESS_MS = 450;
 
 function readTipDismissed() {

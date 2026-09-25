@@ -1,8 +1,8 @@
 import type { SVGProps } from "react";
 
-// Artwork copied verbatim from the Stitch auth exports (docs/design/aura/kidcom_login).
+// Artwork copied verbatim from the Stitch auth exports (docs/design/aura/kinnd_login).
 
-/** The KidCom family emblem. Colour via currentColor. */
+/** The Kinnd family emblem. Colour via currentColor. */
 export function BrandMark(props: SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 84.83 77.53" xmlns="http://www.w3.org/2000/svg" fill="currentColor" aria-hidden="true" {...props}>

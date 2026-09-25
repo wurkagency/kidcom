@@ -1,5 +1,5 @@
 import type { Page, Route } from "@playwright/test";
-import type { ChildSummary, PublicUser } from "@kidcom/shared";
+import type { ChildSummary, PublicUser } from "@kinnd/shared";
 
 // API fixtures mirroring the people and content in the Stitch exports
 // (Charlie; children Leo, Maya, Ida), so rendered screens are comparable

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { ChildDetail, ScheduleItem } from "@kidcom/shared";
+import type { ChildDetail, ScheduleItem } from "@kinnd/shared";
 import {
   paths,
   useChild,
@@ -10,7 +10,7 @@ import {
   useParams,
   useT,
   useUpdateScheduleItem,
-} from "@kidcom/core";
+} from "@kinnd/core";
 
 import { EmptyCard } from "../calendar/Sections";
 import { DateField, SecondaryButton } from "../components/Form";
@@ -21,7 +21,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { Skeleton } from "../ui/skeleton";
 import { parentNames } from "./format";
 
-// kidcom_child_profile_2: the national child-health programme (check-ups,
+// kinnd_child_profile_2: the national child-health programme (check-ups,
 // vaccinations, dental care) as a timeline — upcoming first, the next one
 // highlighted, then what's done. Tick an item off; the (i) shows what it is,
 // who provides it, and lets you note when it's booked.

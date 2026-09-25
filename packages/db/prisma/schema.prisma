@@ -1,4 +1,4 @@
-// SplitKid — initial data model (Chunk 1 scaffold)
+// Kinnd — initial data model (Chunk 1 scaffold)
 // Covers PRD sections 1-6 at a first-pass level of detail. Fields will be
 // refined as each feature chunk is built; nothing here is final.
 
@@ -372,7 +372,7 @@ model SuspendedChildAccess {
 // against this table — spec §1.5's explicit hard no.
 //
 // NOTE: the privacy-notice copy update spec 9.20 requires "live before the
-// first event logs" is an external document (splitkid.com/privacy, per
+// first event logs" is an external document (kinnd.eu/privacy, per
 // lib/emailTemplates/layout.ts's footer link) — outside this codebase's
 // reach. Flagged, not silently assumed done: confirm that copy ships before
 // this goes to production, since this migration/instrumentation alone
@@ -748,7 +748,7 @@ model MediaAsset {
   durationSeconds    Float?
   codec              String?        // e.g. "hevc", "h264" (videos only)
   // Capture metadata and upload origin, for abuse and fraud checks in
-  // manage.kidcom.org. NEVER serialized to app clients (a child's location
+  // manage.kinnd.eu. NEVER serialized to app clients (a child's location
   // could reveal a home or school). GPS comes from the file where the phone
   // kept it; see docs/data_retention_policy.md.
   capturedLatitude    Float?
@@ -1217,7 +1217,7 @@ model PhoneVerificationCode {
 
 // Every SMS the API has sent — the toll-fraud guard counts these (per
 // number and in total, rolling 24 h; lib/phoneVerification.ts), and they are
-// abuse signals for manage.kidcom.org. No user relation on purpose: the log
+// abuse signals for manage.kinnd.eu. No user relation on purpose: the log
 // outlives a deleted account until the daily purge (90 days).
 model SmsSend {
   id        String           @id @default(cuid())
@@ -1419,7 +1419,7 @@ enum LoginOutcome {
 }
 
 // Every sign-in and failed attempt with its IP and user agent, for abuse and
-// fraud checks in manage.kidcom.org (compared with media upload origins).
+// fraud checks in manage.kinnd.eu (compared with media upload origins).
 // Failed attempts on unknown accounts keep the typed email, userId null.
 model LoginEvent {
   id        String       @id @default(cuid())

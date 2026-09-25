@@ -5,8 +5,8 @@ import {
   type ChildDetail,
   type ChildGender,
   type RelationshipType,
-} from "@kidcom/shared";
-import { paths, useChild, useCreateChild, useNavigate, useParams, useT, useUpdateChild } from "@kidcom/core";
+} from "@kinnd/shared";
+import { paths, useChild, useCreateChild, useNavigate, useParams, useT, useUpdateChild } from "@kinnd/core";
 
 import { DateField, EditorTitle, Field, FormCard, FormError, PrimaryButton } from "../components/Form";
 import { Input } from "../ui/input";
@@ -17,7 +17,7 @@ import { ToggleGroup, ToggleGroupItem } from "../ui/toggle-group";
 
 // Add a child / edit a child's basics (no Stitch export; DESIGN.md form
 // parts). Adding as someone other than a parent (e.g. a grandparent setting
-// the child up) needs a parent's contact: KidCom invites them.
+// the child up) needs a parent's contact: Kinnd invites them.
 
 const GENDERS: ChildGender[] = ["BOY", "GIRL", "OTHER"];
 const segmentedGroup = "w-full flex items-center p-1 rounded-full bg-surface-container/50 border border-outline-variant/30";

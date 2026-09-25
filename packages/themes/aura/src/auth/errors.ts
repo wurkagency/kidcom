@@ -1,4 +1,4 @@
-import { ApiError } from "@kidcom/core";
+import { ApiError } from "@kinnd/core";
 
 type T = (key: string) => string;
 

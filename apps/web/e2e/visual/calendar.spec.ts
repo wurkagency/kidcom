@@ -14,7 +14,7 @@ async function open(page: Page, folder: string, path: string, swaps = false) {
   const ref = loadReference(folder);
   await page.setViewportSize({ width: ref.width / 1.5, height: Math.round(ref.height / 1.5) });
   await page.clock.setFixedTime(FIXTURE_NOW);
-  await page.addInitScript(() => localStorage.setItem("kidcom.childFilter.u-charlie", "c-leo"));
+  await page.addInitScript(() => localStorage.setItem("kinnd.childFilter.u-charlie", "c-leo"));
   await mockApi(page, {
     me: { ...charlie, region: "DK" },
     children: [leo, maya, ida],
@@ -37,29 +37,29 @@ async function check(page: Page, folder: string, limit: number) {
   expect(mismatch).toBeLessThan(limit);
 }
 
-test("today matches kidcom_today_screen_updated_note", async ({ page }) => {
-  await open(page, "kidcom_today_screen_updated_note", "/");
+test("today matches kinnd_today_screen_updated_note", async ({ page }) => {
+  await open(page, "kinnd_today_screen_updated_note", "/");
   await expect(page.getByRole("heading", { name: "Hi Charlie," })).toBeVisible();
   await expect(page.getByText("3 of 4 items packed")).toBeVisible();
   await expect(page.getByText("Handled by Dad")).toBeVisible();
-  await check(page, "kidcom_today_screen_updated_note", 0.04);
+  await check(page, "kinnd_today_screen_updated_note", 0.04);
 });
 
-test("agenda matches kidcom_calendar_3", async ({ page }) => {
-  await open(page, "kidcom_calendar_3", "/calendar");
+test("agenda matches kinnd_calendar_3", async ({ page }) => {
+  await open(page, "kinnd_calendar_3", "/calendar");
   await expect(page.getByRole("heading", { name: "Today" })).toBeVisible();
   await expect(page.getByText("4 remaining")).toBeVisible();
-  await check(page, "kidcom_calendar_3", 0.035);
+  await check(page, "kinnd_calendar_3", 0.035);
 });
 
-test("week matches kidcom_calendar_2", async ({ page }) => {
-  await open(page, "kidcom_calendar_2", "/calendar/week", true);
+test("week matches kinnd_calendar_2", async ({ page }) => {
+  await open(page, "kinnd_calendar_2", "/calendar/week", true);
   await expect(page.getByText("Week 42")).toBeVisible();
-  await check(page, "kidcom_calendar_2", 0.05);
+  await check(page, "kinnd_calendar_2", 0.05);
 });
 
-test("month matches kidcom_calendar_1", async ({ page }) => {
-  await open(page, "kidcom_calendar_1", "/calendar/month", true);
+test("month matches kinnd_calendar_1", async ({ page }) => {
+  await open(page, "kinnd_calendar_1", "/calendar/month", true);
   await expect(page.getByText("Approve for 7 June")).toBeVisible();
-  await check(page, "kidcom_calendar_1", 0.05);
+  await check(page, "kinnd_calendar_1", 0.05);
 });

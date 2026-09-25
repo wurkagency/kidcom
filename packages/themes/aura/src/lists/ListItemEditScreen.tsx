@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import type { ListItemDto, ListItemType } from "@kidcom/shared";
+import type { ListItemDto, ListItemType } from "@kinnd/shared";
 import {
   dateKey,
   paths,
@@ -13,7 +13,7 @@ import {
   useSearchParams,
   useT,
   useUpdateListItem,
-} from "@kidcom/core";
+} from "@kinnd/core";
 
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { ChildField, DateField, EditorTitle, Field, FormCard, FormError, PrimaryButton, SecondaryButton } from "../components/Form";

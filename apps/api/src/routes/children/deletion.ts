@@ -1,5 +1,5 @@
 import { Router, type Request } from "express";
-import type { ChildDeletionActionResponse, ChildDeletionRequestDto } from "@kidcom/shared";
+import type { ChildDeletionActionResponse, ChildDeletionRequestDto } from "@kinnd/shared";
 
 import { prisma } from "../../db";
 import { ApiError } from "../../middleware/errorHandler";

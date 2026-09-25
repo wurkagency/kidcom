@@ -8,7 +8,7 @@ ensureSystemCategories()
     const app = createApp();
     const listening = () => {
       // eslint-disable-next-line no-console
-      console.log(`KidCom API listening on ${config.host ?? "all interfaces"}, port ${config.port} (${config.nodeEnv})`);
+      console.log(`Kinnd API listening on ${config.host ?? "all interfaces"}, port ${config.port} (${config.nodeEnv})`);
     };
     // Production: loopback only, behind nginx (config.host).
     if (config.host) app.listen(config.port, config.host, listening);

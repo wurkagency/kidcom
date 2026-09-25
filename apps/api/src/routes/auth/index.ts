@@ -13,8 +13,8 @@ import type {
   UpdateProfileRequest,
   VerifyPhoneRequest,
   VerifyTwoFactorRequest,
-} from "@kidcom/shared";
-import { isLocale, isRegion, isThemeId, isValidEmail } from "@kidcom/shared";
+} from "@kinnd/shared";
+import { isLocale, isRegion, isThemeId, isValidEmail } from "@kinnd/shared";
 import { deleteAccount } from "../../lib/accountDeletion";
 
 import { prisma } from "../../db";
@@ -89,7 +89,7 @@ async function sendVerificationEmailSafely(user: { id: string; email: string; fi
 authRouter.use("/oauth", oauthRouter);
 
 // ---------------------------------------------------------------------------
-// Signup — name, email, mobile, consent (kidcom_sign_up). The account is
+// Signup — name, email, mobile, consent (kinnd_sign_up). The account is
 // created and signed in immediately; it then has to verify the phone by SMS
 // (mandatory — every non-/auth endpoint answers 403 until it does), set a
 // password, and verify the email.
@@ -171,7 +171,7 @@ authRouter.post("/phone/verify", authRateLimiter, async (req, res, next) => {
     const phone = await consumePhoneCode(userId, "VERIFY_PHONE", code);
     const taken = await prisma.user.findFirst({ where: { phone, phoneVerifiedAt: { not: null }, id: { not: userId } } });
     if (taken) {
-      throw new ApiError(409, "This mobile number is already used by another KidCom account", "PHONE_TAKEN");
+      throw new ApiError(409, "This mobile number is already used by another Kinnd account", "PHONE_TAKEN");
     }
     await prisma.user.update({ where: { id: userId }, data: { phone, phoneVerifiedAt: new Date() } });
     req.session.phoneVerified = true;
@@ -445,7 +445,7 @@ authRouter.post("/logout", (req, res, next) => {
       return;
     }
     const done = () => {
-      res.clearCookie("kidcom.sid");
+      res.clearCookie("kinnd.sid");
       res.setHeader("Clear-Site-Data", CLEAR_CACHE);
       res.status(204).end();
     };
@@ -579,7 +579,7 @@ authRouter.get("/export", async (req, res, next) => {
       ? await withRls(userId, (tx) => tx.growthEntry.findMany({ where: { childId: { in: childIds } } }))
       : [];
 
-    res.setHeader("Content-Disposition", 'attachment; filename="kidcom-data-export.json"');
+    res.setHeader("Content-Disposition", 'attachment; filename="kinnd-data-export.json"');
     res.json({
       exportedAt: new Date().toISOString(),
       profile,
@@ -629,7 +629,7 @@ authRouter.delete("/me", async (req, res, next) => {
     await deleteAccount(userId);
     await revokeOtherSessions(userId, req.sessionID);
     req.session.destroy(() => {
-      res.clearCookie("kidcom.sid");
+      res.clearCookie("kinnd.sid");
       res.setHeader("Clear-Site-Data", CLEAR_CACHE);
       res.status(204).end();
     });

@@ -1,7 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { registerSW } from "virtual:pwa-register";
-import { KidcomApp } from "@kidcom/core";
+import { KinndApp } from "@kinnd/core";
 
 import { themeRegistry } from "./themes";
 
@@ -12,13 +12,13 @@ const splash = (
     aria-busy="true"
     style={{ position: "fixed", inset: 0, display: "grid", placeItems: "center", background: "#f8faf9" }}
   >
-    <img src="/logo.svg" alt="KidCom" width={72} height={72} />
+    <img src="/logo.svg" alt="Kinnd" width={72} height={72} />
   </div>
 );
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <KidcomApp registry={themeRegistry} apiBaseUrl={import.meta.env.VITE_API_BASE ?? "/api"} splash={splash} />
+    <KinndApp registry={themeRegistry} apiBaseUrl={import.meta.env.VITE_API_BASE ?? "/api"} splash={splash} />
   </StrictMode>,
 );
 

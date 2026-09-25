@@ -9,7 +9,7 @@ import type {
   SearchResponse,
   ThreadDto,
   ThreadSummaryDto,
-} from "@kidcom/shared";
+} from "@kinnd/shared";
 
 import { api } from "../api/client";
 import { useFamilies } from "../calendar/hooks";

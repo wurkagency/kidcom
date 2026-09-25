@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { PublicUser } from "@kidcom/shared";
+import type { PublicUser } from "@kinnd/shared";
 
 import { checkPassword, maskPhone, splitFullName, toE164 } from "./auth/forms";
 import { pendingSetupStep } from "./auth/setup";

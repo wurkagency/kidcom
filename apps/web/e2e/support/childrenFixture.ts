@@ -7,12 +7,12 @@ import type {
   GrowthEntryDto,
   ListItemDto,
   ScheduleItem,
-} from "@kidcom/shared";
+} from "@kinnd/shared";
 
 import { FIXTURE_NOW } from "./calendarFixture";
 
-// The Lists / Children / Child profile sample content from kidcom_lists,
-// kidcom_children and kidcom_child_profile_1/_2 (the Stenbeck family).
+// The Lists / Children / Child profile sample content from kinnd_lists,
+// kinnd_children and kinnd_child_profile_1/_2 (the Stenbeck family).
 // "Now" is the calendar fixture's Monday 12 October 2026, 09:00 Copenhagen.
 
 export { FIXTURE_NOW };

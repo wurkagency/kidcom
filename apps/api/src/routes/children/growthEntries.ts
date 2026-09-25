@@ -1,6 +1,6 @@
 import { Router, type Request } from "express";
-import type { CreateGrowthEntryRequest, GrowthEntryDto, UpdateGrowthEntryRequest } from "@kidcom/shared";
-import type { Prisma } from "@kidcom/db";
+import type { CreateGrowthEntryRequest, GrowthEntryDto, UpdateGrowthEntryRequest } from "@kinnd/shared";
+import type { Prisma } from "@kinnd/db";
 
 import { ApiError } from "../../middleware/errorHandler";
 import { requireCapability } from "../../lib/permissions";

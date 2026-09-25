@@ -1,5 +1,5 @@
 import { Router, type Request } from "express";
-import type { CommentDto, CreateCommentRequest, UpdateCommentRequest } from "@kidcom/shared";
+import type { CommentDto, CreateCommentRequest, UpdateCommentRequest } from "@kinnd/shared";
 
 import { ApiError } from "../../middleware/errorHandler";
 import { withRls } from "../../lib/rls";

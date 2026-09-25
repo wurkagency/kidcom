@@ -1,5 +1,5 @@
 import { Router, type Request } from "express";
-import type { CalendarEventRequestDto, CreateCalendarEventRequestRequest } from "@kidcom/shared";
+import type { CalendarEventRequestDto, CreateCalendarEventRequestRequest } from "@kinnd/shared";
 
 import { prisma } from "../../db";
 import { ApiError } from "../../middleware/errorHandler";

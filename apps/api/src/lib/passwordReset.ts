@@ -33,7 +33,7 @@ export async function sendPasswordResetEmail(user: { id: string; email: string }
   const link = `${config.webBaseUrl}/reset-password?token=${token}`;
   await mailSender.send({
     to: user.email,
-    subject: "Reset your password for KidCom",
+    subject: "Reset your password for Kinnd",
     text: `We got a request to reset the password for ${user.email}.\n\nReset it here: ${link}\n\nThis link expires in ${RESET_TOKEN_TTL_HOURS} hour(s). If you didn't request this, you can ignore this email — your password hasn't changed.`,
     html: renderPasswordResetHtml({ email: user.email, resetUrl: link, ttlHours: RESET_TOKEN_TTL_HOURS }),
   });

@@ -1,5 +1,5 @@
 import { Router, type NextFunction, type Request, type Response } from "express";
-import type { CreateMessageRequest, CreateThreadRequest, MessageDto, MessagesResponse, ThreadDto, ThreadSummaryDto } from "@kidcom/shared";
+import type { CreateMessageRequest, CreateThreadRequest, MessageDto, MessagesResponse, ThreadDto, ThreadSummaryDto } from "@kinnd/shared";
 
 import { prisma } from "../../db";
 import { requireAuth } from "../../middleware/session";

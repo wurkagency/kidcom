@@ -1,5 +1,5 @@
 import { Router, type Request } from "express";
-import type { CreateMomentRequest, UpdateMomentRequest } from "@kidcom/shared";
+import type { CreateMomentRequest, UpdateMomentRequest } from "@kinnd/shared";
 
 import { prisma } from "../../db";
 import { ApiError } from "../../middleware/errorHandler";

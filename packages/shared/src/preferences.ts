@@ -26,7 +26,7 @@ export function isLocale(value: unknown): value is Locale {
 }
 
 // The country dates, times, numbers and the first day of the week follow —
-// separate from the UI language (a Dane can read KidCom in English and still
+// separate from the UI language (a Dane can read Kinnd in English and still
 // see 26.09.2026). ISO 3166-1 alpha-2; null = follow the device.
 // Codes Intl names that aren't countries (Unknown Region, EU, UN, the
 // exceptionally reserved / private-use blocks).

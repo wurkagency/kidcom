@@ -10,7 +10,7 @@ import { charlie, leo, maya, mockApi } from "../support/mockApi";
 async function boot(page: Page, routes: Record<string, unknown> = {}) {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.clock.setFixedTime(FIXTURE_NOW);
-  await page.addInitScript(() => localStorage.setItem("kidcom.childFilter.u-charlie", "c-leo"));
+  await page.addInitScript(() => localStorage.setItem("kinnd.childFilter.u-charlie", "c-leo"));
   await mockApi(page, {
     me: charlie,
     children: [leo, maya],

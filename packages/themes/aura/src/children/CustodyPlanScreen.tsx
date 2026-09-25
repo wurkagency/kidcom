@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
-import type { ChildFamilyMember, CustodyPattern, CustodyPlanStatusResponse } from "@kidcom/shared";
-import { dateKey, paths, useChildFamily, useCustodyPlan, useNavigate, useParams, useSetCustodyPlan, useT } from "@kidcom/core";
+import type { ChildFamilyMember, CustodyPattern, CustodyPlanStatusResponse } from "@kinnd/shared";
+import { dateKey, paths, useChildFamily, useCustodyPlan, useNavigate, useParams, useSetCustodyPlan, useT } from "@kinnd/core";
 
 import { EmptyCard } from "../calendar/Sections";
 import { DateField, EditorTitle, Field, FormCard, FormError, PrimaryButton } from "../components/Form";

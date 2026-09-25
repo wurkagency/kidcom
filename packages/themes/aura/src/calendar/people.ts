@@ -1,5 +1,5 @@
-import type { CategoryDto, ChildFamilyMember } from "@kidcom/shared";
-import { useT } from "@kidcom/core";
+import type { CategoryDto, ChildFamilyMember } from "@kinnd/shared";
+import { useT } from "@kinnd/core";
 
 // How the calendar screens name people and categories.
 

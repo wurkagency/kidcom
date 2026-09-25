@@ -4,7 +4,7 @@ import type {
   CreateEmergencyContactRequest,
   EmergencyContactDto,
   UpdateEmergencyContactRequest,
-} from "@kidcom/shared";
+} from "@kinnd/shared";
 
 import { prisma } from "../../db";
 import { ApiError } from "../../middleware/errorHandler";

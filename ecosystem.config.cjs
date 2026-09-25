@@ -8,7 +8,7 @@ const api = path.join(__dirname, "apps/api");
 module.exports = {
   apps: [
     {
-      name: "kidcom-api",
+      name: "kinnd-api",
       cwd: api,
       script: "dist/server.js",
       node_args: "-r dotenv/config",
@@ -18,7 +18,7 @@ module.exports = {
     },
     {
       // BullMQ jobs: media processing, push, reminders, renewals, reconciliation, daily purge.
-      name: "kidcom-worker",
+      name: "kinnd-worker",
       cwd: api,
       script: "dist/worker.js",
       node_args: "-r dotenv/config",

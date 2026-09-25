@@ -9,8 +9,8 @@ import type {
   StartTrialRequest,
   SubscribeRequest,
   SubscribeResponse,
-} from "@kidcom/shared";
-import { TIERS, TIER_ORDER, TIER_PRICES_ORE, TRIAL_DAYS, VAT_RATE, isValidEmail } from "@kidcom/shared";
+} from "@kinnd/shared";
+import { TIERS, TIER_ORDER, TIER_PRICES_ORE, TRIAL_DAYS, VAT_RATE, isValidEmail } from "@kinnd/shared";
 
 import { prisma } from "../../db";
 import { config } from "../../config";

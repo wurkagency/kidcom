@@ -1,4 +1,4 @@
-import { Link, paths, useCurrentUser, useT, useUnreadNotificationCount } from "@kidcom/core";
+import { Link, paths, useCurrentUser, useT, useUnreadNotificationCount } from "@kinnd/core";
 
 import { Icon } from "../components/Icon";
 import { PersonAvatar } from "../components/PersonAvatar";

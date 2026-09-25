@@ -1,4 +1,4 @@
-import { Link, paths, useT } from "@kidcom/core";
+import { Link, paths, useT } from "@kinnd/core";
 
 import { FormError } from "../components/Form";
 import { Icon } from "../components/Icon";

@@ -1,6 +1,6 @@
 import { useMemo } from "react";
-import type { CalendarEventDto, CategoryDto, ChildFamilyMember, ChildNoteDto, ChildOverview, OverviewResponse, TaskDto } from "@kidcom/shared";
-import { dateKey, useActiveChildren, useCategoryMap, useOverview, type CalendarItemType, type DateKey } from "@kidcom/core";
+import type { CalendarEventDto, CategoryDto, ChildFamilyMember, ChildNoteDto, ChildOverview, OverviewResponse, TaskDto } from "@kinnd/shared";
+import { dateKey, useActiveChildren, useCategoryMap, useOverview, type CalendarItemType, type DateKey } from "@kinnd/core";
 
 import type { DayMarks } from "./DateStrip";
 

@@ -1,9 +1,9 @@
-import type { MessageDto, NotificationDto, SearchResponse, ThreadSummaryDto } from "@kidcom/shared";
+import type { MessageDto, NotificationDto, SearchResponse, ThreadSummaryDto } from "@kinnd/shared";
 
 import { FIXTURE_NOW } from "./calendarFixture";
 
-// The Messages sample content from kidcom_messages_1 (inbox) and
-// kidcom_calendar_5 (the conversation with Inger). "Now" is the calendar
+// The Messages sample content from kinnd_messages_1 (inbox) and
+// kinnd_calendar_5 (the conversation with Inger). "Now" is the calendar
 // fixture's Monday 12 October 2026, 09:00 Copenhagen.
 
 export { FIXTURE_NOW };

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { paths, useCreateThread, useCurrentUser, useMessageablePeople, useNavigate, useT } from "@kidcom/core";
+import { paths, useCreateThread, useCurrentUser, useMessageablePeople, useNavigate, useT } from "@kinnd/core";
 
 import { EmptyCard } from "../calendar/Sections";
 import { EditorTitle, FormCard, FormError, PrimaryButton } from "../components/Form";

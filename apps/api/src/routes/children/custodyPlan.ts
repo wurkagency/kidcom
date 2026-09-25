@@ -1,5 +1,5 @@
 import { Router, type Request } from "express";
-import type { CustodyPattern, CustodyPlanDto, CustodyPlanStatusResponse, SetCustodyPlanRequest } from "@kidcom/shared";
+import type { CustodyPattern, CustodyPlanDto, CustodyPlanStatusResponse, SetCustodyPlanRequest } from "@kinnd/shared";
 
 import { ApiError } from "../../middleware/errorHandler";
 import { requireCapability } from "../../lib/permissions";

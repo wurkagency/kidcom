@@ -1,4 +1,4 @@
-import type { ChildFamilyMember, CustodyPlanDto } from "@kidcom/shared";
+import type { ChildFamilyMember, CustodyPlanDto } from "@kinnd/shared";
 
 // Small labels for the child profile.
 

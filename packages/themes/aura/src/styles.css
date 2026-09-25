@@ -90,7 +90,7 @@
   --aura-hairline: rgba(22, 26, 24, 0.04);
 
   /* Category tones and accents, verbatim from the calendar/today exports
-   * (kidcom_today_screen_updated_note, kidcom_calendar_1-3). */
+   * (kinnd_today_screen_updated_note, kinnd_calendar_1-3). */
   --aura-sage-card: #eff7f4;
   --aura-sage-card-border: rgb(210 231 222 / 0.6);
   --aura-sage-chip: #dbeee5;
@@ -108,9 +108,9 @@
   --aura-peach: #fff1e5; /* week strip on Agenda, swap-request card */
   --aura-apricot: #ffa866; /* "Approve for …" swap button */
   --aura-alert: #cf3335; /* "Handled by …" — the export's #d9383a darkened just enough for 4.5:1 (WCAG AA) on every card tint */
-  --aura-viewer: #0a0d0c; /* media viewer backdrop (kidcom_preview, _video_preview, _media_viewer_player) */
+  --aura-viewer: #0a0d0c; /* media viewer backdrop (kinnd_preview, _video_preview, _media_viewer_player) */
   --aura-viewer-accent: #d8e8e1; /* viewer icons, active dot, scrubber */
-  --aura-unread-card: #eef5f2; /* unread conversation row (kidcom_messages_1) */
+  --aura-unread-card: #eef5f2; /* unread conversation row (kinnd_messages_1) */
   --aura-unread-card-border: rgb(194 218 208 / 0.5);
   --aura-unread-ink: #1e4a38; /* unread dot + count badge */
 

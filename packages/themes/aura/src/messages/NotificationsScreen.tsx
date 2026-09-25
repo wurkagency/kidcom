@@ -1,13 +1,13 @@
 import { useEffect } from "react";
-import type { NotificationDto, NotificationKind } from "@kidcom/shared";
-import { paths, useFormat, useMarkNotificationsRead, useNotifications, useT } from "@kidcom/core";
+import type { NotificationDto, NotificationKind } from "@kinnd/shared";
+import { paths, useFormat, useMarkNotificationsRead, useNotifications, useT } from "@kinnd/core";
 
 import { EmptyCard } from "../calendar/Sections";
 import { ScreenTitle } from "../components/ScreenTitle";
 import { Skeleton } from "../ui/skeleton";
 import { ListAvatar, ListRow, useListTime } from "./parts";
 
-// Notifications: the Messages inbox layout (kidcom_messages_1) with
+// Notifications: the Messages inbox layout (kinnd_messages_1) with
 // read-only rows, newest first. New ones show tinted until the list has
 // been seen; opening it marks everything read.
 

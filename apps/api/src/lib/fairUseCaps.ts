@@ -13,7 +13,7 @@ import { ApiError } from "../middleware/errorHandler";
 export const MAX_CHILDREN_PER_OWNER = 10;
 export const MAX_MEMBERS_PER_CHILD = 15;
 
-const SUPPORT_CONTACT = "support@kidcom.app";
+const SUPPORT_CONTACT = "support@kinnd.eu";
 
 export async function assertUnderChildFairUseCap(ownerId: string): Promise<void> {
   const count = await prisma.childAccess.count({

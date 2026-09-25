@@ -1,5 +1,5 @@
 import { Router, type Request } from "express";
-import type { CreateTaskRequest, TaskDto, UpdateTaskRequest } from "@kidcom/shared";
+import type { CreateTaskRequest, TaskDto, UpdateTaskRequest } from "@kinnd/shared";
 
 import { ApiError } from "../../middleware/errorHandler";
 import { can, requireCapability } from "../../lib/permissions";

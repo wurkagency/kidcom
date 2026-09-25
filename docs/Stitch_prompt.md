@@ -5,7 +5,7 @@ REFERENCE IMAGE
 Treat it as direct source of inspiration for a feeling and a visual language. If it's a real product's UI, don't reuse its logo, brand name, icon set — extract the underlying design decisions.
 
 STEP 1 — READ THE REFERENCE, OUT LOUD, BEFORE DESIGNING ANYTHING
-Before proposing anything for KidCom, describe what you see in the image precisely enough that someone who never saw it could picture it:
+Before proposing anything for Kinnd, describe what you see in the image precisely enough that someone who never saw it could picture it:
 - Color: exact-ish hues, how saturated, how many, how they're used (dominant vs. accent vs. background)
 - Typography: serif or sans, weight, size contrast between heading and body, letter-spacing, anything unusual 
 - Layout & density: grid or asymmetric, how much whitespace, how information is grouped, what the focal point is 
@@ -16,13 +16,13 @@ Get this right first. A design "inspired by" a screenshot that skipped this step
 
 
 WHAT YOU'RE DESIGNING FOR
-KidCom is a family / parent collaboration and well-being and communication app for separated parents — child-centered, explicitly *not* a conflict-resolution or evidence-gathering tool.
-Read "KidCom - Prompt project description.md" for understanding the purpose of the project.
+Kinnd is a family / parent collaboration and well-being and communication app for separated parents — child-centered, explicitly *not* a conflict-resolution or evidence-gathering tool.
+Read "Kinnd - Prompt project description.md" for understanding the purpose of the project.
 
 TECHNICAL CONTRACT — NON-NEGOTIABLE
-- Read "KidCom - Prompt project description.md" for understanding the purpose of the project.
+- Read "Kinnd - Prompt project description.md" for understanding the purpose of the project.
 - React + Tailwind + shadcn/ui. Every component must map onto a real shadcn primitive (Card, Dialog, Tabs, Sheet, Badge, etc.) restyled through tokens — never a bespoke element shadcn has no equivalent for, unless flagged explicitly as a new component to build.
-- Theming is token-driven: express everything as CSS-variable design tokens (color, typography, spacing scale, radius, shadow, motion) that swap via a data-theme attribute — this is Tier 1 of KidCom's theme system, and where almost all of this theme's personality should live.
+- Theming is token-driven: express everything as CSS-variable design tokens (color, typography, spacing scale, radius, shadow, motion) that swap via a data-theme attribute — this is Tier 1 of Kinnd's theme system, and where almost all of this theme's personality should live.
 - Icons and illustrations are a swappable asset pack — name a specific icon style (line weight, corner treatment, filled vs outline) and illustration approach, rather than defaulting to a generic icon set.
 - The Calendar module (Month, Week, Day) is open to structural variation too, same as every other module. Treat a differing calendar scaffold as real per-theme engineering work, not a quick reskin.
 - This theme is one of several a user can pick in Settings; it must feel like a genuinely different product from the others, not a recolor of the same layout.

@@ -1,5 +1,5 @@
 import { Router, type Request } from "express";
-import type { ChildNoteDto, CreateChildNoteRequest, UpdateChildNoteRequest } from "@kidcom/shared";
+import type { ChildNoteDto, CreateChildNoteRequest, UpdateChildNoteRequest } from "@kinnd/shared";
 
 import { ApiError } from "../../middleware/errorHandler";
 import { requireCapability } from "../../lib/permissions";

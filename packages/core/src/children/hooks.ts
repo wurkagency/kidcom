@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import type { ChildSummary } from "@kidcom/shared";
+import type { ChildSummary } from "@kinnd/shared";
 
 import { api } from "../api/client";
 import { queryKeys } from "../api/queryClient";

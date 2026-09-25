@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import type { MediaDownloadVariant } from "@kidcom/shared";
+import type { MediaDownloadVariant } from "@kinnd/shared";
 import {
   archiveTokenUrl,
   archiveUrl,
@@ -10,7 +10,7 @@ import {
   useMomentsGallery,
   useSearchParams,
   useT,
-} from "@kidcom/core";
+} from "@kinnd/core";
 
 import { FormError } from "../components/Form";
 import { Icon } from "../components/Icon";
@@ -18,7 +18,7 @@ import { cn } from "../lib/utils";
 import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
 import { formatBytes } from "./format";
 
-// kidcom_download_preview: the chosen files (tap to leave one out), archive
+// kinnd_download_preview: the chosen files (tap to leave one out), archive
 // quality (original / optimized) and destination (this device / an emailed
 // link). ?ids=a,b from the gallery, a moment or the viewer; ?token=… is
 // the emailed link itself.

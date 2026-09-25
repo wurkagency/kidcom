@@ -17,7 +17,7 @@ import type {
   SubscriptionDto,
   UpdateNotificationPreferencesRequest,
   VapidPublicKeyResponse,
-} from "@kidcom/shared";
+} from "@kinnd/shared";
 
 import { api, apiUrl } from "../api/client";
 import { queryKeys } from "../api/queryClient";

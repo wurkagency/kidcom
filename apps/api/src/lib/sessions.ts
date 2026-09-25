@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
-import type { LoginMethod } from "@kidcom/db";
+import type { LoginMethod } from "@kinnd/db";
 
 import { prisma } from "../db";
 import { redis } from "../redis";
@@ -13,10 +13,10 @@ import { recordLogin } from "./loginEvents";
 //  - the id recorded in a per-user index, so "sign out of all other devices"
 //    can find and destroy the others;
 //  - the phone-verified flag cached on the session (see requireVerifiedPhone);
-//  - a login event (IP, user agent, method) for manage.kidcom.org.
+//  - a login event (IP, user agent, method) for manage.kinnd.eu.
 
-const SESSION_PREFIX = "kidcom:sess:"; // must match middleware/session.ts
-const indexKey = (userId: string) => `kidcom:usess:${userId}`;
+const SESSION_PREFIX = "kinnd:sess:"; // must match middleware/session.ts
+const indexKey = (userId: string) => `kinnd:usess:${userId}`;
 
 /**
  * Sessions slide: each visit restarts the clock, so a family using the app

@@ -1,10 +1,10 @@
 import type { Request } from "express";
-import type { LoginMethod, LoginOutcome } from "@kidcom/db";
+import type { LoginMethod, LoginOutcome } from "@kinnd/db";
 
 import { withRlsBypass } from "./rls";
 
 // Sign-ins and failed attempts with their IP and user agent, for
-// manage.kidcom.org's abuse and fraud checks (compared with where media was
+// manage.kinnd.eu's abuse and fraud checks (compared with where media was
 // uploaded from). Never sent to app clients; see docs/data_retention_policy.md.
 // Recording must never block or break a sign-in, so failures are only logged.
 

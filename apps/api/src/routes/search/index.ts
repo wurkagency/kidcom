@@ -1,5 +1,5 @@
 import { Router } from "express";
-import type { SearchResponse } from "@kidcom/shared";
+import type { SearchResponse } from "@kinnd/shared";
 
 import { prisma } from "../../db";
 import { requireAuth } from "../../middleware/session";

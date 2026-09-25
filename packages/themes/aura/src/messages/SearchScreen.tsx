@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { Link, paths, useFormat, useNavigate, useSearch, useT } from "@kidcom/core";
+import { Link, paths, useFormat, useNavigate, useSearch, useT } from "@kinnd/core";
 
 import { Icon } from "../components/Icon";
 import { PersonAvatar } from "../components/PersonAvatar";

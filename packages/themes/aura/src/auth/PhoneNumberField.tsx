@@ -1,10 +1,10 @@
-import { DEFAULT_PHONE_COUNTRY, PHONE_COUNTRIES, useT } from "@kidcom/core";
+import { DEFAULT_PHONE_COUNTRY, PHONE_COUNTRIES, useT } from "@kinnd/core";
 
 import { Icon } from "../components/Icon";
 import { Label } from "../ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 
-// The "Mobile Phone" field of docs/design/aura/kidcom_sign_up: a flag + dial
+// The "Mobile Phone" field of docs/design/aura/kinnd_sign_up: a flag + dial
 // code pill (shadcn Select) beside the national number.
 
 /** Country select + national number, as on the signup screen. */

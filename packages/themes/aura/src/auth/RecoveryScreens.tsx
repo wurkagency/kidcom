@@ -11,7 +11,7 @@ import {
   useResetPassword,
   useSearchParams,
   useT,
-} from "@kidcom/core";
+} from "@kinnd/core";
 
 import { Icon } from "../components/Icon";
 import { cn } from "../lib/utils";
@@ -34,7 +34,7 @@ import { PhoneNumberField } from "./PhoneNumberField";
 
 type Method = "email" | "sms";
 
-// docs/design/aura/kidcom_forgot_password: choose email link or SMS code.
+// docs/design/aura/kinnd_forgot_password: choose email link or SMS code.
 // The SMS option asks for the verified mobile number (per the export's
 // script); the confirmation never reveals whether an account exists.
 export function ForgotPasswordScreen() {
@@ -163,7 +163,7 @@ export function ForgotPasswordScreen() {
   );
 }
 
-// docs/design/aura/kidcom_reset_password. Reached from the emailed link
+// docs/design/aura/kinnd_reset_password. Reached from the emailed link
 // (?token=…) or after requesting an SMS code (?method=sms), which adds the
 // code field. Success signs the user in.
 export function ResetPasswordScreen() {

@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
-import type { AccessRole, RelationshipType } from "@kidcom/shared";
+import type { AccessRole, RelationshipType } from "@kinnd/shared";
 
 import { prisma } from "../db";
 import { ApiError } from "./errorHandler";

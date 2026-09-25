@@ -1,4 +1,4 @@
-import { Prisma } from "@kidcom/db";
+import { Prisma } from "@kinnd/db";
 
 import { prisma } from "../db";
 

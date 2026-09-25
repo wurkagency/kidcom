@@ -1,4 +1,4 @@
-import { dateKey } from "@kidcom/core";
+import { dateKey } from "@kinnd/core";
 
 /** Completed years on the Copenhagen calendar today. */
 export function childAge(birthday: string, today = dateKey()): number {

@@ -7,10 +7,10 @@ import {
   type ChildOverview,
   type OverviewResponse,
   type SwapRequestDto,
-} from "@kidcom/shared";
+} from "@kinnd/shared";
 
-// The Today / calendar sample content from kidcom_today_screen_updated_note
-// and kidcom_calendar_1-3, as API responses. "Today" is Monday 12 October
+// The Today / calendar sample content from kinnd_today_screen_updated_note
+// and kinnd_calendar_1-3, as API responses. "Today" is Monday 12 October
 // 2026: its month grid starts on Sep 28 exactly like the export's.
 
 export const FIXTURE_TODAY = "2026-10-12";

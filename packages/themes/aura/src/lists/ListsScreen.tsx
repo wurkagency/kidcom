@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { ChildSummary, ListItemDto, ListItemType } from "@kidcom/shared";
+import type { ChildSummary, ListItemDto, ListItemType } from "@kinnd/shared";
 import {
   addDays,
   dateKey,
@@ -12,7 +12,7 @@ import {
   useLists,
   useNavigate,
   useT,
-} from "@kidcom/core";
+} from "@kinnd/core";
 
 import { EmptyCard, menuContentClass } from "../calendar/Sections";
 import { Icon } from "../components/Icon";
@@ -23,12 +23,12 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { Skeleton } from "../ui/skeleton";
 import { Textarea } from "../ui/textarea";
 
-// kidcom_lists: necessities (or the wishlist) across the selected children —
+// kinnd_lists: necessities (or the wishlist) across the selected children —
 // how many are claimed, what's still needed ("I'll get it"), and who is
 // providing what, with their note.
 
 const TYPE_ICON: Record<ListItemType, string> = { NECESSITY: "checklist", WISHLIST: "redeem" };
-const TYPE_KEY = "kidcom.listType";
+const TYPE_KEY = "kinnd.listType";
 
 function readType(): ListItemType {
   try {

@@ -74,7 +74,9 @@ export const config = {
   medicalInfoEncryptionKey: requiredSecret("MEDICAL_INFO_ENCRYPTION_KEY", "dev-only-medical-encryption-key-change-me"),
   medicalInfoEncryptionKeysPrevious: list(process.env.MEDICAL_INFO_ENCRYPTION_KEYS_PREVIOUS),
   corsOrigin: (process.env.CORS_ORIGIN ?? "http://localhost:5173").split(","),
-  cookieDomain: process.env.COOKIE_DOMAIN ?? "localhost",
+  // Unset (recommended): the session cookie belongs to the app's own host
+  // only, so it never reaches other subdomains such as manage.kinnd.eu.
+  cookieDomain: process.env.COOKIE_DOMAIN || undefined,
   mediaStoragePath: process.env.MEDIA_STORAGE_PATH ?? "./media",
   // v3.0: every media file is encrypted at rest (lib/mediaCrypto.ts) with a
   // per-file key wrapped by this 32-byte master key (`openssl rand -hex 32`).
@@ -90,7 +92,7 @@ export const config = {
   mediaTempPath: process.env.MEDIA_TEMP_PATH,
   isProduction,
   // CSRF defence (middleware/clientHeader.ts): state-changing requests must
-  // carry X-KidCom-Client: 1. Off only under the test runner, whose requests
+  // carry X-Kinnd-Client: 1. Off only under the test runner, whose requests
   // don't come from the app; the CSRF test switches it on.
   requireClientHeader: process.env.NODE_ENV !== "test",
   // Temporary testing toggle for the still-in-testing production deployment:
@@ -124,8 +126,8 @@ export const config = {
   smtpPort: Number(process.env.SMTP_PORT ?? 587),
   smtpUser: process.env.SMTP_USER,
   smtpPass: process.env.SMTP_PASS,
-  // Must be a sender verified in Brevo (no-reply@kidcom.org is).
-  smtpFrom: process.env.SMTP_FROM ?? '"KidCom" <no-reply@kidcom.org>',
+  // Must be a sender verified in Brevo (no-reply@kinnd.eu is).
+  smtpFrom: process.env.SMTP_FROM ?? '"Kinnd" <no-reply@kinnd.eu>',
   // SMS (lib/smsSender.ts). "brevo" sends real SMS; "log" prints them. Real
   // SMS costs credits, so only production sends by default.
   smsDelivery: (process.env.SMS_DELIVERY ?? (isProduction ? "brevo" : "log")) as "brevo" | "log",
@@ -134,7 +136,7 @@ export const config = {
   // [ALERT] line; raise it deliberately as real sign-ups grow.
   smsDailyLimit: Number(process.env.SMS_DAILY_LIMIT || 500),
   brevoApiKey: process.env.BREVO_API_KEY,
-  brevoSmsSender: process.env.BREVO_SMS_SENDER ?? "KidCom",
+  brevoSmsSender: process.env.BREVO_SMS_SENDER ?? "Kinnd",
   // Google/Microsoft sign-in (lib/oauth.ts). The redirect base is the public
   // origin the browser reaches the API through: the web origin + "/api"
   // (Vite proxy in dev, the same path routing in production), so the OAuth

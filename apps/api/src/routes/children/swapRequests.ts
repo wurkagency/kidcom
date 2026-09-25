@@ -1,5 +1,5 @@
 import { Router, type Request } from "express";
-import type { CreateSwapRequestRequest, SwapRequestDto } from "@kidcom/shared";
+import type { CreateSwapRequestRequest, SwapRequestDto } from "@kinnd/shared";
 
 import { prisma } from "../../db";
 import { ApiError } from "../../middleware/errorHandler";

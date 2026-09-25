@@ -1,13 +1,13 @@
 import { useRef, useState, type ReactNode } from "react";
-import type { ChildFamilyMember, MediaAssetDto, MomentDto } from "@kidcom/shared";
-import { Link, mediaUrl, paths, useNavigate, useT, useToggleBookmark, useToggleReaction } from "@kidcom/core";
+import type { ChildFamilyMember, MediaAssetDto, MomentDto } from "@kinnd/shared";
+import { Link, mediaUrl, paths, useNavigate, useT, useToggleBookmark, useToggleReaction } from "@kinnd/core";
 
 import { Icon } from "../components/Icon";
 import { PersonAvatar } from "../components/PersonAvatar";
 import { cn } from "../lib/utils";
 import { DurationBadge, useAuthorLabel, useWhenLabel } from "./parts";
 
-// The feed card from kidcom_moments_feed_1 (and the post in _2): a 4:3
+// The feed card from kinnd_moments_feed_1 (and the post in _2): a 4:3
 // swipeable media strip with the "1/4" badge, chevron and dots, then author,
 // time, title, story, and the like / comment / download / bookmark row.
 

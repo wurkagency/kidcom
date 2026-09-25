@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import type { ChildNoteDto, TaskDto } from "@kidcom/shared";
+import type { ChildNoteDto, TaskDto } from "@kinnd/shared";
 import { toast } from "sonner";
 import {
   dateKey,
@@ -17,7 +17,7 @@ import {
   useT,
   useUpdateNote,
   useUpdateTask,
-} from "@kidcom/core";
+} from "@kinnd/core";
 
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import {

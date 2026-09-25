@@ -1,4 +1,4 @@
-# KidCom
+# Kinnd
 
 A well-being and communication app for separated parents and families,
 built child-first. Product docs live alongside this repo in `../docs`; the
@@ -64,7 +64,7 @@ DATABASE_URL="<your DATABASE_URL, with _test appended to the db name>" npx prism
 ## Project layout
 
 ```
-apps/web/              Host app: boots @kidcom/core with the installed themes (no UI of its own)
+apps/web/              Host app: boots @kinnd/core with the installed themes (no UI of its own)
 apps/api/              Express API
 packages/core/         Headless app: API client, data hooks, route table + guards, i18n
 packages/core/locales/ Translation catalogues (en-US source; da-DK, nb-NO, sv-SE scaffolded)
@@ -81,7 +81,7 @@ tasks/todo.md          v3.0 build plan / progress tracker
 A theme owns every pixel: tokens, fonts, icons, the four shells (`app`, `stack`, `auth`,
 `blank`) and a component for every screen id in `packages/theme-kit/src/screens.ts`
 (`defineTheme` rejects a theme missing any). Routes, access rules and data live in
-`@kidcom/core`; themes consume core hooks and never touch the router, fetch or i18next
+`@kinnd/core`; themes consume core hooks and never touch the router, fetch or i18next
 directly — `npm run lint` enforces this, and forbids hard-coded UI strings in themes.
 
 - Add shadcn components to a theme: `npm run ui:add --workspace=packages/themes/aura -- <name>`

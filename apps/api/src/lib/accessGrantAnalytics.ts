@@ -1,4 +1,4 @@
-import type { RelationshipType } from "@kidcom/shared";
+import type { RelationshipType } from "@kinnd/shared";
 
 import { prisma } from "../db";
 

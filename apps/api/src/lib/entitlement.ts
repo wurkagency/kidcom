@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
-import type { TierFeature } from "@kidcom/shared";
-import { tierForFeature, tierHasFeature } from "@kidcom/shared";
+import type { TierFeature } from "@kinnd/shared";
+import { tierForFeature, tierHasFeature } from "@kinnd/shared";
 
 import { prisma } from "../db";
 import { ApiError } from "../middleware/errorHandler";

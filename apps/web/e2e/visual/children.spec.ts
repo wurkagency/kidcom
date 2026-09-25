@@ -49,31 +49,31 @@ async function check(page: Page, folder: string, limit: number) {
   expect(mismatch).toBeLessThan(limit);
 }
 
-test("lists matches kidcom_lists", async ({ page }) => {
-  await openChildren(page, "kidcom_lists", "/lists");
+test("lists matches kinnd_lists", async ({ page }) => {
+  await openChildren(page, "kinnd_lists", "/lists");
   await expect(page.getByText("3 of 5 necessities claimed")).toBeVisible();
   await expect(page.getByText("Inger is providing this")).toBeVisible();
-  await check(page, "kidcom_lists", 0.1);
+  await check(page, "kinnd_lists", 0.1);
 });
 
-test("children matches kidcom_children", async ({ page }) => {
-  await openChildren(page, "kidcom_children", "/children");
+test("children matches kinnd_children", async ({ page }) => {
+  await openChildren(page, "kinnd_children", "/children");
   await expect(page.getByText("3 children selected")).toBeVisible();
   await expect(page.getByText("Read-only permissions")).toBeVisible();
-  await check(page, "kidcom_children", 0.085);
+  await check(page, "kinnd_children", 0.085);
 });
 
-test("child profile matches kidcom_child_profile_1", async ({ page }) => {
-  await openChildren(page, "kidcom_child_profile_1", "/children/c-august");
+test("child profile matches kinnd_child_profile_1", async ({ page }) => {
+  await openChildren(page, "kinnd_child_profile_1", "/children/c-august");
   await expect(page.getByRole("heading", { name: "August Stenbeck" })).toBeVisible();
   await expect(page.getByText("Anna • Charlie").first()).toBeVisible();
   // Most of the gap is the cover: a full-bleed red photo in the export, flat grey here.
-  await check(page, "kidcom_child_profile_1", 0.21);
+  await check(page, "kinnd_child_profile_1", 0.21);
 });
 
-test("health timeline matches kidcom_child_profile_2", async ({ page }) => {
-  await openChildren(page, "kidcom_child_profile_2", "/children/c-august/health");
+test("health timeline matches kinnd_child_profile_2", async ({ page }) => {
+  await openChildren(page, "kinnd_child_profile_2", "/children/c-august/health");
   await expect(page.getByText("8 upcoming")).toBeVisible();
   await expect(page.getByText("12 completed")).toBeVisible();
-  await check(page, "kidcom_child_profile_2", 0.085);
+  await check(page, "kinnd_child_profile_2", 0.085);
 });

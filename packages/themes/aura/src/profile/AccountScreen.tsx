@@ -15,7 +15,7 @@ import {
   useUpdateProfile,
   useUploadMedia,
   useVerifyPhone,
-} from "@kidcom/core";
+} from "@kinnd/core";
 
 import { CodeInput, ResendCode } from "../auth/CodeEntry";
 import { authErrorText } from "../auth/errors";
@@ -43,7 +43,7 @@ export function AccountScreen() {
         <MenuLink to={paths.preferences.security()} icon="lock" label={t("security.password")} hint={t("security.passwordHint")} />
       </MenuGroup>
       <MenuGroup title={t("data.title")}>
-        <a href={accountExportUrl()} download="kidcom-export.json" className="w-full flex items-center justify-between gap-3 p-3.5 hover:bg-surface-container/50 transition-colors">
+        <a href={accountExportUrl()} download="kinnd-export.json" className="w-full flex items-center justify-between gap-3 p-3.5 hover:bg-surface-container/50 transition-colors">
           <span className="flex items-center gap-3">
             <span className="w-9 h-9 rounded-xl bg-surface-container-low flex items-center justify-center">
               <Icon name="download" className="text-[19px]" />

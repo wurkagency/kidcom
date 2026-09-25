@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
-import type { ChildSummary } from "@kidcom/shared";
+import type { ChildSummary } from "@kinnd/shared";
 
 import { useMe } from "../auth/hooks";
 import { useChildren } from "./hooks";
@@ -27,7 +27,7 @@ type ActiveChildrenValue = {
 
 const ActiveChildrenContext = createContext<ActiveChildrenValue | null>(null);
 
-const storageKey = (userId: string) => `kidcom.childFilter.${userId}`;
+const storageKey = (userId: string) => `kinnd.childFilter.${userId}`;
 
 function readFilter(userId: string | undefined): ChildFilter {
   if (!userId) return { kind: "all" };

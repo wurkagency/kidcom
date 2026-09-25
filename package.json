@@ -1,8 +1,8 @@
 {
-  "name": "kidcom",
+  "name": "kinnd",
   "private": true,
   "version": "0.1.0",
-  "description": "KidCom \u2014 a well-being and communication app for separated parents and families.",
+  "description": "Kinnd \u2014 a well-being and communication app for separated parents and families.",
   "workspaces": [
     "apps/*",
     "packages/*",

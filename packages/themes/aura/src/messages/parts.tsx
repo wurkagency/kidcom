@@ -1,11 +1,11 @@
 import type { ReactNode } from "react";
-import { addDays, dateKey, useFormat, useT } from "@kidcom/core";
+import { addDays, dateKey, useFormat, useT } from "@kinnd/core";
 
 import { Icon } from "../components/Icon";
 import { PersonAvatar } from "../components/PersonAvatar";
 import { cn } from "../lib/utils";
 
-// Shared by the Messages inbox (kidcom_messages_1) and the Notifications
+// Shared by the Messages inbox (kinnd_messages_1) and the Notifications
 // list, which borrows its layout.
 
 /** Today: the time. Yesterday: "Yesterday". Older: the date, the country's way. */

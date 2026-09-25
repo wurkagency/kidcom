@@ -1,6 +1,6 @@
 import { useState } from "react";
-import type { ChildSummary } from "@kidcom/shared";
-import { useActiveChildren, useT } from "@kidcom/core";
+import type { ChildSummary } from "@kinnd/shared";
+import { useActiveChildren, useT } from "@kinnd/core";
 
 import { PersonAvatar } from "../components/PersonAvatar";
 import { cn } from "../lib/utils";

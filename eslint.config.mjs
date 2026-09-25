@@ -1,8 +1,8 @@
 // Lint scope: the v3.0 frontend packages. Beyond correctness, this file is
 // where the theme architecture is enforced (docs: tasks/todo.md, Decisions):
-//   1. Themes reach the app only through @kidcom/core and @kidcom/theme-kit —
+//   1. Themes reach the app only through @kinnd/core and @kinnd/theme-kit —
 //      never the router, the query library, i18next or fetch directly.
-//   2. @kidcom/core and @kidcom/theme-kit never import a theme.
+//   2. @kinnd/core and @kinnd/theme-kit never import a theme.
 //   3. Themes never render a hard-coded UI string; everything goes via t().
 import js from "@eslint/js";
 import tseslint from "typescript-eslint";
@@ -33,15 +33,15 @@ export default tseslint.config(
         "error",
         {
           patterns: [
-            { group: ["react-router", "react-router-dom"], message: "Themes navigate via @kidcom/core (Link, useNavigate, paths)." },
-            { group: ["@tanstack/*"], message: "Themes read data through @kidcom/core hooks." },
-            { group: ["i18next", "react-i18next"], message: "Themes translate via @kidcom/core (useT, Trans)." },
-            { group: ["@kidcom/themes-*", "@kidcom/theme-*", "!@kidcom/theme-kit"], message: "A theme must not import another theme." },
+            { group: ["react-router", "react-router-dom"], message: "Themes navigate via @kinnd/core (Link, useNavigate, paths)." },
+            { group: ["@tanstack/*"], message: "Themes read data through @kinnd/core hooks." },
+            { group: ["i18next", "react-i18next"], message: "Themes translate via @kinnd/core (useT, Trans)." },
+            { group: ["@kinnd/themes-*", "@kinnd/theme-*", "!@kinnd/theme-kit"], message: "A theme must not import another theme." },
             { group: ["@/*"], message: "No build-time alias in themes; use a relative import." },
           ],
         },
       ],
-      "no-restricted-globals": ["error", { name: "fetch", message: "Themes never call the API directly; use @kidcom/core hooks." }],
+      "no-restricted-globals": ["error", { name: "fetch", message: "Themes never call the API directly; use @kinnd/core hooks." }],
     },
   },
 
@@ -49,7 +49,7 @@ export default tseslint.config(
   {
     files: ["packages/core/src/**/*.{ts,tsx}", "packages/theme-kit/src/**/*.{ts,tsx}"],
     rules: {
-      "no-restricted-imports": ["error", { patterns: [{ group: ["@kidcom/theme-*", "!@kidcom/theme-kit"], message: "Core must not depend on a specific theme." }] }],
+      "no-restricted-imports": ["error", { patterns: [{ group: ["@kinnd/theme-*", "!@kinnd/theme-kit"], message: "Core must not depend on a specific theme." }] }],
     },
   },
 
@@ -65,7 +65,7 @@ export default tseslint.config(
         {
           mode: "jsx-text-only",
           "jsx-attributes": { include: ["aria-label", "alt", "title", "placeholder"] },
-          words: { exclude: ["KidCom", "^[\\s\\p{P}\\p{S}·•–—]*$"] },
+          words: { exclude: ["Kinnd", "^[\\s\\p{P}\\p{S}·•–—]*$"] },
         },
       ],
     },

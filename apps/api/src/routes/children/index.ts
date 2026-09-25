@@ -14,8 +14,8 @@ import type {
   SubscriptionTier,
   SuspendedChildDto,
   UpdateMemberRelationshipRequest,
-} from "@kidcom/shared";
-import { ALL_RELATIONSHIP_TYPES, TIERS, isParentShapedRelationship, isValidEmail } from "@kidcom/shared";
+} from "@kinnd/shared";
+import { ALL_RELATIONSHIP_TYPES, TIERS, isParentShapedRelationship, isValidEmail } from "@kinnd/shared";
 
 const CHILD_GENDERS: ChildGender[] = ["BOY", "GIRL", "OTHER"];
 const THIRTY_DAYS_MS = 1000 * 60 * 60 * 24 * 30;
@@ -303,8 +303,8 @@ childrenRouter.post("/", requireVerifiedEmail, async (req, res, next) => {
         try {
           await mailSender.send({
             to: parentContact.email,
-            subject: `${firstName} needs you on KidCom`,
-            text: `You've been listed as ${firstName}'s parent on KidCom. Accept here to see ${firstName}'s schedule and memories: ${acceptUrl}\n\nThis link starts a 30-day free trial.`,
+            subject: `${firstName} needs you on Kinnd`,
+            text: `You've been listed as ${firstName}'s parent on Kinnd. Accept here to see ${firstName}'s schedule and memories: ${acceptUrl}\n\nThis link starts a 30-day free trial.`,
           });
           emailSent = true;
         } catch (err) {
@@ -478,7 +478,7 @@ childrenRouter.post("/:childId/family/minor", requireChildAccess, async (req, re
     const user = await prisma.$transaction(async (tx) => {
       const created = await tx.user.create({
         data: {
-          email: `minor-${randomBytes(12).toString("hex")}@kidcom.invalid`,
+          email: `minor-${randomBytes(12).toString("hex")}@kinnd.invalid`,
           passwordHash,
           firstName: body.firstName!,
           lastName: body.lastName ?? "",

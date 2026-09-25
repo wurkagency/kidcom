@@ -1,5 +1,5 @@
 import { Router } from "express";
-import type { ListItemsResponse } from "@kidcom/shared";
+import type { ListItemsResponse } from "@kinnd/shared";
 
 import { requireAuth } from "../../middleware/session";
 import { withRls } from "../../lib/rls";

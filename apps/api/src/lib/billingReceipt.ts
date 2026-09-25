@@ -1,5 +1,5 @@
-import type { BillingPeriod } from "@kidcom/shared";
-import { vatBreakdown } from "@kidcom/shared";
+import type { BillingPeriod } from "@kinnd/shared";
+import { vatBreakdown } from "@kinnd/shared";
 
 import { prisma } from "../db";
 import { BILLING_PRICES_ORE } from "./billingPricing";
@@ -24,7 +24,7 @@ export async function sendReceiptEmail(ownerId: string, tier: "PARENTS" | "FAMIL
     const chargedAt = new Date();
     await mailSender.send({
       to: owner.email,
-      subject: `Your KidCom ${TIER_LABELS[tier]} receipt`,
+      subject: `Your Kinnd ${TIER_LABELS[tier]} receipt`,
       text: renderSubscriptionReceiptText({ tierLabel: TIER_LABELS[tier], billingPeriodLabel: PERIOD_LABELS[billingPeriod], vat, chargedAt }),
       html: renderSubscriptionReceiptHtml({ tierLabel: TIER_LABELS[tier], billingPeriodLabel: PERIOD_LABELS[billingPeriod], vat, chargedAt }),
     });

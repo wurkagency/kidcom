@@ -8,7 +8,7 @@ import {
   useSearchParams,
   useT,
   useVerifyTwoFactor,
-} from "@kidcom/core";
+} from "@kinnd/core";
 
 import { AuthBrand, AuthCard, AuthPage, AuthTitle, ErrorBanner, SecurityShield, SubmitButton } from "./AuthParts";
 import { CodeInput, ResendCode } from "./CodeEntry";

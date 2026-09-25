@@ -228,13 +228,13 @@ describe("Session hardening", () => {
     const agent = request.agent(app);
 
     const login = await agent.post("/auth/login").send({ email, password: "password123" });
-    const before = String(login.headers["set-cookie"]).match(/kidcom\.sid=([^;]+)/)?.[1];
+    const before = String(login.headers["set-cookie"]).match(/kinnd\.sid=([^;]+)/)?.[1];
     const { MemoryMailSender, mailSender } = await import("../../lib/mailSender");
     const mail = [...(mailSender as InstanceType<typeof MemoryMailSender>).sent].reverse().find((m) => m.to === email);
     const code = mail!.text.match(/\b(\d{6})\b/)![1];
 
     const verify = await agent.post("/auth/verify-2fa").send({ code });
-    const after = String(verify.headers["set-cookie"]).match(/kidcom\.sid=([^;]+)/)?.[1];
+    const after = String(verify.headers["set-cookie"]).match(/kinnd\.sid=([^;]+)/)?.[1];
     expect(verify.status).toBe(200);
     expect(before).toBeTruthy();
     expect(after).toBeTruthy();

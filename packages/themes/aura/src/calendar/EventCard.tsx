@@ -1,5 +1,5 @@
-import type { CalendarEventDto, CategoryDto, ChildFamilyMember } from "@kidcom/shared";
-import { Link, paths, useCurrentUser, useFormat, useT, useToggleChecklistItem } from "@kidcom/core";
+import type { CalendarEventDto, CategoryDto, ChildFamilyMember } from "@kinnd/shared";
+import { Link, paths, useCurrentUser, useFormat, useT, useToggleChecklistItem } from "@kinnd/core";
 
 import { Icon } from "../components/Icon";
 import { cn } from "../lib/utils";
@@ -8,8 +8,8 @@ import { CategoryChip } from "./CategoryChip";
 import { findMember, usePersonName } from "./people";
 import { toneOf } from "./tones";
 
-// The appointment card from kidcom_today_screen_updated_note and
-// kidcom_calendar_1-3: category chip + time, title, place with a directions
+// The appointment card from kinnd_today_screen_updated_note and
+// kinnd_calendar_1-3: category chip + time, title, place with a directions
 // pill, then the event's to-dos, a note row, a packing-list row and — when
 // someone else handles it — the faded "Handled by …" state.
 

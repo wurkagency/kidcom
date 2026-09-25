@@ -1,9 +1,9 @@
-import type { CommentDto, MediaInfoDto, MomentDto, MomentMediaDto } from "@kidcom/shared";
+import type { CommentDto, MediaInfoDto, MomentDto, MomentMediaDto } from "@kinnd/shared";
 
 import { FIXTURE_NOW } from "./calendarFixture";
 
-// The Moments / Media sample content from kidcom_moments_feed_1/_2,
-// kidcom_download_preview and kidcom_media_viewer_player. "Now" is the
+// The Moments / Media sample content from kinnd_moments_feed_1/_2,
+// kinnd_download_preview and kinnd_media_viewer_player. "Now" is the
 // calendar fixture's Monday 12 October 2026, 09:00 Copenhagen.
 
 export { FIXTURE_NOW };

@@ -16,7 +16,7 @@ import {
   useT,
   weekDays,
   type DateKey,
-} from "@kidcom/core";
+} from "@kinnd/core";
 
 import { Icon } from "../components/Icon";
 import {
@@ -35,8 +35,8 @@ import { useCategoryName } from "./people";
 import { EmptyCard, menuContentClass, NotesSection, SchoolReminder, SectionHeader, SwapCard, TasksSection } from "./Sections";
 import { useCalendarData } from "./useCalendarData";
 
-// Agenda (kidcom_calendar_3), Week (kidcom_calendar_2) and Month
-// (kidcom_calendar_1). The selected day lives in ?date= so switching views
+// Agenda (kinnd_calendar_3), Week (kinnd_calendar_2) and Month
+// (kinnd_calendar_1). The selected day lives in ?date= so switching views
 // keeps it.
 
 type View = "agenda" | "week" | "month" | "school";

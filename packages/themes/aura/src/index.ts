@@ -1,6 +1,6 @@
 import "./styles.css";
 
-import { defineTheme } from "@kidcom/theme-kit";
+import { defineTheme } from "@kinnd/theme-kit";
 
 import { screens } from "./screens";
 import { AppShell, AuthShell, BlankShell, StackShell } from "./shells/shells";

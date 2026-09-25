@@ -12,7 +12,7 @@ import type {
   MomentMediaType,
   MomentsPage,
   UpdateMomentRequest,
-} from "@kidcom/shared";
+} from "@kinnd/shared";
 
 import { api, apiUrl } from "../api/client";
 
@@ -31,7 +31,7 @@ export type MomentFilters = {
 
 export const MOMENT_TYPES: readonly MomentMediaType[] = ["photo", "video", "text"];
 
-const FILTER_KEY = "kidcom.momentFilters";
+const FILTER_KEY = "kinnd.momentFilters";
 
 /** The Categories / Types filters, remembered for the browser session. */
 export function useMomentFilters() {

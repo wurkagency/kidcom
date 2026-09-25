@@ -1,5 +1,5 @@
 import { Router, type Request } from "express";
-import type { CreateSchoolLessonRequest, SchoolLessonDto, UpdateSchoolLessonRequest } from "@kidcom/shared";
+import type { CreateSchoolLessonRequest, SchoolLessonDto, UpdateSchoolLessonRequest } from "@kinnd/shared";
 
 import { ApiError } from "../../middleware/errorHandler";
 import { requireCapability } from "../../lib/permissions";

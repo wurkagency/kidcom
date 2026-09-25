@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { MediaInfoDto } from "@kidcom/shared";
+import type { MediaInfoDto } from "@kinnd/shared";
 import {
   mediaDownloadUrl,
   mediaPlaybackUrl,
@@ -13,7 +13,7 @@ import {
   useParams,
   useT,
   useToggleBookmark,
-} from "@kidcom/core";
+} from "@kinnd/core";
 
 import { useCategoryName } from "../calendar/people";
 import { menuContentClass, menuItemClass } from "../calendar/Sections";
@@ -24,8 +24,8 @@ import { AppHeader } from "../shells/AppHeader";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu";
 import { clock, formatBytes, formatLabel, resolutionClass } from "./format";
 
-// kidcom_preview (photo), kidcom_video_preview (video) and
-// kidcom_media_viewer_player (details sheet): the dark viewer under the
+// kinnd_preview (photo), kinnd_video_preview (video) and
+// kinnd_media_viewer_player (details sheet): the dark viewer under the
 // base header, swiping through the moment's photos and videos.
 
 const roundButton =
@@ -136,7 +136,7 @@ function Stage({
   ids: string[];
   index: number;
   onIndex: (i: number) => void;
-  /** With the details drawer open the media sits at its natural height (kidcom_media_viewer_player). */
+  /** With the details drawer open the media sits at its natural height (kinnd_media_viewer_player). */
   compact: boolean;
 }) {
   const { t } = useT("moments");

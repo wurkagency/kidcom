@@ -1,7 +1,7 @@
 import { Router, type Request } from "express";
-import type { Prisma } from "@kidcom/db";
-import type { CustodyPattern, HandoverPackingItemDto, SetHandoverPackingRequest, ToggleHandoverPackingRequest } from "@kidcom/shared";
-import { findNextHandover } from "@kidcom/shared";
+import type { Prisma } from "@kinnd/db";
+import type { CustodyPattern, HandoverPackingItemDto, SetHandoverPackingRequest, ToggleHandoverPackingRequest } from "@kinnd/shared";
+import { findNextHandover } from "@kinnd/shared";
 
 import { ApiError } from "../../middleware/errorHandler";
 import { requireCapability } from "../../lib/permissions";

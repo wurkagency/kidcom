@@ -7,7 +7,7 @@ const path = require("path");
 const SRC = path.join(__dirname, "../apps/web/public/logo.svg");
 const OUT_DIR = path.join(__dirname, "../apps/web/public/icons");
 
-// KidCom's own theme colors (apps/web/vite.config.ts PWA manifest) — used as
+// Kinnd's own theme colors (apps/web/vite.config.ts PWA manifest) — used as
 // the maskable icon's background since maskable icons can't rely on
 // transparency (the OS crops to a shape and fills outside it with whatever
 // is there).

@@ -1,6 +1,6 @@
-import type { Prisma } from "@kidcom/db";
-import type { CategoryDto } from "@kidcom/shared";
-import { SYSTEM_CATEGORIES, systemCategoryId } from "@kidcom/shared";
+import type { Prisma } from "@kinnd/db";
+import type { CategoryDto } from "@kinnd/shared";
+import { SYSTEM_CATEGORIES, systemCategoryId } from "@kinnd/shared";
 
 import { prisma } from "../db";
 import { ApiError } from "../middleware/errorHandler";

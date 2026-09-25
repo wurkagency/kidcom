@@ -1,11 +1,11 @@
 import { useCallback, useState } from "react";
 
-// KidCom is a phone app. On a desktop browser we show a "continue on your
+// Kinnd is a phone app. On a desktop browser we show a "continue on your
 // phone" screen (QR code of the current URL) with a "continue anyway" way
 // through. This is a UX nudge, not a security control: anything enforced
 // client-side can be bypassed, and nothing here gates data.
 
-const DISMISS_KEY = "kidcom.desktopGateDismissed";
+const DISMISS_KEY = "kinnd.desktopGateDismissed";
 
 type NavigatorWithUAData = Navigator & { userAgentData?: { mobile?: boolean } };
 

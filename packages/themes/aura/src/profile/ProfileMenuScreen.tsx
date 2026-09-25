@@ -1,4 +1,4 @@
-import { LEGAL_URLS, paths, useBillingStatus, useCurrentUser, useLogout, useNavigate, useT, useUnreadThreadCount } from "@kidcom/core";
+import { LEGAL_URLS, paths, useBillingStatus, useCurrentUser, useLogout, useNavigate, useT, useUnreadThreadCount } from "@kinnd/core";
 
 import { MenuButton, MenuGroup, MenuLink } from "../components/MenuList";
 import { PersonAvatar } from "../components/PersonAvatar";

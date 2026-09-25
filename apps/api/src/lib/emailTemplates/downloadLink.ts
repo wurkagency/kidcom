@@ -17,9 +17,9 @@ export function renderDownloadLinkHtml(options: { firstName: string; count: numb
 </table>`;
   return renderEmailShell({
     title: "Your download is ready",
-    preheader: `${count} files from KidCom are ready to download.`,
+    preheader: `${count} files from Kinnd are ready to download.`,
     badgeText: "Download",
     bodyHtml,
-    footerNote: "You are receiving this email because you asked KidCom to send you a download link.",
+    footerNote: "You are receiving this email because you asked Kinnd to send you a download link.",
   });
 }

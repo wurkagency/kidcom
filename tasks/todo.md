@@ -1,8 +1,8 @@
-# KidCom v3.0 — build tracker
+# Kinnd v3.0 — build tracker
 
 Branch: `v3.0` (from `master` @ ee2174c). Design source of truth: `docs/design/aura/`
-(Stitch exports; header + dock always from `000_base_scaffold`; `kidcom_messages_1` = inbox,
-`kidcom_calendar_5` = thread). Full plan and decisions:
+(Stitch exports; header + dock always from `000_base_scaffold`; `kinnd_messages_1` = inbox,
+`kinnd_calendar_5` = thread). Full plan and decisions:
 see "Decisions" below.
 
 ## Decisions (signed off by Charlie, 2026-09-23)
@@ -36,24 +36,24 @@ see "Decisions" below.
   download zips; every family would need key sharing, re-sharing on join/leave and phone-loss
   recovery; and it conflicts with the "former member" retention rule.
 - GPS / capture time / device from uploads, upload IP + user agent, and sign-in events are
-  stored for manage.kidcom.org's abuse and fraud checks — never shown in the app. The
+  stored for manage.kinnd.eu's abuse and fraud checks — never shown in the app. The
   uploader keeps their original; everyone else gets it without location.
 
 ## Phase 0 — Branch, baseline, cleanup
 
 - [x] Create `v3.0` branch in `app/`
-- [x] Restore broken workspace links (`node_modules/@kidcom/*` were empty dirs, not links,
+- [x] Restore broken workspace links (`node_modules/@kinnd/*` were empty dirs, not links,
       after the repo move) via `npm install`
 - [x] Baseline without DB: `npm run typecheck` 0 errors; `packages/shared` 27/27 tests;
       `apps/web` 27/27 tests (7 files)
-- [x] Baseline API suites against Docker `splitkid-dev` Postgres/Redis (`splitkid_test` DB
+- [x] Baseline API suites against Docker `kinnd-dev` Postgres/Redis (`kinnd_test` DB
       migrated): **25/25 files, 144/144 tests pass** (two consecutive clean runs)
   - Known env flake: Node 24 on Windows intermittently segfaults a vitest worker
     (0xC0000005, native module). Default threads pool crashes immediately → switched to
     `pool: "forks"`; still ~1 in 2 runs loses one random file ("Worker exited
     unexpectedly"). Re-run when it happens; production uses Node 20. Consider pinning
     local Node 20 (nvm-windows) to eliminate it.
-- Dev DB (`splitkid`) is 2 migrations behind (`migrate_users_to_aura_skin`,
+- Dev DB (`kinnd`) is 2 migrations behind (`migrate_users_to_aura_skin`,
   `user_terms_accepted_at`) — applied with `migrate deploy` when dev server is first booted
 - [x] Remove placeholder route READMEs, fix stale DEPLOYMENT.md / tasks/todo.md refs
 - [x] Delete `packages/db/prisma/migration_calendar_redesign.sql` (already covered by
@@ -120,7 +120,7 @@ see "Decisions" below.
   (rounded-md 6px, "rounded-DEFAULT" = square) — reverses Phase 1's DESIGN.md sm/md
   assumption; Tailwind v3 shadow/blur semantics pinned for ported classes
 - Note: flag emoji don't render on Windows desktop Chromium (shows "DK"); fine on phones
-- Carried: invite-accept screen (Phase 7); production OAuth callbacks on app.kidcom.org
+- Carried: invite-accept screen (Phase 7); production OAuth callbacks on kinnd.eu
 
 ## Phase 3 — Categories + Today + Calendar
 - [x] API: global `Category` table (system set + per-user custom; enum data migrated), tasks,
@@ -129,7 +129,7 @@ see "Decisions" below.
 - [x] Core: Copenhagen date math (`dateKey`, `monthGrid`, `copenhagenInstant` …), overview /
       category / family / notes / tasks / lessons hooks, optimistic toggles, calendar filters
 - [x] Screens from exports: Today, Agenda, Week, Month — visual diffs vs
-      `kidcom_today_screen_updated_note` 3.2%, `calendar_3` 2.9%, `calendar_2` 4.2%,
+      `kinnd_today_screen_updated_note` 3.2%, `calendar_3` 2.9%, `calendar_2` 4.2%,
       `calendar_1` 4.1% (remainder: fixture copy / avatars, see notes below)
 - [x] Screens built to DESIGN.md: event detail + create/edit (shadcn Calendar, Select,
       Switch), swap request, note edit, task edit, School timetable (segmented switcher +
@@ -140,7 +140,7 @@ see "Decisions" below.
   - Stitch inconsistencies resolved to one design: title padding `pt-7` (calendar_1) vs
     `pt-6` (2, 3) → `pt-6`; Week's `#FFF4ED` swap card vs Month's peach card → peach card;
     dropdown label "Calendar" (1, 2) → the view's name
-  - "Haven Verified" → "Verified" (no Haven brand in KidCom)
+  - "Haven Verified" → "Verified" (no Haven brand in Kinnd)
   - AppShell had a duplicate `pb-28`; removed (pages were 112px too tall)
   - Tailwind v4 `divide-y` borders sit on the bottom edge (v3: top) — same total height
 ## Phase 4 — Moments + Media + Bookmarks
@@ -164,7 +164,7 @@ see "Decisions" below.
     encrypted at rest; only medical info is)
   - Comment attachments (paperclip in the composer) and GPS coordinates on the details sheet
     left out — no backing feature (no @mentions either, as agreed)
-  - The details sheet is inline under the media (as in kidcom_media_viewer_player), opened
+  - The details sheet is inline under the media (as in kinnd_media_viewer_player), opened
     from ⋮ → Details or by tapping the caption
   - Gallery category badges ("Artwork") not shown on every tile — only the video duration
 ## Phase 5 — Lists + Children + Health
@@ -206,7 +206,7 @@ see "Decisions" below.
 - [x] Flow specs: send, photo with caption, new conversation, notifications read, search → open.
       e2e 48/48
 - Not built (as agreed): blocking, presence ("Active now"), calls, thread details, the
-  "Kidcom" announcements row. Push text is English until the locales are translated
+  "Kinnd" announcements row. Push text is English until the locales are translated
 ## Phase 7 — Profile menu areas (Family, Account & Billing, Preferences, onboarding)
 - [x] **Account deletion fixed** (was failing for every user): retain-and-anonymise tombstone
       per the 2026-09-23 decision; refused while last parent/guardian of a followed child
@@ -302,7 +302,7 @@ see "Decisions" below.
 - [x] `.gitignore`: `.env.*` (except `.env.example`), `*.pem`, `*.key`, `*.p12`, `*.pfx`, `*.jks`,
       `credentials*.json`, `*credentials*.md`
 - [x] Credentials file moved out of the project folder (2026-09-24)
-- [x] CSRF: `X-KidCom-Client: 1` required on state-changing requests (`middleware/clientHeader.ts`),
+- [x] CSRF: `X-Kinnd-Client: 1` required on state-changing requests (`middleware/clientHeader.ts`),
       QuickPay webhook exempt; sent by `packages/core` on every request
 - [x] Per-account sign-in limit: 10 failed passwords per email / 15 min → 429 `TOO_MANY_ATTEMPTS`
       (same for unknown emails); IP limiter keyed per endpoint
@@ -341,8 +341,8 @@ see "Decisions" below.
 
 ## Credentials (in app/.env, never committed)
 - Google + Microsoft OAuth (Microsoft tenant `common`: any Entra tenant + personal accounts)
-- Brevo API key, SMS sender `KidCom`, SMTP relay login + key
-- Still to register before launch: production OAuth callbacks on app.kidcom.org
+- Brevo API key, SMS sender `Kinnd`, SMTP relay login + key
+- Still to register before launch: production OAuth callbacks on kinnd.eu
 
 ## Needed from Charlie
 - ~~QuickPay test-card credentials~~ (received 2026-09-23; keys in app/.env)

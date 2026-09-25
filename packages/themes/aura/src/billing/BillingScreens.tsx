@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import type { BillingPeriod, SubscriptionDto, SubscriptionTier } from "@kidcom/shared";
-import { STORAGE_WARN_RATIO } from "@kidcom/shared";
+import type { BillingPeriod, SubscriptionDto, SubscriptionTier } from "@kinnd/shared";
+import { STORAGE_WARN_RATIO } from "@kinnd/shared";
 import {
   LEGAL_URLS,
   Link,
@@ -24,7 +24,7 @@ import {
   useSubscribe,
   useSuspendedChildren,
   useT,
-} from "@kidcom/core";
+} from "@kinnd/core";
 
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { EditorTitle, Field, FormCard, FormError, PrimaryButton, SecondaryButton, primaryButtonClass } from "../components/Form";

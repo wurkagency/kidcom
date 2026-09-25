@@ -28,7 +28,7 @@ const keys: MasterKeys = { current: keyA, previous: [] };
 let dir: string;
 
 beforeAll(async () => {
-  dir = await fsp.mkdtemp(path.join(os.tmpdir(), "kidcom-crypto-"));
+  dir = await fsp.mkdtemp(path.join(os.tmpdir(), "kinnd-crypto-"));
 });
 
 const read = async (s: Readable) => {

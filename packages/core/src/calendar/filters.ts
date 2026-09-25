@@ -13,7 +13,7 @@ export type CalendarFilters = {
   types: CalendarItemType[];
 };
 
-const KEY = "kidcom.calendarFilters";
+const KEY = "kinnd.calendarFilters";
 const EMPTY: CalendarFilters = { categoryIds: [], types: [] };
 
 function read(): CalendarFilters {

@@ -1,8 +1,8 @@
-import type { ChildGender, GrowthEntryDto } from "@kidcom/shared";
-import { ageInMonths, heightAtPercentile, heightPercentile } from "@kidcom/shared";
-import { useFormat, useT } from "@kidcom/core";
+import type { ChildGender, GrowthEntryDto } from "@kinnd/shared";
+import { ageInMonths, heightAtPercentile, heightPercentile } from "@kinnd/shared";
+import { useFormat, useT } from "@kinnd/core";
 
-// The "Growth Trajectory" chart from kidcom_child_profile_1: the child's
+// The "Growth Trajectory" chart from kinnd_child_profile_1: the child's
 // measured heights over age on the WHO height-for-age reference — dashed
 // median and the 15th–85th percentile band — plus the latest percentile and
 // the change over the last six months.

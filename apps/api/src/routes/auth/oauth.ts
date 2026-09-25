@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from "express";
-import type { CompleteOAuthSignupRequest, MeResponse, PendingOAuthSignupResponse } from "@kidcom/shared";
+import type { CompleteOAuthSignupRequest, MeResponse, PendingOAuthSignupResponse } from "@kinnd/shared";
 
 import { prisma } from "../../db";
 import { ApiError } from "../../middleware/errorHandler";

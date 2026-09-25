@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { checkPassword, useT } from "@kidcom/core";
+import { checkPassword, useT } from "@kinnd/core";
 
 import { Icon } from "../components/Icon";
 import { cn } from "../lib/utils";
@@ -8,7 +8,7 @@ import { Label } from "../ui/label";
 import { VisibilityToggle } from "./AuthParts";
 
 // New password + strength meter + rule checklist + confirmation, as in
-// docs/design/aura/kidcom_reset_password. (The export's confirm field lost
+// docs/design/aura/kinnd_reset_password. (The export's confirm field lost
 // its <input> — only the eye toggle survived — so it is restored here with
 // the new-password field's own styling.)
 

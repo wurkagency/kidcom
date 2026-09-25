@@ -1,4 +1,4 @@
-import type { ScreenId, ShellKind } from "@kidcom/theme-kit";
+import type { ScreenId, ShellKind } from "@kinnd/theme-kit";
 
 /**
  * Who may open a route.

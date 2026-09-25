@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { mediaUrl, paths, useBookmarks, useFamilies, useNavigate, useT } from "@kidcom/core";
+import { mediaUrl, paths, useBookmarks, useFamilies, useNavigate, useT } from "@kinnd/core";
 
 import { EmptyCard } from "../calendar/Sections";
 import { EditorTitle } from "../components/Form";

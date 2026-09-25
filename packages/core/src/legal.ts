@@ -1,5 +1,5 @@
-// Public legal documents (hosted on the marketing site, kidcom.org).
+// Public legal documents (hosted on the marketing site, kinnd.eu).
 export const LEGAL_URLS = {
-  privacy: "https://kidcom.org/privacy",
-  terms: "https://kidcom.org/terms",
+  privacy: "https://kinnd.eu/privacy",
+  terms: "https://kinnd.eu/terms",
 } as const;

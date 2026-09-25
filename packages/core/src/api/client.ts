@@ -34,10 +34,10 @@ async function request<T>(method: Method, path: string, body?: unknown): Promise
   const res = await fetch(apiUrl(path), {
     method,
     credentials: "include",
-    // X-KidCom-Client: the API refuses state-changing requests without it
+    // X-Kinnd-Client: the API refuses state-changing requests without it
     // (CSRF defence — apps/api/src/middleware/clientHeader.ts).
     headers: {
-      "X-KidCom-Client": "1",
+      "X-Kinnd-Client": "1",
       ...(body === undefined || isForm ? {} : { "Content-Type": "application/json" }),
     },
     body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),

@@ -1,4 +1,4 @@
-// Mobile numbers: which countries KidCom texts, shared by the app's number
+// Mobile numbers: which countries Kinnd texts, shared by the app's number
 // picker and the API — the server enforces the same list the app offers, so
 // a scripted client can't make us send SMS anywhere else (SMS pumping / toll
 // fraud: attackers trigger codes to premium-rate numbers and pocket a share
@@ -29,7 +29,7 @@ const NANP_NOT_US_OR_CANADA = [
   "809", "829", "849", "868", "869", "876", "900", "800", "833", "844", "855", "866", "877", "888",
 ] as const;
 
-// The Nordics first (KidCom's markets, DK default), then common neighbours.
+// The Nordics first (Kinnd's markets, DK default), then common neighbours.
 export const PHONE_COUNTRIES: readonly PhoneCountry[] = [
   { iso: "DK", dial: "45", flag: "🇩🇰", example: "20 12 34 56" },
   { iso: "NO", dial: "47", flag: "🇳🇴", example: "406 12 345" },
@@ -61,7 +61,7 @@ export function phoneCountryOf(e164: string): PhoneCountry | null {
   return BY_DIAL_LENGTH.find((c) => e164.startsWith(`+${c.dial}`)) ?? null;
 }
 
-/** A well-formed number in a country KidCom texts, outside the blocked ranges. */
+/** A well-formed number in a country Kinnd texts, outside the blocked ranges. */
 export function isSupportedPhone(phone: unknown): phone is string {
   if (!isE164(phone)) return false;
   const country = phoneCountryOf(phone);

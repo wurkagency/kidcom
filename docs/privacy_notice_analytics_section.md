@@ -2,7 +2,7 @@
 
 Drafted for spec 9.20 (post-launch backlog Phase I): the required privacy-notice
 copy update for the access-grant analytics instrumentation, to be published at
-`splitkid.com/privacy` alongside the existing policy. This file is the copy only —
+`kinnd.eu/privacy` alongside the existing policy. This file is the copy only —
 publishing it is the user's own action, not something this codebase's email
 templates or web app link to directly (by explicit choice, not an in-app page).
 
@@ -14,9 +14,9 @@ subsection if none exists yet.
 
 ## How we use family-relationship data
 
-When someone joins a child's circle on KidCom — whether by creating a child's
+When someone joins a child's circle on Kinnd — whether by creating a child's
 profile or accepting an invitation — we record a small amount of anonymous,
-aggregate data to help us understand how families actually use KidCom and improve
+aggregate data to help us understand how families actually use Kinnd and improve
 the product for everyone. This section explains exactly what that involves.
 
 **What we record:**
@@ -43,7 +43,7 @@ represents at least 10 separate instances, so no result could ever meaningfully
 describe a single family or individual.
 
 **Why we collect it:** To understand which relationships families are actually
-using KidCom to coordinate around, and how quickly invited family members join —
+using Kinnd to coordinate around, and how quickly invited family members join —
 purely to guide what we build next, not to build a profile of any individual
 family or person.
 

@@ -31,7 +31,7 @@
   "confirming": "Confirming your payment…",
   "welcome": "Welcome to your {{plan}} — thank you!",
   "canceledCheckout": "Payment was cancelled — nothing was charged.",
-  "secure": "Payments are handled securely by QuickPay. KidCom never sees your card.",
+  "secure": "Payments are handled securely by QuickPay. Kinnd never sees your card.",
   "checkoutTitle": "Choose your plan",
   "period": "Billing period",
   "plans": "Plans",

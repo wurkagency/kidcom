@@ -1,5 +1,5 @@
 import { Router, type Request } from "express";
-import type { CreateCalendarEventRequest, ToggleChecklistItemRequest, ToggleConfirmationRequest, UpdateCalendarEventRequest } from "@kidcom/shared";
+import type { CreateCalendarEventRequest, ToggleChecklistItemRequest, ToggleConfirmationRequest, UpdateCalendarEventRequest } from "@kinnd/shared";
 
 import { ApiError } from "../../middleware/errorHandler";
 import { CALENDAR_EVENT_INCLUDE, toCalendarEventDto } from "../../lib/calendarEventDto";

@@ -1,6 +1,6 @@
-import type { Prisma, Subscription } from "@kidcom/db";
-import type { AccessRole, SubscriptionTier, TierBlockReason, TierFeature, TierUsage } from "@kidcom/shared";
-import { TIERS, TIER_ORDER, tierAtLeast, tierBlockReasons } from "@kidcom/shared";
+import type { Prisma, Subscription } from "@kinnd/db";
+import type { AccessRole, SubscriptionTier, TierBlockReason, TierFeature, TierUsage } from "@kinnd/shared";
+import { TIERS, TIER_ORDER, tierAtLeast, tierBlockReasons } from "@kinnd/shared";
 
 import { prisma } from "../db";
 import { withRlsBypass } from "./rls";

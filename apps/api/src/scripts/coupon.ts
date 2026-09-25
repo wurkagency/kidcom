@@ -11,7 +11,7 @@
 // random one; --max limits how many people can redeem it (default: no limit).
 /* eslint-disable no-console */
 import crypto from "node:crypto";
-import type { SubscriptionTier } from "@kidcom/db";
+import type { SubscriptionTier } from "@kinnd/db";
 
 import { prisma } from "../db";
 import { normalizeCouponCode } from "../lib/coupons";

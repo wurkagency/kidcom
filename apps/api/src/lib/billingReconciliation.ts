@@ -1,4 +1,4 @@
-import type { BillingPeriod } from "@kidcom/shared";
+import type { BillingPeriod } from "@kinnd/shared";
 
 import { prisma } from "../db";
 import * as quickpay from "./quickpay";

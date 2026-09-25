@@ -6,7 +6,7 @@
 import "dotenv/config";
 import { Worker } from "bullmq";
 
-import { systemCategoryId } from "@kidcom/shared";
+import { systemCategoryId } from "@kinnd/shared";
 
 import { prisma } from "./db";
 import { withRlsBypass } from "./lib/rls";
@@ -48,7 +48,7 @@ const worker = new Worker<ProcessMediaJob>(
 worker.on("ready", () => {
   void mediaStorage.cleanScratch(0); // nothing is in flight yet: anything there is a crash leftover
   // eslint-disable-next-line no-console
-  console.log("KidCom media worker ready, listening for process-media jobs");
+  console.log("Kinnd media worker ready, listening for process-media jobs");
 });
 
 worker.on("error", (err) => {
@@ -89,7 +89,7 @@ billingWorker.on("ready", async () => {
     { repeat: { pattern: "0 3 * * *" } } // 03:00 daily
   );
   // eslint-disable-next-line no-console
-  console.log("KidCom billing worker ready, renew-subscriptions scheduled daily at 03:00");
+  console.log("Kinnd billing worker ready, renew-subscriptions scheduled daily at 03:00");
 });
 
 billingWorker.on("error", (err) => {
@@ -120,7 +120,7 @@ reconciliationWorker.on("ready", async () => {
     { repeat: { pattern: "30 3 * * *" } } // 03:30 daily, just after renewals
   );
   // eslint-disable-next-line no-console
-  console.log("KidCom reconciliation worker ready, reconcile-subscriptions scheduled daily at 03:30");
+  console.log("Kinnd reconciliation worker ready, reconcile-subscriptions scheduled daily at 03:30");
 });
 
 reconciliationWorker.on("error", (err) => {
@@ -195,7 +195,7 @@ remindersWorker.on("ready", async () => {
   // Idempotent — BullMQ dedupes repeatable jobs by their repeat key.
   await remindersQueue.add("remind-appointments", {}, { repeat: { pattern: "0 * * * *" } }); // hourly, on the hour
   // eslint-disable-next-line no-console
-  console.log("KidCom reminders worker ready, remind-appointments scheduled hourly");
+  console.log("Kinnd reminders worker ready, remind-appointments scheduled hourly");
 });
 
 remindersWorker.on("error", (err) => {
@@ -233,7 +233,7 @@ const childPurgeWorker = new Worker<PurgeDeletedChildrenJob>(
 childPurgeWorker.on("ready", async () => {
   await childPurgeQueue.add("purge-deleted-children", {}, { repeat: { pattern: "0 4 * * *" } }); // daily at 04:00
   // eslint-disable-next-line no-console
-  console.log("KidCom child-purge worker ready, purge-deleted-children scheduled daily at 04:00");
+  console.log("Kinnd child-purge worker ready, purge-deleted-children scheduled daily at 04:00");
 });
 
 childPurgeWorker.on("error", (err) => {

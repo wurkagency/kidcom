@@ -21,7 +21,7 @@ import { endCircle } from "./circleLifecycle";
 
 export const FORMER_MEMBER_NAME = "Former member";
 
-const tombstoneEmail = (userId: string) => `deleted+${userId}@kidcom.invalid`;
+const tombstoneEmail = (userId: string) => `deleted+${userId}@kinnd.invalid`;
 
 export type DeletionBlocked = { childId: string; firstName: string }[];
 

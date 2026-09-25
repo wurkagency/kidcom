@@ -1,7 +1,7 @@
 # Management data — security, abuse and unlawful-media signals
 
-Inventory of the data KidCom holds (or could hold) that the admin tool
-**manage.kidcom.org** and the planned **alarm system** can use to protect the
+Inventory of the data Kinnd holds (or could hold) that the admin tool
+**manage.kinnd.eu** and the planned **alarm system** can use to protect the
 app against abuse, fraud and unlawful media. Written 2026-09-26 against the
 v3.0 schema (`packages/db/prisma/schema.prisma`).
 
@@ -17,7 +17,7 @@ v3.0 schema (`packages/db/prisma/schema.prisma`).
 
 - Management data is **never shown in the app** — not to family members, not to
   the user it's about (except a user's own sign-in history, if we choose to
-  show it). Only manage.kidcom.org reads it, through the RLS bypass, with
+  show it). Only manage.kinnd.eu reads it, through the RLS bypass, with
   every admin read logged (⬜ — see "Governance").
 - It's personal data about adults and, indirectly, children. Proposed lawful
   basis: legitimate interest in protecting children and accounts (GDPR
@@ -50,7 +50,7 @@ v3.0 schema (`packages/db/prisma/schema.prisma`).
 | Language | ✅ | `users.locale` | Weak signal against IP country |
 | Profile photo | ✅ | `media_assets.avatarForUserId` | Same photo on unrelated accounts (needs media hashes, §4) |
 | Subscription tier, status, trial dates | ✅ | `subscriptions`, `users.trial*` | Trial farming (new account per trial), payment failures (`pastDueSince`) |
-| QuickPay customer / subscription ids | ✅ | `subscriptions.quickpay*` | Cross-reference with QuickPay's fraud data. **Card data is never stored by KidCom** |
+| QuickPay customer / subscription ids | ✅ | `subscriptions.quickpay*` | Cross-reference with QuickPay's fraud data. **Card data is never stored by Kinnd** |
 | Card country, BIN, 3-D Secure result | ⬜ | QuickPay API | Card country vs phone / IP country; stolen-card patterns. Readable from QuickPay per payment |
 | Push devices | ✅ | `push_subscriptions.endpoint` | Number of devices; the push host reveals the platform (Apple / Google / Mozilla) |
 
@@ -70,7 +70,7 @@ v3.0 schema (`packages/db/prisma/schema.prisma`).
 | Every SMS sent: number, purpose, account, time | ✅ | `sms_sends`, kept 90 days (added 2026-09-24) | SMS pumping; one number targeted from many accounts; country mix. The API already enforces a per-number cap (5 per 24 h) and a total cap (`SMS_DAILY_LIMIT`), and logs `[ALERT] SMS daily limit reached` |
 | Password reset requests | ✅ | `password_reset_tokens` (short-lived) | Reset storms against one account |
 | Email verification requests | ✅ | `email_verification_tokens` (short-lived) | — |
-| Active sessions per user | ✅ | Redis `kidcom:usess:<userId>` (session ids) | Many concurrent sessions; "sign out everywhere" used after an alarm |
+| Active sessions per user | ✅ | Redis `kinnd:usess:<userId>` (session ids) | Many concurrent sessions; "sign out everywhere" used after an alarm |
 | Rate-limit hits | ⬜ | — | The auth rate limiter blocks but doesn't record. Logging hits (IP, route) is cheap and a strong abuse signal |
 | Device fingerprint beyond the user agent | ⬜ | — | Not recommended: invasive, and weak on mobile browsers |
 
@@ -142,7 +142,7 @@ and in the DPIA.
 | Web server access logs (IP, path, status, time) | ✅ (server) | Plesk / nginx logs, outside the database | Scraping, scanning, route abuse. Retention set by the host — align with this document |
 | Application error logs | ✅ (server) | PM2 logs | Crafted requests |
 | API request audit (who called what, when) | ⬜ | — | A general `audit_events` table (actor, action, target, IP, time) would cover views, downloads, access changes and admin reads in one place |
-| **Admin reads of management data** | ⬜ | — | Must be logged: who in manage.kidcom.org looked at whose data, and why |
+| **Admin reads of management data** | ⬜ | — | Must be logged: who in manage.kinnd.eu looked at whose data, and why |
 
 ## 7. Derived signals — ready for the alarm system
 
@@ -171,14 +171,14 @@ rate-limit hits, user reports.
 
 ## 8. Unlawful media (child sexual abuse material)
 
-KidCom stores photos and videos of children, so detection of known abuse
+Kinnd stores photos and videos of children, so detection of known abuse
 material deserves a deliberate design. **Get legal advice before building
 this part.** The notes below are orientation, not legal guidance.
 
 - **Hash matching against known material** is the established approach:
   compare perceptual hashes of uploads (§4, ⬜) with hash lists maintained by
   NCMEC, the Internet Watch Foundation or Thorn (Safer), or via Microsoft
-  PhotoDNA. These services have access agreements and conditions; KidCom never
+  PhotoDNA. These services have access agreements and conditions; Kinnd never
   holds the reference material itself.
 - **Classifiers for "unknown" material** (nudity of minors) will flag normal
   family photos (bath, beach) constantly. Too noisy to act on automatically;
@@ -200,7 +200,7 @@ this part.** The notes below are orientation, not legal guidance.
 
 ## 9. Governance (to settle before the alarm system ships)
 
-- **Access:** manage.kidcom.org only, named admins, two-factor, every read
+- **Access:** manage.kinnd.eu only, named admins, two-factor, every read
   logged (⬜). No bulk exports of location data.
 - **Retention** (current and proposed):
   - login events: **12 months** (implemented, daily purge)
@@ -234,4 +234,4 @@ this part.** The notes below are orientation, not legal guidance.
 | Hash-list integration (NCMEC / IWF / Thorn / PhotoDNA) | Large + legal | Required for §8 |
 | Phone number type lookup (VoIP) | Small + per-lookup cost | Medium |
 | Card country / 3-D Secure from QuickPay | Small | Medium |
-| Admin read log in manage.kidcom.org | Small | Required |
+| Admin read log in manage.kinnd.eu | Small | Required |

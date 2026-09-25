@@ -40,7 +40,7 @@ export class BrevoSmsSender implements SmsSender {
         recipient: message.to.replace(/^\+/, ""),
         content: message.content,
         type: "transactional",
-        tag: "kidcom-auth",
+        tag: "kinnd-auth",
       }),
     });
     if (!res.ok) {

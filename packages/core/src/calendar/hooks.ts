@@ -26,7 +26,7 @@ import type {
   UpdateChildNoteRequest,
   UpdateSchoolLessonRequest,
   UpdateTaskRequest,
-} from "@kidcom/shared";
+} from "@kinnd/shared";
 
 import { api } from "../api/client";
 import type { DateKey } from "./dates";

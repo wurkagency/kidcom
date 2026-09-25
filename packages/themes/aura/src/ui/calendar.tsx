@@ -1,13 +1,13 @@
 import * as React from "react"
 import { DayPicker, getDefaultClassNames, type DayButton } from "react-day-picker"
 
-import { useFormat } from "@kidcom/core"
+import { useFormat } from "@kinnd/core"
 
 import { cn } from "../lib/utils"
 import { Icon } from "../components/Icon"
 
 // shadcn Calendar (react-day-picker), dressed like Aura's month grid
-// (kidcom_calendar_1): micro-meta weekday heads, title-md caption, the
+// (kinnd_calendar_1): micro-meta weekday heads, title-md caption, the
 // selected day as a 28px obsidian circle, secondary chevron buttons.
 function Calendar({
   className,

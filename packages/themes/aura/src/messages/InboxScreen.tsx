@@ -1,13 +1,13 @@
-import type { ThreadSummaryDto } from "@kidcom/shared";
-import { Link, paths, useT, useThreads } from "@kidcom/core";
+import type { ThreadSummaryDto } from "@kinnd/shared";
+import { Link, paths, useT, useThreads } from "@kinnd/core";
 
 import { EmptyCard } from "../calendar/Sections";
 import { ScreenTitle } from "../components/ScreenTitle";
 import { Skeleton } from "../ui/skeleton";
 import { ListAvatar, ListRow, useListTime } from "./parts";
 
-// kidcom_messages_1: every conversation, newest first; unread ones tinted
-// with a count. Blocking and the "Kidcom" announcements row aren't built.
+// kinnd_messages_1: every conversation, newest first; unread ones tinted
+// with a count. Blocking and the "Kinnd" announcements row aren't built.
 
 export function threadTitle(thread: Pick<ThreadSummaryDto, "members" | "isGroup">): string {
   if (!thread.isGroup) return thread.members[0]?.firstName ?? "";

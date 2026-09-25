@@ -13,7 +13,7 @@ import {
   useSearchParams,
   useSignup,
   useT,
-} from "@kidcom/core";
+} from "@kinnd/core";
 
 import { Icon } from "../components/Icon";
 import { Checkbox } from "../ui/checkbox";
@@ -21,7 +21,7 @@ import { AuthBrand, AuthPage, ErrorBanner, IconField, ProviderButtons } from "./
 import { authErrorText } from "./errors";
 import { PhoneNumberField } from "./PhoneNumberField";
 
-// docs/design/aura/kidcom_sign_up. Name, email, mobile and consent; the
+// docs/design/aura/kinnd_sign_up. Name, email, mobile and consent; the
 // password is created after the SMS step (see CreatePasswordScreen). The
 // export's subtitle "Choose your role below" is dropped — the design has no
 // role picker (roles are set per child, when a child is added).

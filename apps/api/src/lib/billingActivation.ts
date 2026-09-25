@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { TIERS } from "@kidcom/shared";
+import { TIERS } from "@kinnd/shared";
 
 import { prisma } from "../db";
 import { config } from "../config";

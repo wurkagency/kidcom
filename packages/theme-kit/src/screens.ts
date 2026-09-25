@@ -1,6 +1,6 @@
 // Every screen the app has, by stable id. The core maps routes to these ids;
 // a theme must provide a component for every one of them (see defineTheme).
-// Adding a screen = add its id here, a route in @kidcom/core, and an
+// Adding a screen = add its id here, a route in @kinnd/core, and an
 // implementation in every theme.
 export const SCREEN_IDS = [
   // System

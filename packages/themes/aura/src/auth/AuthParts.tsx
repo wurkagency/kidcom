@@ -1,6 +1,6 @@
 import { useState, type ComponentProps, type MouseEvent, type ReactNode } from "react";
-import type { OAuthProviderId } from "@kidcom/shared";
-import { oauthStartUrl, useT } from "@kidcom/core";
+import type { OAuthProviderId } from "@kinnd/shared";
+import { oauthStartUrl, useT } from "@kinnd/core";
 
 import { BrandMark, GoogleLogo, MicrosoftLogo } from "../components/BrandMark";
 import { Icon } from "../components/Icon";
@@ -9,8 +9,8 @@ import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 
 // Building blocks shared by the auth screens. Markup and classes follow the
-// Stitch exports kidcom_sign_up / kidcom_forgot_password /
-// kidcom_reset_password (the "sage" auth layout); the login screen has its
+// Stitch exports kinnd_sign_up / kinnd_forgot_password /
+// kinnd_reset_password (the "sage" auth layout); the login screen has its
 // own photographic layout (LoginScreen.tsx).
 //
 // Where an export wrote "rounded-DEFAULT" (not a real Tailwind class, so it
@@ -31,7 +31,7 @@ export function AuthPage({ children }: { children: ReactNode }) {
   );
 }
 
-/** Sage emblem + "KidCom" + tagline. */
+/** Sage emblem + "Kinnd" + tagline. */
 export function AuthBrand() {
   const { t } = useT("auth");
   return (

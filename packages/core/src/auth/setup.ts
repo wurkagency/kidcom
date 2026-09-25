@@ -1,4 +1,4 @@
-import type { PublicUser } from "@kidcom/shared";
+import type { PublicUser } from "@kinnd/shared";
 
 import { paths } from "../routing/paths";
 

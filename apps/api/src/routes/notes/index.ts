@@ -1,5 +1,5 @@
 import { Router } from "express";
-import type { CreatePersonalNoteRequest, NoteCategory, PersonalNoteDto, UpdatePersonalNoteRequest } from "@kidcom/shared";
+import type { CreatePersonalNoteRequest, NoteCategory, PersonalNoteDto, UpdatePersonalNoteRequest } from "@kinnd/shared";
 
 import { prisma } from "../../db";
 import { requireAuth } from "../../middleware/session";

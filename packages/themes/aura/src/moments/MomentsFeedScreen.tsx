@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { paths, useActiveChildren, useFamilies, useMomentFilters, useMomentsFeed, useT } from "@kidcom/core";
+import { paths, useActiveChildren, useFamilies, useMomentFilters, useMomentsFeed, useT } from "@kinnd/core";
 
 import { EmptyCard } from "../calendar/Sections";
 import { Icon } from "../components/Icon";
@@ -7,7 +7,7 @@ import { Skeleton } from "../ui/skeleton";
 import { MomentCard } from "./MomentCard";
 import { MomentFilterBar, MomentsTitle } from "./parts";
 
-// kidcom_moments_feed_1: the family feed across the selected children,
+// kinnd_moments_feed_1: the family feed across the selected children,
 // newest first, loading more as the end comes into view.
 
 export function MomentsFeedScreen() {

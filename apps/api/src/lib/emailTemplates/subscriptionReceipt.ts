@@ -1,4 +1,4 @@
-import type { VatBreakdown } from "@kidcom/shared";
+import type { VatBreakdown } from "@kinnd/shared";
 
 import { escapeHtml, renderEmailShell } from "./layout";
 
@@ -28,7 +28,7 @@ export function renderSubscriptionReceiptHtml(options: {
   const bodyHtml = `
 <h2 style="margin:16px 0 8px 0;font-size:26px;line-height:1.25;font-weight:700;color:#1b3d2b;letter-spacing:-0.015em;text-align:center;">Your receipt</h2>
 <p style="margin:0 auto 24px auto;font-size:14.5px;line-height:1.6;color:#4b5563;max-width:480px;text-align:center;">
-  Thanks for subscribing to KidCom ${escapeHtml(tierLabel)} (${escapeHtml(billingPeriodLabel)}). Here's the breakdown for your records.
+  Thanks for subscribing to Kinnd ${escapeHtml(tierLabel)} (${escapeHtml(billingPeriodLabel)}). Here's the breakdown for your records.
 </p>
 <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#f9faf6;border:1px solid #e6eae0;border-radius:16px;margin:0 0 24px 0;">
 <tbody><tr><td style="padding:20px;">
@@ -44,12 +44,12 @@ ${row("Total charged", `${formatMinorUnits(vat.grossMinorUnits)} kr`, true)}
 </table>
 </td></tr></tbody></table>
 <p style="margin:0;font-size:12px;color:#5e6d62;text-align:center;">
-  KidCom ApS &middot; Prices shown are in DKK, incl. 25% Danish VAT.
+  Kinnd ApS &middot; Prices shown are in DKK, incl. 25% Danish VAT.
 </p>`;
 
   return renderEmailShell({
-    title: "Your KidCom receipt",
-    preheader: `Receipt for your KidCom ${tierLabel} subscription — ${formatMinorUnits(vat.grossMinorUnits)} kr incl. VAT.`,
+    title: "Your Kinnd receipt",
+    preheader: `Receipt for your Kinnd ${tierLabel} subscription — ${formatMinorUnits(vat.grossMinorUnits)} kr incl. VAT.`,
     badgeText: "Subscription receipt",
     bodyHtml,
     footerNote: "You are receiving this transactional email because a subscription payment was processed on your account.",
@@ -64,7 +64,7 @@ export function renderSubscriptionReceiptText(options: {
 }): string {
   const { tierLabel, billingPeriodLabel, vat, chargedAt } = options;
   return [
-    `Your KidCom receipt`,
+    `Your Kinnd receipt`,
     ``,
     `Date: ${chargedAt.toISOString().slice(0, 10)}`,
     `Plan: ${tierLabel} (${billingPeriodLabel})`,

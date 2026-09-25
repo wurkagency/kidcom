@@ -1,5 +1,5 @@
-import type { Prisma } from "@kidcom/db";
-import type { MediaAssetDto, MomentDto, MomentMediaDto, MomentMediaType } from "@kidcom/shared";
+import type { Prisma } from "@kinnd/db";
+import type { MediaAssetDto, MomentDto, MomentMediaDto, MomentMediaType } from "@kinnd/shared";
 
 // Shared by the per-child moments routes, the cross-child feed and gallery
 // (routes/moments), and bookmarks: one include, one DTO shape.

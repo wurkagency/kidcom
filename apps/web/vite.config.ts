@@ -16,8 +16,8 @@ export default defineConfig({
       registerType: "autoUpdate",
       injectRegister: false,
       manifest: {
-        name: "KidCom",
-        short_name: "KidCom",
+        name: "Kinnd",
+        short_name: "Kinnd",
         description: "A well-being and communication app for separated parents and families.",
         // Aura surface. The active theme also updates <meta name="theme-color">
         // at runtime (theme-kit ThemeProvider).

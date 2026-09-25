@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
-import type { CircleDto, PaidTier, SubscriptionDto, SubscriptionTier } from "@kidcom/shared";
-import { TIERS, TRIAL_DAYS, tierAtLeast, tierBlockReasons } from "@kidcom/shared";
+import type { CircleDto, PaidTier, SubscriptionDto, SubscriptionTier } from "@kinnd/shared";
+import { TIERS, TRIAL_DAYS, tierAtLeast, tierBlockReasons } from "@kinnd/shared";
 
 import { prisma } from "../db";
 import { config } from "../config";
@@ -165,7 +165,7 @@ export async function startCheckout(
   if (!tierAtLeast(tier, own.tier === "FREE" ? "FREE" : own.tier)) await assertFits(userId, tier);
 
   const orderId = crypto.randomUUID().replace(/-/g, "").slice(0, 20);
-  const created = await quickpay.createSubscription({ orderId, currency: "DKK", description: `KidCom ${tier} (${period})` });
+  const created = await quickpay.createSubscription({ orderId, currency: "DKK", description: `Kinnd ${tier} (${period})` });
   await prisma.subscription.update({
     where: { id: own.id },
     data: {
@@ -299,9 +299,9 @@ export async function inviteToCircle(userId: string, email: string): Promise<{ i
   const owner = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { firstName: true } });
   await mailSender.send({
     to: email,
-    subject: `${owner.firstName} invites you into their KidCom Family Circle`,
+    subject: `${owner.firstName} invites you into their Kinnd Family Circle`,
     text:
-      `${owner.firstName} pays for a KidCom Family Circle and invites you in. Your children can join it, ` +
+      `${owner.firstName} pays for a Kinnd Family Circle and invites you in. Your children can join it, ` +
       `and you decide who sees them.\n\nAccept here: ${config.webBaseUrl}/invite/${invite.token}`,
   });
   return { id: invite.id, token: invite.token };
@@ -405,7 +405,7 @@ export async function sendTrialReminders(now = new Date()): Promise<number> {
     try {
       await mailSender.send({
         to: t.owner.email,
-        subject: `Your KidCom trial ends on ${date}`,
+        subject: `Your Kinnd trial ends on ${date}`,
         text: t.cardAuthorizedAt
           ? `Your free trial ends on ${date}. Your plan then continues on the card you added.`
           : `Your free trial ends on ${date}. Add a card to keep your plan: ${config.webBaseUrl}/billing`,

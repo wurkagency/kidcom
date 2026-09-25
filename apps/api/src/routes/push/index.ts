@@ -1,5 +1,5 @@
 import { Router } from "express";
-import type { PushSubscribeRequest, VapidPublicKeyResponse } from "@kidcom/shared";
+import type { PushSubscribeRequest, VapidPublicKeyResponse } from "@kinnd/shared";
 
 import { prisma } from "../../db";
 import { config } from "../../config";

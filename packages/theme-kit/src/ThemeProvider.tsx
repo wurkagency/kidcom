@@ -1,11 +1,11 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { DEFAULT_THEME_ID, isThemeId, type ThemeId } from "@kidcom/shared";
+import { DEFAULT_THEME_ID, isThemeId, type ThemeId } from "@kinnd/shared";
 
 import type { ThemeManifest } from "./manifest";
 
 export type ThemeRegistry = Record<ThemeId, () => Promise<{ default: ThemeManifest }>>;
 
-const STORAGE_KEY = "kidcom.themeId";
+const STORAGE_KEY = "kinnd.themeId";
 
 /**
  * The theme to paint before the signed-in user's preference is known —

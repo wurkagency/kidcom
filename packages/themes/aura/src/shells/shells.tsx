@@ -1,6 +1,6 @@
-import type { ShellProps } from "@kidcom/theme-kit";
+import type { ShellProps } from "@kinnd/theme-kit";
 
-import { Link, paths, useBillingStatus, useFormat, useT } from "@kidcom/core";
+import { Link, paths, useBillingStatus, useFormat, useT } from "@kinnd/core";
 
 import { Icon } from "../components/Icon";
 import { Toaster } from "../ui/sonner";

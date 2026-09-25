@@ -1,6 +1,6 @@
 import { Router } from "express";
-import type { CategoriesResponse, CreateCategoryRequest, UpdateCategoryRequest } from "@kidcom/shared";
-import { isCategoryTone } from "@kidcom/shared";
+import type { CategoriesResponse, CreateCategoryRequest, UpdateCategoryRequest } from "@kinnd/shared";
+import { isCategoryTone } from "@kinnd/shared";
 
 import { prisma } from "../../db";
 import { requireAuth } from "../../middleware/session";

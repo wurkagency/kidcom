@@ -1,4 +1,4 @@
-# Kidcom - Sitemap
+# Kinnd - Sitemap
 
 ## Auth
 - Login

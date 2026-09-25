@@ -1,5 +1,5 @@
 {
-  "name": "@kidcom/theme-kit",
+  "name": "@kinnd/theme-kit",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -12,7 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@kidcom/shared": "*",
+    "@kinnd/shared": "*",
     "zod": "^4.6.5"
   },
   "peerDependencies": {

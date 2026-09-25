@@ -3,7 +3,7 @@ import type {
   CreateMedicalInfoRequest,
   MedicalInfoEntry,
   UpdateMedicalInfoRequest,
-} from "@kidcom/shared";
+} from "@kinnd/shared";
 
 import { ApiError } from "../../middleware/errorHandler";
 import { canViewMedicalInfo, requireCapability } from "../../lib/permissions";

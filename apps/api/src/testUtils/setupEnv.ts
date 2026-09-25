@@ -25,7 +25,7 @@ process.env.DATABASE_URL = testUrl;
 
 // Same isolation idea for session storage: sessions live in Redis
 // (middleware/session.ts), keyed by random session id under a shared
-// "kidcom:sess:" prefix — reusing dev's logical DB 0 would slowly
+// "kinnd:sess:" prefix — reusing dev's logical DB 0 would slowly
 // accumulate test-created session keys there. Redis ships 16 logical DBs
 // per server; route tests at DB 1 instead of a separate prefix scheme.
 const redisUrl = process.env.REDIS_URL ?? "redis://localhost:6379";

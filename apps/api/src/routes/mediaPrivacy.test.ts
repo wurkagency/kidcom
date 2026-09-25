@@ -42,7 +42,7 @@ async function family() {
 
 /** Mom uploads a located photo through the real endpoint, posts it, and the worker step runs. */
 async function postLocatedPhoto(f: Awaited<ReturnType<typeof family>>) {
-  const upload = await f.mom.agent.post("/media/upload").set("User-Agent", "KidComTest/1.0 (iPhone)").attach("file", await locatedJpeg(), { filename: "home.jpg", contentType: "image/jpeg" });
+  const upload = await f.mom.agent.post("/media/upload").set("User-Agent", "KinndTest/1.0 (iPhone)").attach("file", await locatedJpeg(), { filename: "home.jpg", contentType: "image/jpeg" });
   expect(upload.status).toBe(201);
   const id = upload.body.id as string;
   await f.mom.agent.post(`/children/${f.leo}/moments`).send({ title: "Garden", mediaAssetIds: [id] });
@@ -62,7 +62,7 @@ describe("Media privacy", () => {
     const f = await family();
     const id = await postLocatedPhoto(f);
     const row = await withRlsBypass((tx) => tx.mediaAsset.findUniqueOrThrow({ where: { id } }));
-    expect(row.uploadUserAgent).toBe("KidComTest/1.0 (iPhone)");
+    expect(row.uploadUserAgent).toBe("KinndTest/1.0 (iPhone)");
     expect(row.uploadIp).toBeTruthy();
     const onDisk = await fsp.readFile(mediaStorage.pathFor(row.originalPath));
     expect(onDisk.subarray(0, 4).toString()).toBe("KCM1");

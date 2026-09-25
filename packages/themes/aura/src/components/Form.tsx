@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
-import type { CategoryDto, ChildSummary } from "@kidcom/shared";
-import { useCategories, useFormat, useNavigate, useT } from "@kidcom/core";
+import type { CategoryDto, ChildSummary } from "@kinnd/shared";
+import { useCategories, useFormat, useNavigate, useT } from "@kinnd/core";
 
 import { CategoryChip } from "../calendar/CategoryChip";
 import { cn } from "../lib/utils";

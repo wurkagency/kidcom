@@ -1,5 +1,5 @@
 import { Router } from "express";
-import type { NotificationPreferencesDto, UpdateNotificationPreferencesRequest } from "@kidcom/shared";
+import type { NotificationPreferencesDto, UpdateNotificationPreferencesRequest } from "@kinnd/shared";
 
 import { prisma } from "../../db";
 import { requireAuth } from "../../middleware/session";
