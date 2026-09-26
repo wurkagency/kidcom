@@ -13,8 +13,9 @@ import type {
   MomentsPage,
   UpdateMomentRequest,
 } from "@kinnd/shared";
+import { maxUploadBytes } from "@kinnd/shared";
 
-import { api, apiUrl } from "../api/client";
+import { api, apiUrl, ApiError, uploadForm } from "../api/client";
 
 // Moments, media and bookmarks. The feed and gallery span every child the
 // user can see; the header's child selection and the filters narrow them.
@@ -193,12 +194,21 @@ export function useToggleBookmark() {
   });
 }
 
+/**
+ * Uploads one photo or video. Pass `onProgress` for a 0–1 fraction while it
+ * sends. A file over the size limit is refused here, before any upload, with
+ * an ApiError coded FILE_TOO_LARGE (the API gives the same answer).
+ */
 export function useUploadMedia() {
   return useMutation({
-    mutationFn: (file: File) => {
+    mutationFn: (input: File | { file: File; onProgress?: (fraction: number) => void }) => {
+      const { file, onProgress } = input instanceof File ? { file: input, onProgress: undefined } : input;
+      if (file.size > maxUploadBytes(file.type || "image/")) {
+        return Promise.reject(new ApiError(413, "This file is too large to upload", { code: "FILE_TOO_LARGE" }));
+      }
       const form = new FormData();
       form.append("file", file);
-      return api.post<MediaUploadResponse>("/media/upload", form);
+      return uploadForm<MediaUploadResponse>("/media/upload", form, onProgress);
     },
   });
 }

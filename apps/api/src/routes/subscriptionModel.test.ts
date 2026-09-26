@@ -1,3 +1,4 @@
+import { MAX_IMAGE_UPLOAD_BYTES } from "@kinnd/shared";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import request from "supertest";
 
@@ -190,6 +191,20 @@ describe("Subscription model — limits and downgrades", () => {
     expect(res.status).toBe(403);
     expect(res.body).toMatchObject({ code: "STORAGE_FULL", details: { limitBytes: 500 * 1024 * 1024, tier: "FREE" } });
     expect((await me.agent.get("/billing/status")).body.storage).toEqual({ usedBytes: 460 * 1024 * 1024, limitBytes: 500 * 1024 * 1024 });
+  });
+});
+
+describe("Upload size limits", () => {
+  beforeEach(resetDb);
+
+  it("a photo over its limit is refused as too large, not a server error, and nothing is kept", async () => {
+    const app = createApp();
+    const me = await signupTestUser(app, { plan: "FAMILY" });
+    const big = Buffer.alloc(MAX_IMAGE_UPLOAD_BYTES + 1024, 1);
+    const res = await me.agent.post("/media/upload").attach("file", big, { filename: "big.jpg", contentType: "image/jpeg" });
+    expect(res.status).toBe(413);
+    expect(res.body.code).toBe("FILE_TOO_LARGE");
+    expect(await withRlsBypass((tx) => tx.mediaAsset.count({ where: { ownerId: me.userId } }))).toBe(0);
   });
 });
 

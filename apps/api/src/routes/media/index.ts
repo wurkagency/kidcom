@@ -1,6 +1,8 @@
 import { Router, type Response } from "express";
 import multer from "multer";
 import crypto from "node:crypto";
+import fsp from "node:fs/promises";
+import path from "node:path";
 import archiver from "archiver";
 import type { MediaArchiveRequest, MediaDownloadVariant, MediaInfoDto, MediaUploadResponse } from "@kinnd/shared";
 
@@ -15,7 +17,7 @@ import { renderDownloadLinkHtml } from "../../lib/emailTemplates/downloadLink";
 import { toMediaDto } from "../../lib/moments";
 import { withRls, withRlsBypass } from "../../lib/rls";
 import { consumptionBytes, heldTier, uploadedLastDayBytes } from "../../lib/circles";
-import { DAILY_UPLOAD_CAP_BYTES, STORAGE_BLOCK_RATIO, TIERS } from "@kinnd/shared";
+import { DAILY_UPLOAD_CAP_BYTES, MAX_VIDEO_UPLOAD_BYTES, maxUploadBytes, STORAGE_BLOCK_RATIO, TIERS } from "@kinnd/shared";
 import type { NextFunction, Request } from "express";
 
 /**
@@ -40,6 +42,9 @@ async function assertUploadAllowed(userId: string, bytes: number): Promise<void>
 async function precheckUpload(req: Request, _res: Response, next: NextFunction) {
   try {
     const declared = Number(req.get("content-length") ?? 0);
+    // Refuse an oversized upload before reading it (a phone otherwise keeps
+    // sending hundreds of MB, and some browsers hang on the early answer).
+    if (declared > MAX_VIDEO_UPLOAD_BYTES + 1024 * 1024) throw tooLarge();
     await assertUploadAllowed(req.session.userId!, Number.isFinite(declared) ? declared : 0);
     next();
   } catch (err) {
@@ -63,13 +68,20 @@ export const mediaRouter = Router();
 // what "moments:post" gates. ?variant=original is also what video playback
 // uses, so it stays open to everyone who can see the asset.
 
-const MAX_UPLOAD_BYTES = 50 * 1024 * 1024; // 50MB — generous for a phone photo/short clip
+const tooLarge = () => new ApiError(413, "This file is too large to upload", "FILE_TOO_LARGE");
 const MAX_ARCHIVE_ITEMS = 200;
 const DOWNLOAD_LINK_TTL_DAYS = 7;
 
+// Uploads stream to the plaintext scratch folder (never RAM: a video can be
+// hundreds of MB), are encrypted into storage from there, then removed.
 const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: MAX_UPLOAD_BYTES },
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => {
+      mediaStorage.scratchPath("upload").then((p) => cb(null, path.dirname(p)), (err: Error) => cb(err, ""));
+    },
+    filename: (_req, _file, cb) => cb(null, `upload-${crypto.randomUUID()}`),
+  }),
+  limits: { fileSize: MAX_VIDEO_UPLOAD_BYTES },
   fileFilter: (_req, file, cb) => {
     if (file.mimetype.startsWith("image/") || file.mimetype.startsWith("video/")) cb(null, true);
     else cb(new ApiError(400, "Only image or video files are supported"));
@@ -103,14 +115,24 @@ const MIME_BY_EXT: Record<string, string> = {
 const extOf = (key: string) => key.split(".").pop()?.toLowerCase() ?? "";
 const mimeForKey = (key: string): string | undefined => MIME_BY_EXT[extOf(key)];
 
-mediaRouter.post("/upload", requireAuth, precheckUpload, upload.single("file"), async (req, res, next) => {
+/** multer, with its size-limit error answered as 413 FILE_TOO_LARGE rather than a 500. */
+function receiveFile(req: Request, res: Response, next: NextFunction) {
+  upload.single("file")(req, res, (err: unknown) => {
+    if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") next(tooLarge());
+    else next(err);
+  });
+}
+
+mediaRouter.post("/upload", requireAuth, precheckUpload, receiveFile, async (req, res, next) => {
+  const temp = req.file?.path;
   try {
     if (!req.file) throw new ApiError(400, "No file uploaded (expected multipart field 'file')");
+    if (req.file.size > maxUploadBytes(req.file.mimetype)) throw tooLarge();
     await assertUploadAllowed(req.session.userId!, req.file.size);
     const isVideo = req.file.mimetype.startsWith("video/");
     const ext = EXT_BY_MIME[req.file.mimetype] ?? (isVideo ? "mp4" : "jpg");
     const key = `original/${crypto.randomUUID()}.${ext}`;
-    await mediaStorage.save(key, req.file.buffer);
+    await mediaStorage.saveFile(key, req.file.path);
 
     const asset = await withRls(req.session.userId!, (tx) =>
       tx.mediaAsset.create({
@@ -132,6 +154,8 @@ mediaRouter.post("/upload", requireAuth, precheckUpload, upload.single("file"), 
     res.status(201).json(body);
   } catch (err) {
     next(err);
+  } finally {
+    if (temp) await fsp.rm(temp, { force: true });
   }
 });
 

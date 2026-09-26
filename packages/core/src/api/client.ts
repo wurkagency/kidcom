@@ -65,6 +65,46 @@ async function request<T>(method: Method, path: string, body?: unknown): Promise
   return data as T;
 }
 
+function parseBody(text: string): unknown {
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
+}
+
+/**
+ * POSTs a form (a file upload) reporting progress as a 0–1 fraction. fetch
+ * can't report upload progress, so this uses XMLHttpRequest, with the same
+ * cookie, CSRF header and error shape as every other call.
+ */
+export function uploadForm<T>(path: string, form: FormData, onProgress?: (fraction: number) => void): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", apiUrl(path));
+    xhr.withCredentials = true;
+    xhr.setRequestHeader("X-Kinnd-Client", "1");
+    if (onProgress) {
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable && e.total > 0) onProgress(e.loaded / e.total);
+      };
+    }
+    xhr.onload = () => {
+      const data = parseBody(xhr.responseText);
+      if (xhr.status >= 200 && xhr.status < 300) return resolve(data as T);
+      const message =
+        data && typeof data === "object" && "error" in data && typeof data.error === "string"
+          ? data.error
+          : `Request failed (${xhr.status})`;
+      reject(new ApiError(xhr.status, message, data));
+    };
+    xhr.onerror = () => reject(new ApiError(0, "Upload failed", null));
+    xhr.onabort = () => reject(new ApiError(0, "Upload cancelled", null));
+    xhr.send(form);
+  });
+}
+
 export const api = {
   get: <T>(path: string) => request<T>("GET", path),
   post: <T>(path: string, body?: unknown) => request<T>("POST", path, body ?? {}),

@@ -355,7 +355,7 @@ location /api/ {
     proxy_buffering off;            # streamed video and zip downloads
     proxy_request_buffering off;    # uploads
     proxy_read_timeout 300s;
-    client_max_body_size 60m;       # the API's limit is 50 MB per file
+    client_max_body_size 520m;      # the API allows 50 MB photos and 500 MB videos
 }
 
 # Hashed build files: cache for a year. Caching uses "expires", not

@@ -60,6 +60,13 @@ export const TRIAL_DAYS = 30;
 export const STORAGE_WARN_RATIO = 0.8;
 /** New uploads are refused from here until the plan is upgraded (§5). */
 export const STORAGE_BLOCK_RATIO = 0.9;
+/** Largest single photo. */
+export const MAX_IMAGE_UPLOAD_BYTES = 50 * MB;
+/** Largest single video: a few minutes of phone video (1080p is ~60–130 MB a minute). */
+export const MAX_VIDEO_UPLOAD_BYTES = 500 * MB;
+/** The size limit for one file of this type ("image/jpeg", "video/quicktime"). */
+export const maxUploadBytes = (mimeType: string): number =>
+  mimeType.startsWith("video/") ? MAX_VIDEO_UPLOAD_BYTES : MAX_IMAGE_UPLOAD_BYTES;
 /** Abuse guard: most a single user can upload in 24 hours (§5). */
 export const DAILY_UPLOAD_CAP_BYTES = 2 * GB;
 /** D5: a suspended child is hidden for 30 days, then deleted on day 90. */

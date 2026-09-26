@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import type { MomentDto } from "@kinnd/shared";
+import { MAX_IMAGE_UPLOAD_BYTES, MAX_VIDEO_UPLOAD_BYTES, type MomentDto } from "@kinnd/shared";
 import {
+  ApiError,
   dateKey,
   mediaUrl,
   paths,
@@ -38,7 +39,7 @@ import { DurationBadge } from "./parts";
 
 const MAX_FILES = 6;
 
-type Upload = { key: string; previewUrl: string; isVideo: boolean; assetId?: string; failed?: boolean };
+type Upload = { key: string; previewUrl: string; isVideo: boolean; assetId?: string; failed?: boolean; tooLarge?: boolean; progress?: number };
 
 const card = "bg-surface-container-lowest rounded-2xl shadow-[0_2px_12px_rgba(22,26,24,0.03)]";
 const upperLabel = "font-label-md text-label-md text-on-surface-variant uppercase tracking-wider";
@@ -91,10 +92,14 @@ function MomentForm({ existing }: { existing?: MomentDto }) {
     for (const file of Array.from(files ?? []).slice(0, room)) {
       const key = `${file.name}-${file.size}-${Math.random()}`;
       setUploads((list) => [...list, { key, previewUrl: URL.createObjectURL(file), isVideo: file.type.startsWith("video/") }]);
-      upload.mutate(file, {
-        onSuccess: (asset) => setUploads((list) => list.map((u) => (u.key === key ? { ...u, assetId: asset.id } : u))),
-        onError: () => setUploads((list) => list.map((u) => (u.key === key ? { ...u, failed: true } : u))),
-      });
+      const patch = (change: Partial<Upload>) => setUploads((list) => list.map((u) => (u.key === key ? { ...u, ...change } : u)));
+      upload.mutate(
+        { file, onProgress: (progress) => patch({ progress }) },
+        {
+          onSuccess: (asset) => patch({ assetId: asset.id }),
+          onError: (err) => patch({ failed: true, tooLarge: err instanceof ApiError && err.code === "FILE_TOO_LARGE" }),
+        },
+      );
     }
   };
 
@@ -158,13 +163,20 @@ function MomentForm({ existing }: { existing?: MomentDto }) {
                   {i === 0 && <CoverTag />}
                   {u.isVideo && <DurationBadge seconds={null} className="bottom-1.5 right-1.5" />}
                   {!u.assetId && !u.failed && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-primary/30">
-                      <Icon name="progress_activity" className="text-[20px] text-white animate-spin" aria-label={t("create.uploading")} />
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-primary/30 text-white">
+                      {u.progress === undefined || u.progress >= 1 ? (
+                        // Sent; the server is still saving it.
+                        <Icon name="progress_activity" className="text-[20px] animate-spin" aria-label={t("create.uploading")} />
+                      ) : (
+                        <span role="progressbar" aria-label={t("create.uploading")} aria-valuenow={Math.round(u.progress * 100)} aria-valuemin={0} aria-valuemax={100} className="font-label-md text-label-md font-semibold tabular-nums">
+                          {fmt.percent(u.progress)}
+                        </span>
+                      )}
                     </div>
                   )}
                   {u.failed && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-error/60 text-white font-micro-meta text-micro-meta uppercase">
-                      {t("create.uploadFailed")}
+                    <div className="absolute inset-0 flex items-center justify-center bg-error/60 text-white font-micro-meta text-micro-meta uppercase text-center px-1">
+                      {t(u.tooLarge ? "create.uploadTooLarge" : "create.uploadFailed")}
                     </div>
                   )}
                   <button
@@ -199,6 +211,11 @@ function MomentForm({ existing }: { existing?: MomentDto }) {
             }}
           />
         </div>
+        {uploads.some((u) => u.tooLarge) && (
+          <p role="alert" className="px-1 font-label-sm text-label-sm text-error">
+            {t("create.sizeLimits", { photo: MAX_IMAGE_UPLOAD_BYTES / 1024 / 1024, video: MAX_VIDEO_UPLOAD_BYTES / 1024 / 1024 })}
+          </p>
+        )}
       </div>
 
       {/* Words */}

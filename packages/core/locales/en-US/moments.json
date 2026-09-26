@@ -65,6 +65,8 @@
     "remove": "Remove",
     "uploading": "Uploading",
     "uploadFailed": "Failed",
+    "uploadTooLarge": "Too large",
+    "sizeLimits": "Photos can be up to {{photo}} MB and videos up to {{video}} MB.",
     "describeTitle": "Describe your moment",
     "describeBody": "Make a catchy headline and write a few words about your moment with the children.",
     "headline": "headline",

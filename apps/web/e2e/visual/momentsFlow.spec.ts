@@ -1,3 +1,4 @@
+import { writeFile } from "node:fs/promises";
 import { expect, test, type Page, type Request } from "@playwright/test";
 import { PNG } from "pngjs";
 
@@ -123,4 +124,20 @@ test("gallery: long-press selects, then Download sends the chosen files to the d
   const url = new URL((await zip).url());
   expect(url.searchParams.get("ids")).toBe("d-1,d-2");
   expect(url.searchParams.get("variant")).toBe("optimized");
+});
+
+test("a file over the size limit is refused before uploading, with the limits spelled out", async ({ page }, testInfo) => {
+  await boot(page);
+  let uploaded = false;
+  page.on("request", (r) => {
+    if (new URL(r.url()).pathname.endsWith("/media/upload")) uploaded = true;
+  });
+  await page.goto("/moments/new");
+  // Playwright passes files over 50 MB by path only.
+  const huge = testInfo.outputPath("huge.png");
+  await writeFile(huge, Buffer.alloc(51 * 1024 * 1024, 1));
+  await page.locator('input[type="file"]').setInputFiles(huge);
+  await expect(page.getByText("Too large")).toBeVisible();
+  await expect(page.getByRole("alert")).toHaveText("Photos can be up to 50 MB and videos up to 500 MB.");
+  expect(uploaded).toBe(false);
 });
