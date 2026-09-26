@@ -591,10 +591,13 @@ daily limit was reached, which is a sign of SMS pumping. Check `sms_sends`
 (numbers and countries) before raising `SMS_DAILY_LIMIT`.
 
 ### 8.3 Backups
-- **Database:** nightly `pg_dump -Fc`, kept for 30 days and copied off the
-  server. Also take one before every release with migrations:
+- **Database:** nightly, kept for 30 days and copied off the server. Also
+  take one before every release with migrations. Row-level security applies
+  to the app's own database user, so a plain `pg_dump` fails ("query would be
+  affected by row-level security policy"). Dump with row security on and the
+  policies' maintenance switch (`app.bypass_rls`), which gives every row:
   ```bash
-  npx dotenv -e apps/api/.env -- sh -c 'pg_dump -Fc "$DATABASE_URL"' > /root/backup/kinnd-$(date +%F-%H%M).dump
+  npx dotenv -e apps/api/.env -- sh -c 'PGOPTIONS="-c app.bypass_rls=on" pg_dump --enable-row-security -Fc "$DATABASE_URL"' > /root/backup/kinnd-$(date +%F-%H%M).dump
   ```
 - **Media:** nightly `rsync` of `MEDIA` to off-server storage. The files are
   encrypted, so the copy is safe at rest.
@@ -674,7 +677,12 @@ another parent taking the child over, restores it straight away.
   migrate step.
 - **The release included migrations:** they are forward-only.
   1. Restore the pre-deploy dump:
-     `pg_restore --clean --no-owner -d "$DATABASE_URL" <dump>`
+     as the PostgreSQL admin (Plesk → Tools & Settings → Database Servers).
+     The app's user can't restore: Postgres refuses `COPY` into tables under
+     row-level security.
+     ```bash
+     pg_restore -h localhost -U <PostgreSQL admin login> --clean --if-exists --no-owner --role=<app DB user> -d <database> /root/backup/<dump>
+     ```
   2. Revert the code on GitHub as above, then run §7.1 without the migrate
      step.
   - Media written since the dump keeps working: it's encrypted with the same

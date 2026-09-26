@@ -30,3 +30,8 @@ instead, or use a throwaway shadow database — never dev.
 `media_assets` RLS doesn't know a moment can be hidden from extended family, so an asset can
 be visible while its moment isn't. `where: { moment: { is: {...} } }` makes Prisma require the
 moment through a subquery that RLS also filters; a bare `moment: {}` doesn't.
+
+## 2026-09-26 — Data-copying migrations run under row-level security in production
+- Production migrates as the app's own non-superuser role, and FORCE RLS applies to it: an `UPDATE`/`INSERT … SELECT` in a migration silently touches 0 rows. Dev and test run as a role that bypasses RLS, so tests never show it.
+- Any migration that reads or copies rows in RLS tables must wrap that part in `SELECT set_config('app.bypass_rls', 'on', false);` … `'off'`. Before shipping, prove it on a scratch database owned by a `NOSUPERUSER NOBYPASSRLS` role.
+- Same cause for backups: `pg_dump` as the app role needs `--enable-row-security` with `PGOPTIONS="-c app.bypass_rls=on"`; restores need the PostgreSQL admin.

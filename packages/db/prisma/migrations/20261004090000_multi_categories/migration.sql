@@ -2,6 +2,12 @@
 -- becomes a "categoryIds" text array on the same row (so the table's RLS
 -- covers it unchanged). Existing values carry over. A category in use is
 -- archived, never deleted (routes/categories), so no id is left dangling.
+--
+-- The copy must see every row: production migrates as the app's own role,
+-- which FORCE ROW LEVEL SECURITY applies to, so without the policies'
+-- maintenance switch each UPDATE would silently touch 0 rows and the DROP
+-- would lose the categories. Switched on for this session, off at the end.
+SELECT set_config('app.bypass_rls', 'on', false);
 
 ALTER TABLE "calendar_events" ADD COLUMN "categoryIds" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[];
 UPDATE "calendar_events" SET "categoryIds" = ARRAY["categoryId"] WHERE "categoryId" IS NOT NULL;
@@ -29,3 +35,5 @@ ALTER TABLE "child_notes" ADD COLUMN "categoryIds" TEXT[] NOT NULL DEFAULT ARRAY
 UPDATE "child_notes" SET "categoryIds" = ARRAY["categoryId"] WHERE "categoryId" IS NOT NULL;
 ALTER TABLE "child_notes" DROP CONSTRAINT "child_notes_categoryId_fkey";
 ALTER TABLE "child_notes" DROP COLUMN "categoryId";
+
+SELECT set_config('app.bypass_rls', 'off', false);

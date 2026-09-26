@@ -44,7 +44,7 @@ curl -sI https://app.kinnd.eu/ | head -1 && curl -s https://app.kinnd.eu/api/hea
 ## Before a release with migrations
 
 ```bash
-npx dotenv -e apps/api/.env -- sh -c 'pg_dump -Fc "$DATABASE_URL"' > /root/backup/kinnd-$(date +%F-%H%M).dump
+npx dotenv -e apps/api/.env -- sh -c 'PGOPTIONS="-c app.bypass_rls=on" pg_dump --enable-row-security -Fc "$DATABASE_URL"' > /root/backup/kinnd-$(date +%F-%H%M).dump
 ```
 
 ## First time (fresh server)
@@ -212,6 +212,8 @@ you can skip the migrate step).
 
 With migrations: restore the pre-deploy dump, then revert the code as above and
 run **Every deploy** without the migrate step.
+Restore as the PostgreSQL admin (Plesk → Tools & Settings → Database
+Servers); the app's user can't write into tables under row-level security:
 ```bash
-npx dotenv -e apps/api/.env -- sh -c 'pg_restore --clean --no-owner -d "$DATABASE_URL" /root/backup/<dump>'
+pg_restore -h localhost -U <PostgreSQL admin login> --clean --if-exists --no-owner --role=<app DB user> -d <database> /root/backup/<dump>
 ```
