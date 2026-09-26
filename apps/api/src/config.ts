@@ -7,6 +7,17 @@
 // Node.js app panel, so this is a no-op there too.
 import "dotenv/config";
 
+// Values copied from web consoles (Azure, Google, Brevo) can carry invisible
+// characters (zero-width space, byte-order mark, no-break space) and stray
+// whitespace. A client ID with a zero-width space in front is "not found" by
+// the provider, so every setting is cleaned once, before anything reads it.
+const INVISIBLE = /[\u200B-\u200D\u2060\uFEFF\u00A0]/g;
+for (const [name, value] of Object.entries(process.env)) {
+  if (value === undefined) continue;
+  const clean = value.replace(INVISIBLE, "").trim();
+  if (clean !== value) process.env[name] = clean;
+}
+
 const isProduction = process.env.NODE_ENV === "production";
 
 /**
