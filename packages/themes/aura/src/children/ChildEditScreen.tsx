@@ -104,7 +104,7 @@ export function ChildForm({ existing, onCreated, hideTitle }: { existing?: Child
             ))}
           </ToggleGroup>
         </Field>
-        <DateField id="birthday" label={t("edit.birthday")} value={birthday} onChange={setBirthday} />
+        <DateField id="birthday" label={t("edit.birthday")} value={birthday} onChange={setBirthday} fromYear={new Date().getFullYear() - 30} toYear={new Date().getFullYear()} />
       </FormCard>
 
       <FormCard>

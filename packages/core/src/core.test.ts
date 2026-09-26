@@ -87,6 +87,25 @@ describe("regions", () => {
     expect(parseDecimal("abc")).toBeNaN();
     expect(parseDecimal(",")).toBeNaN();
   });
+  it("writes and reads typed dates the region's way", async () => {
+    const { createFormatters } = await import("./i18n/format");
+    const dk = createFormatters("en-US", "DK").dateInput;
+    expect(dk.format("2015-07-31")).toBe("31.07.2015");
+    for (const typed of ["31.07.2015", "31/7/2015", "31-07-2015", " 31 07 2015 ", "31072015"]) expect(dk.parse(typed)).toBe("2015-07-31");
+    expect(dk.parse("31.02.2015")).toBeNull(); // no such day
+    expect(dk.parse("31.07.15")).toBeNull(); // the year needs four digits
+    expect(dk.parse("2015")).toBeNull();
+    const gb = createFormatters("en-US", "GB").dateInput;
+    expect(gb.format("2015-07-31")).toBe("31/07/2015");
+    expect(gb.parse("31/07/2015")).toBe("2015-07-31");
+    const us = createFormatters("en-US", "US").dateInput;
+    expect(us.format("2015-07-31")).toBe("07/31/2015");
+    expect(us.parse("7/31/2015")).toBe("2015-07-31");
+    expect(us.parse("31/07/2015")).toBeNull();
+    const se = createFormatters("sv-SE", "SE").dateInput;
+    expect(se.format("2015-07-31")).toBe("2015-07-31");
+    expect(se.parse("2015-07-31")).toBe("2015-07-31");
+  });
 });
 
 describe("route table", () => {

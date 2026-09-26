@@ -147,36 +147,114 @@ export function CategoryField({ value, onChange }: { value: string | null; onCha
   );
 }
 
-/** A day picked from the shadcn Calendar in a popover; value is "YYYY-MM-DD". */
-export function DateField({ id, label, value, onChange }: { id: string; label: ReactNode; value: string; onChange: (day: string) => void }) {
+/**
+ * A date, typed the region's way ("31.07.2015" in DK, "07/31/2015" in the US;
+ * any separator works) or picked from the calendar, whose caption has month
+ * and year dropdowns so a birthday years back is two taps away. Value is
+ * "YYYY-MM-DD"; `fromYear`/`toYear` bound the year dropdown.
+ */
+export function DateField({
+  id,
+  label,
+  value,
+  onChange,
+  fromYear = new Date().getFullYear() - 100,
+  toYear = new Date().getFullYear() + 10,
+}: {
+  id: string;
+  label: ReactNode;
+  value: string;
+  onChange: (day: string) => void;
+  fromYear?: number;
+  toYear?: number;
+}) {
+  const { t } = useT("common");
   const fmt = useFormat();
+  const { pattern } = fmt.dateInput;
   const [open, setOpen] = useState(false);
-  const selected = value ? new Date(`${value}T12:00:00Z`) : undefined;
+  const [text, setText] = useState(() => fmt.dateInput.format(value));
+  const [shown, setShown] = useState(value);
+  const [invalid, setInvalid] = useState(false);
+  // A new value from outside (loaded, or picked in the calendar) replaces the text.
+  if (value !== shown) {
+    setShown(value);
+    setText(fmt.dateInput.format(value));
+    setInvalid(false);
+  }
+  const selected = value ? new Date(`${value}T12:00:00`) : undefined;
+  const placeholder = pattern.order.map((p) => t(`date.${p}`)).join(pattern.separator);
+  const example = fmt.dateInput.format("2015-07-31");
+
+  const commit = (input: string) => {
+    if (!input.trim()) {
+      setInvalid(false);
+      if (value) {
+        setShown("");
+        onChange("");
+      }
+      return;
+    }
+    const day = fmt.dateInput.parse(input);
+    setInvalid(!day);
+    if (day) {
+      setShown(day);
+      setText(fmt.dateInput.format(day));
+      if (day !== value) onChange(day);
+    }
+  };
+
   return (
-    <Field id={id} label={label}>
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger
+    <Field id={id} label={label} hint={invalid ? <span role="alert" className="text-error">{t("date.invalid", { pattern: placeholder, example })}</span> : undefined}>
+      <div className="relative">
+        <input
           id={id}
-          className="h-12 w-full rounded-full bg-surface-container-low px-4 flex items-center justify-between font-body-md text-body-md text-on-surface hover:bg-surface-container transition-colors"
-        >
-          <span>{selected ? fmt.date(selected, { weekday: "short", day: "numeric", month: "long", year: "numeric" }) : ""}</span>
-          <Icon name="calendar_today" className="text-[18px] text-secondary" />
-        </PopoverTrigger>
-        <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] rounded-[28px] bg-surface-container-lowest border border-outline-variant/30 p-space-lg shadow-[0_12px_32px_-6px_rgba(22,26,24,0.22)]">
-          <Calendar
-            mode="single"
-            selected={selected}
-            defaultMonth={selected}
-            onSelect={(d) => {
-              if (!d) return;
-              // react-day-picker gives local midnight; keep the calendar day.
-              const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-              onChange(key);
-              setOpen(false);
-            }}
-          />
-        </PopoverContent>
-      </Popover>
+          inputMode="numeric"
+          autoComplete="off"
+          placeholder={placeholder}
+          value={text}
+          aria-invalid={invalid || undefined}
+          onChange={(e) => {
+            setText(e.target.value);
+            // Commit as soon as it's a whole date, so the form can be sent without leaving the field.
+            const day = fmt.dateInput.parse(e.target.value);
+            if (day) {
+              setInvalid(false);
+              setShown(day);
+              if (day !== value) onChange(day);
+            }
+          }}
+          onBlur={(e) => commit(e.target.value)}
+          className={cn(
+            "h-12 w-full rounded-full bg-surface-container-low pl-4 pr-12 font-body-md text-body-md text-on-surface outline-none focus:bg-surface-container placeholder:text-secondary/60",
+            invalid && "ring-2 ring-error"
+          )}
+        />
+        <Popover open={open} onOpenChange={setOpen}>
+          <PopoverTrigger
+            aria-label={t("date.pick")}
+            className="absolute right-1 top-1 w-10 h-10 rounded-full flex items-center justify-center text-secondary hover:bg-surface-container transition-colors"
+          >
+            <Icon name="calendar_today" className="text-[18px]" />
+          </PopoverTrigger>
+          <PopoverContent align="end" collisionPadding={16} className="w-[min(22rem,calc(100vw-2rem))] rounded-[28px] bg-surface-container-lowest border border-outline-variant/30 p-space-lg shadow-[0_12px_32px_-6px_rgba(22,26,24,0.22)]">
+            <Calendar
+              mode="single"
+              captionLayout="dropdown"
+              startMonth={new Date(fromYear, 0)}
+              endMonth={new Date(toYear, 11)}
+              selected={selected}
+              defaultMonth={selected}
+              onSelect={(d) => {
+                if (!d) return;
+                // react-day-picker gives local midnight; keep the calendar day.
+                const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+                onChange(key);
+                setOpen(false);
+              }}
+            />
+          </PopoverContent>
+        </Popover>
+      </div>
     </Field>
   );
 }

@@ -1,7 +1,7 @@
 import { createContext, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
-import { formatLocales, parseDecimal, resolveRegion, weekStartOf } from "./region";
+import { dateInputPattern, formatDateInput, formatLocales, parseDateInput, parseDecimal, resolveRegion, weekStartOf, type DateInputPattern } from "./region";
 
 // Every date and time in Kinnd is shown in Danish local time, whatever the
 // device's timezone: custody boundaries and appointments are Copenhagen
@@ -32,6 +32,14 @@ export type Formatters = {
   percent: (fraction: number) => string;
   /** A number typed by hand: "48,5" and "48.5" are both 48.5 */
   parseNumber: (input: string) => number;
+  /** Typed dates, the region's way: order and separator ("DK": 31.07.2015) */
+  dateInput: {
+    pattern: DateInputPattern;
+    /** "2015-07-31" → "31.07.2015" */
+    format: (day: string) => string;
+    /** "31.07.2015" (or "31/7/2015", "31072015") → "2015-07-31"; null if not a real date */
+    parse: (input: string) => string | null;
+  };
 };
 
 const RELATIVE_STEPS: [Intl.RelativeTimeFormatUnit, number][] = [
@@ -59,6 +67,7 @@ export function createFormatters(language: string, region: string): Formatters {
   const monthYearFmt = zoned({ month: "long", year: "numeric" });
   const rtf = new Intl.RelativeTimeFormat(locales.text, { numeric: "auto" });
   const percentFmt = new Intl.NumberFormat(locales.numeric, { style: "percent", maximumFractionDigits: 0 });
+  const datePattern = dateInputPattern(locales.numeric);
 
   return {
     region,
@@ -78,6 +87,11 @@ export function createFormatters(language: string, region: string): Formatters {
     number: (value, options) => new Intl.NumberFormat(locales.numeric, options).format(value),
     percent: (fraction) => percentFmt.format(fraction),
     parseNumber: parseDecimal,
+    dateInput: {
+      pattern: datePattern,
+      format: (day) => formatDateInput(day, datePattern),
+      parse: (input) => parseDateInput(input, datePattern),
+    },
   };
 }
 

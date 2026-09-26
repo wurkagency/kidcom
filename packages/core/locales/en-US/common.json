@@ -5,5 +5,14 @@
   "cancel": "Cancel",
   "save": "Save",
   "continue": "Continue",
-  "close": "Close"
+  "close": "Close",
+  "date": {
+    "day": "dd",
+    "month": "mm",
+    "year": "yyyy",
+    "invalid": "Enter the date as {{pattern}}, for example {{example}}.",
+    "pick": "Choose from calendar",
+    "monthLabel": "Month",
+    "yearLabel": "Year"
+  }
 }

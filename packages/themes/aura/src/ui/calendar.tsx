@@ -27,6 +27,9 @@ function Calendar({
         // The picker's dates are device-local midnights; read them at local noon so the
         // Copenhagen-zoned formatters land on the same calendar day.
         formatCaption: (month) => fmt.monthYear(new Date(month.getFullYear(), month.getMonth(), 15, 12)),
+        // Month names in the UI language; years as plain digits.
+        formatMonthDropdown: (month) => fmt.date(new Date(month.getFullYear(), month.getMonth(), 15, 12), { month: "long" }),
+        formatYearDropdown: (year) => String(year.getFullYear()),
         formatWeekdayName: (day) => fmt.date(new Date(day.getFullYear(), day.getMonth(), day.getDate(), 12), { weekday: "short" }).slice(0, 2),
       }}
       className={cn("group/calendar w-full", className)}
@@ -44,6 +47,14 @@ function Calendar({
           d.button_next
         ),
         month_caption: cn("flex h-8 w-full items-center", d.month_caption),
+        // Caption dropdowns (captionLayout="dropdown"): a native select laid over
+        // each label, so the phone's own wheel picker opens.
+        dropdowns: cn("flex items-center gap-2", d.dropdowns),
+        dropdown_root: cn(
+          "relative flex items-center gap-1 rounded-full bg-surface-container-low px-3 h-8 has-[:focus]:ring-2 has-[:focus]:ring-primary",
+          d.dropdown_root
+        ),
+        dropdown: cn("absolute inset-0 opacity-0 cursor-pointer", d.dropdown),
         caption_label: cn("font-title-md text-title-md text-on-surface font-semibold select-none", d.caption_label),
         month_grid: cn("w-full border-collapse", d.month_grid),
         weekdays: cn("grid grid-cols-7 gap-1 py-1", d.weekdays),

@@ -116,3 +116,36 @@ test("formats follow the account's country, not the language", async ({ page }) 
   await expect(page.getByText("26.09.2026")).toBeVisible();
   await expect(page.getByText("60 %")).toBeVisible();
 });
+
+test("a birthday years back is typed the region's way, or picked by month and year", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.clock.setFixedTime(FIXTURE_NOW);
+  await mockApi(page, {
+    me: { ...charlie, region: "DK" },
+    children: stenbecks,
+    media: {},
+    routes: { "POST /children": { ...augustDetail, id: "c-new" }, "GET /children/c-new": augustDetail },
+  });
+  await page.goto("/children/new");
+
+  const birthday = page.getByLabel("Birthday");
+  await expect(birthday).toHaveAttribute("placeholder", "dd.mm.yyyy");
+  await birthday.fill("31.02.2015");
+  await birthday.blur();
+  await expect(page.getByRole("alert")).toContainText("dd.mm.yyyy, for example 31.07.2015");
+
+  await birthday.fill("31/7/2015");
+  await birthday.blur();
+  await expect(birthday).toHaveValue("31.07.2015");
+  await expect(page.getByRole("alert")).toHaveCount(0);
+
+  // The calendar opens on that month, with month and year dropdowns.
+  await page.getByRole("button", { name: "Choose from calendar" }).click();
+  await expect(page.getByRole("combobox", { name: /year/i })).toHaveValue("2015");
+  await page.keyboard.press("Escape");
+
+  await page.getByLabel("First name").fill("Ida");
+  const created = sent(page, "POST", "/children");
+  await page.getByRole("button", { name: "Add child" }).click();
+  expect(body(await created)).toMatchObject({ firstName: "Ida", birthday: "2015-07-31" });
+});

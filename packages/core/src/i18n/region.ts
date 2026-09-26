@@ -69,3 +69,55 @@ export function parseDecimal(input: string): number {
   if (!both && repeated) return Number(s.replace(/[.,]/g, ""));
   return Number(`${s.slice(0, mark).replace(/[.,]/g, "")}.${s.slice(mark + 1)}`);
 }
+
+export type DatePart = "day" | "month" | "year";
+/** How the region writes an all-numeric date: its field order and separator ("DK": day.month.year). */
+export type DateInputPattern = { order: DatePart[]; separator: string };
+
+/** The region's numeric date layout, read from Intl: "31.07.2015" (DK), "31/07/2015" (GB), "07/31/2015" (US), "2015-07-31" (SE). */
+export function dateInputPattern(numericLocale: string): DateInputPattern {
+  const parts = new Intl.DateTimeFormat(numericLocale, { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "UTC" }).formatToParts(
+    new Date(Date.UTC(2015, 6, 31))
+  );
+  const order = parts.map((p) => p.type).filter((t): t is DatePart => t === "day" || t === "month" || t === "year");
+  const separator = parts.find((p) => p.type === "literal")?.value.trim() || "/";
+  return order.length === 3 ? { order, separator } : { order: ["day", "month", "year"], separator: "." };
+}
+
+/** "2015-07-31" shown the region's way: "31.07.2015". */
+export function formatDateInput(day: string, pattern: DateInputPattern): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(day);
+  if (!m) return "";
+  const values: Record<DatePart, string> = { year: m[1]!, month: m[2]!, day: m[3]! };
+  return pattern.order.map((p) => values[p]).join(pattern.separator);
+}
+
+/**
+ * A date typed by hand, in the region's order, with any separator ("31.07.2015",
+ * "31/7/2015", "31-07-2015", "31 07 2015") or none ("31072015"). The year must
+ * have four digits. Returns "YYYY-MM-DD", or null when it isn't a real date.
+ */
+export function parseDateInput(input: string, pattern: DateInputPattern): string | null {
+  const s = input.trim();
+  let fields = s.split(/[^\d]+/).filter(Boolean);
+  if (fields.length === 1 && fields[0]!.length === 8) {
+    const digits = fields[0]!;
+    let at = 0;
+    fields = pattern.order.map((p) => {
+      const len = p === "year" ? 4 : 2;
+      const part = digits.slice(at, at + len);
+      at += len;
+      return part;
+    });
+  }
+  if (fields.length !== 3) return null;
+  const values = {} as Record<DatePart, string>;
+  pattern.order.forEach((p, i) => (values[p] = fields[i]!));
+  if (values.year.length !== 4 || values.month.length > 2 || values.day.length > 2) return null;
+  const year = Number(values.year);
+  const month = Number(values.month);
+  const day = Number(values.day);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return null;
+  return `${values.year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
