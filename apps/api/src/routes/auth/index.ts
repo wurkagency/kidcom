@@ -131,8 +131,15 @@ authRouter.post("/signup", authRateLimiter, async (req, res, next) => {
     });
 
     await establishSession(req, user.id, { method: "SIGNUP" });
-    await sendPhoneCode(user.id, phone, "VERIFY_PHONE");
     await sendVerificationEmailSafely(user);
+    try {
+      await sendPhoneCode(user.id, phone, "VERIFY_PHONE");
+    } catch (err) {
+      // The account exists now: a failed text mustn't turn the sign-up into
+      // an error (retrying would only say the email is taken). The phone
+      // screen comes next, and its "resend" shows the error if it persists.
+      if (!(err instanceof ApiError && err.code === "SMS_SEND_FAILED")) throw err;
+    }
     res.status(201).json(await meResponse(user.id));
   } catch (err) {
     next(err);

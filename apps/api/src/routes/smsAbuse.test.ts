@@ -97,4 +97,37 @@ describe("SMS toll-fraud guard", () => {
     expect(res.status).toBe(204); // same as for an unknown number
     expect(sentTo(me.phone)).toBe(before);
   });
+
+  it("a text the provider refuses isn't counted, and says so instead of a server error", async () => {
+    const app = createApp();
+    const me = await signupTestUser(app);
+    const phone = "+4529990002";
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const send = vi.spyOn(smsSender, "send").mockRejectedValue(new Error("Brevo SMS failed (401): unrecognised IP address"));
+    for (let i = 0; i < SMS_PER_NUMBER_PER_DAY + 2; i++) {
+      const res = await me.agent.post("/auth/phone/send").send({ phone });
+      expect(res.status).toBe(502);
+      expect(res.body.code).toBe("SMS_SEND_FAILED");
+    }
+    expect(await prisma.smsSend.count({ where: { phone } })).toBe(0);
+    expect(await prisma.phoneVerificationCode.count({ where: { userId: me.userId } })).toBe(0);
+
+    send.mockRestore();
+    const before = sentTo(phone);
+    expect((await me.agent.post("/auth/phone/send").send({ phone })).status).toBe(204);
+    expect(sentTo(phone)).toBe(before + 1);
+    expect(await prisma.smsSend.count({ where: { phone } })).toBe(1);
+  });
+
+  it("a sign-up whose text fails still creates the account and sends the email", async () => {
+    const app = createApp();
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const send = vi.spyOn(smsSender, "send").mockRejectedValue(new Error("Brevo SMS failed (401)"));
+    const res = await signup(app, "+4529990003", "sms-down@example.com");
+    send.mockRestore();
+    expect(res.status).toBe(201);
+    const { MemoryMailSender, mailSender } = await import("../lib/mailSender");
+    expect((mailSender as InstanceType<typeof MemoryMailSender>).sent.some((m) => m.to === "sms-down@example.com")).toBe(true);
+    expect(await prisma.smsSend.count({ where: { phone: "+4529990003" } })).toBe(0);
+  });
 });

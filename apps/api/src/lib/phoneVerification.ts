@@ -81,7 +81,7 @@ export async function sendPhoneCode(userId: string, phone: string, purpose: Phon
   await assertSmsQuota(phone);
 
   const code = generateTwoFactorCode();
-  await prisma.$transaction([
+  const [, stored, logged] = await prisma.$transaction([
     prisma.phoneVerificationCode.deleteMany({ where: { userId, purpose } }),
     prisma.phoneVerificationCode.create({
       data: {
@@ -94,7 +94,20 @@ export async function sendPhoneCode(userId: string, phone: string, purpose: Phon
     }),
     prisma.smsSend.create({ data: { userId, phone, purpose } }),
   ]);
-  await smsSender.send({ to: phone, content: smsText(purpose, code) });
+  try {
+    await smsSender.send({ to: phone, content: smsText(purpose, code) });
+  } catch (err) {
+    // Nothing was sent (and nothing charged): take back the code and the log
+    // row, so a provider outage doesn't use up the number's daily texts or
+    // start the resend cooldown. The provider's reason goes to the log only.
+    await prisma.$transaction([
+      prisma.phoneVerificationCode.deleteMany({ where: { id: stored.id } }),
+      prisma.smsSend.deleteMany({ where: { id: logged.id } }),
+    ]);
+    // eslint-disable-next-line no-console
+    console.error(`SMS to ${phone.slice(0, 4)}… failed:`, err instanceof Error ? err.message : err);
+    throw new ApiError(502, "We couldn't send the text message right now — please try again in a moment", "SMS_SEND_FAILED");
+  }
 }
 
 /** The number a pending VERIFY_PHONE code was sent to, if any. */
