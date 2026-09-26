@@ -46,7 +46,7 @@ describe("RLS full rollout — direct-childId table (calendar_events)", () => {
     const { parentA, parentB, childAId } = await twoParentsTwoChildren();
     await withRls(parentA, (tx) =>
       tx.calendarEvent.create({
-        data: { childId: childAId, categoryId: "cat_appointment", title: "Dentist", startsAt: new Date("2026-01-01") },
+        data: { childId: childAId, categoryIds: ["cat_appointment"], title: "Dentist", startsAt: new Date("2026-01-01") },
       })
     );
 

@@ -167,7 +167,7 @@ const remindersWorker = new Worker<RemindAppointmentsJob>(
           // Timed appointments and health visits (not routines, holidays…).
           kind: "EVENT",
           allDay: false,
-          categoryId: { in: [systemCategoryId("appointment"), systemCategoryId("health")] },
+          categoryIds: { hasSome: [systemCategoryId("appointment"), systemCategoryId("health")] },
           remindedAt: null,
           startsAt: { gte: new Date(), lte: windowEnd },
         },

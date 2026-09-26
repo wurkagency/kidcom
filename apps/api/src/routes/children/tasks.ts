@@ -4,7 +4,7 @@ import type { CreateTaskRequest, TaskDto, UpdateTaskRequest } from "@kinnd/share
 import { ApiError } from "../../middleware/errorHandler";
 import { can, requireCapability } from "../../lib/permissions";
 import { withRls } from "../../lib/rls";
-import { assertUsableCategory } from "../../lib/categories";
+import { assertUsableCategories } from "../../lib/categories";
 import { dateOnlyString, optionalDateOnly, optionalText, requiredText } from "../../lib/validation";
 
 // Mounted at /children/:childId/tasks — "Reminders & Tasks". Creating and
@@ -19,7 +19,7 @@ export function toTaskDto(row: {
   childId: string;
   title: string;
   note: string | null;
-  categoryId: string | null;
+  categoryIds: string[];
   dueOn: Date | null;
   createdById: string | null;
   completedAt: Date | null;
@@ -31,7 +31,7 @@ export function toTaskDto(row: {
     childId: row.childId,
     title: row.title,
     note: row.note,
-    categoryId: row.categoryId,
+    categoryIds: row.categoryIds,
     dueOn: dateOnlyString(row.dueOn),
     createdByUserId: row.createdById,
     completedAt: row.completedAt?.toISOString() ?? null,
@@ -64,7 +64,7 @@ tasksRouter.post("/", requireCapability("task:manage"), async (req: Request<Chil
       childId: req.params.childId,
       title: requiredText(body.title, "title"),
       note: optionalText(body.note, "note") ?? null,
-      categoryId: await assertUsableCategory(userId, body.categoryId),
+      categoryIds: await assertUsableCategories(userId, body.categoryIds),
       dueOn: optionalDateOnly(body.dueOn, "dueOn") ?? null,
       createdById: userId,
     };
@@ -79,7 +79,7 @@ tasksRouter.patch("/:id", async (req: Request<TaskParams>, res, next) => {
   try {
     const body = req.body as Partial<UpdateTaskRequest>;
     const userId = req.session.userId!;
-    const editsFields = ["title", "note", "categoryId", "dueOn"].some((k) => k in body);
+    const editsFields = ["title", "note", "categoryIds", "dueOn"].some((k) => k in body);
     if (editsFields && !can(req.childAccess!, "task:manage")) {
       throw new ApiError(403, "You don't have permission to edit tasks for this child");
     }
@@ -89,7 +89,7 @@ tasksRouter.patch("/:id", async (req: Request<TaskParams>, res, next) => {
     const data = {
       title: body.title === undefined ? undefined : requiredText(body.title, "title"),
       note: optionalText(body.note, "note"),
-      categoryId: body.categoryId === undefined ? undefined : await assertUsableCategory(userId, body.categoryId),
+      categoryIds: await assertUsableCategories(userId, body.categoryIds, "partial"),
       dueOn: optionalDateOnly(body.dueOn, "dueOn"),
       ...(body.completed === undefined
         ? {}

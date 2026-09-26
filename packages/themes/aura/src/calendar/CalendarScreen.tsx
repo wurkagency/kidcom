@@ -273,7 +273,7 @@ function CalendarView({ view }: { view: "agenda" | "week" | "month" }) {
         ) : (
           <div className="flex flex-col gap-3">
             {dayEvents.map((e) => (
-              <EventCard key={`${e.id}-${e.startsAt}`} event={e} category={e.categoryId ? data.categories.get(e.categoryId) : undefined} members={data.membersFor(e.childId)} />
+              <EventCard key={`${e.id}-${e.startsAt}`} event={e} category={e.categoryIds.length ? data.categories.get(e.categoryIds[0]!) : undefined} members={data.membersFor(e.childId)} />
             ))}
           </div>
         )}

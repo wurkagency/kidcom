@@ -5,7 +5,7 @@ import { prisma } from "../../db";
 import { ApiError } from "../../middleware/errorHandler";
 import { requireCapability } from "../../lib/permissions";
 import { withRls } from "../../lib/rls";
-import { assertUsableCategory } from "../../lib/categories";
+import { assertUsableCategories } from "../../lib/categories";
 import { notify } from "../../lib/notify";
 
 // Mounted at /children/:childId/calendar-event-requests. Post-launch backlog
@@ -21,7 +21,7 @@ type ChildRequestParams = { childId: string; id: string };
 
 function toDto(row: {
   id: string;
-  categoryId: string | null;
+  categoryIds: string[];
   title: string;
   startsAt: Date;
   endsAt: Date | null;
@@ -34,7 +34,7 @@ function toDto(row: {
 }): CalendarEventRequestDto {
   return {
     id: row.id,
-    categoryId: row.categoryId,
+    categoryIds: row.categoryIds,
     title: row.title,
     startsAt: row.startsAt.toISOString(),
     endsAt: row.endsAt?.toISOString() ?? null,
@@ -70,7 +70,7 @@ calendarEventRequestsRouter.post(
       if (!body.title || !body.startsAt) {
         throw new ApiError(400, "title and startsAt are required");
       }
-      const categoryId = await assertUsableCategory(req.session.userId!, body.categoryId);
+      const categoryIds = await assertUsableCategories(req.session.userId!, body.categoryIds);
       const title = body.title;
       const startsAt = body.startsAt;
 
@@ -78,7 +78,7 @@ calendarEventRequestsRouter.post(
         tx.calendarEventRequest.create({
           data: {
             childId: req.params.childId,
-            categoryId,
+            categoryIds,
             title,
             startsAt: new Date(startsAt),
             endsAt: body.endsAt ? new Date(body.endsAt) : undefined,
@@ -145,7 +145,7 @@ calendarEventRequestsRouter.patch(
           await tx.calendarEvent.create({
             data: {
               childId: req.params.childId,
-              categoryId: existing.categoryId,
+              categoryIds: existing.categoryIds,
               title: existing.title,
               startsAt: existing.startsAt,
               endsAt: existing.endsAt,

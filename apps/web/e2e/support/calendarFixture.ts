@@ -47,7 +47,7 @@ export const categories: CategoryDto[] = [
 const event = (e: Partial<CalendarEventDto> & Pick<CalendarEventDto, "id" | "title" | "startsAt">): CalendarEventDto => ({
   childId: "c-leo",
   kind: "EVENT",
-  categoryId: null,
+  categoryIds: [],
   endsAt: null,
   allDay: false,
   notes: null,
@@ -71,7 +71,7 @@ const todayEvents: CalendarEventDto[] = [
     id: "e-dropoff",
     title: "School drop-off",
     startsAt: "2026-10-12T06:30:00Z",
-    categoryId: "cat_routine",
+    categoryIds: ["cat_routine"],
     location: "Oakwood Elementary",
     address: "452 Elmwood Ave, 23462 Pasadena",
     checklist: [
@@ -83,7 +83,7 @@ const todayEvents: CalendarEventDto[] = [
     id: "e-dentist",
     title: "Dentist Checkup",
     startsAt: "2026-10-12T10:15:00Z",
-    categoryId: "cat_health",
+    categoryIds: ["cat_health"],
     location: "Dr. Lind Dental Studio",
     address: "742 Evergreen Terr",
     notes: "Bring the insurance card.",
@@ -92,7 +92,7 @@ const todayEvents: CalendarEventDto[] = [
     id: "e-soccer",
     title: "Soccer Practice",
     startsAt: "2026-10-12T13:00:00Z",
-    categoryId: "cat_sport",
+    categoryIds: ["cat_sport"],
     location: "Oakwood Soccer Field",
     address: "Field 3 • Pickup by Sara at 4:30 PM",
     assigneeUserId: "u-dad",
@@ -102,7 +102,7 @@ const todayEvents: CalendarEventDto[] = [
 
 // One dot on each other day of the week; the 16th is a health (rose) one.
 const weekDots = [13, 14, 15, 16, 17, 18].map((d) =>
-  event({ id: `e-dot-${d}`, title: `Dot ${d}`, startsAt: `2026-10-${d}T08:00:00Z`, categoryId: d === 16 ? "cat_health" : "cat_routine" }),
+  event({ id: `e-dot-${d}`, title: `Dot ${d}`, startsAt: `2026-10-${d}T08:00:00Z`, categoryIds: [d === 16 ? "cat_health" : "cat_routine" ]}),
 );
 
 const byDate: Record<string, string | null> = {};
@@ -136,14 +136,14 @@ export const leoOverview = (opts: { swaps?: SwapRequestDto[] } = {}): ChildOverv
   },
   events: [...todayEvents, ...weekDots],
   tasks: [
-    { id: "t1", childId: "c-leo", title: "Return signed field trip permission slip", note: null, categoryId: null, dueOn: null, createdByUserId: "u-charlie", completedAt: null, completedByUserId: null, createdAt: "2026-10-10T08:00:00Z" },
-    { id: "t2", childId: "c-leo", title: "Pediatric allergy medicine", note: "Pickup at pharmacy before 5pm.", categoryId: "cat_health", dueOn: null, createdByUserId: "u-charlie", completedAt: null, completedByUserId: null, createdAt: "2026-10-10T08:00:00Z" },
-    { id: "t3", childId: "c-leo", title: "Wash soccer shin guards & jersey", note: null, categoryId: null, dueOn: null, createdByUserId: "u-dad", completedAt: null, completedByUserId: null, createdAt: "2026-10-10T08:00:00Z" },
-    { id: "t4", childId: "c-leo", title: "Pack spare rain boots for preschool", note: null, categoryId: null, dueOn: null, createdByUserId: "u-dad", completedAt: null, completedByUserId: null, createdAt: "2026-10-10T08:00:00Z" },
+    { id: "t1", childId: "c-leo", title: "Return signed field trip permission slip", note: null, categoryIds: [], dueOn: null, createdByUserId: "u-charlie", completedAt: null, completedByUserId: null, createdAt: "2026-10-10T08:00:00Z" },
+    { id: "t2", childId: "c-leo", title: "Pediatric allergy medicine", note: "Pickup at pharmacy before 5pm.", categoryIds: ["cat_health"], dueOn: null, createdByUserId: "u-charlie", completedAt: null, completedByUserId: null, createdAt: "2026-10-10T08:00:00Z" },
+    { id: "t3", childId: "c-leo", title: "Wash soccer shin guards & jersey", note: null, categoryIds: [], dueOn: null, createdByUserId: "u-dad", completedAt: null, completedByUserId: null, createdAt: "2026-10-10T08:00:00Z" },
+    { id: "t4", childId: "c-leo", title: "Pack spare rain boots for preschool", note: null, categoryIds: [], dueOn: null, createdByUserId: "u-dad", completedAt: null, completedByUserId: null, createdAt: "2026-10-10T08:00:00Z" },
   ],
   notes: [
-    { id: "n1", childId: "c-leo", title: "Lunch preference for Maya", text: "Maya mentioned she prefers sliced apples over bananas today. Teacher notified about snack time.", categoryId: null, authorUserId: "u-charlie", createdAt: "2026-10-12T05:45:00Z", updatedAt: "2026-10-12T05:45:00Z" },
-    { id: "n2", childId: "c-leo", title: "Dentist follow-up notes", text: "Dr. Lind suggested scheduling regular fluoride treatment next October. Teeth look great, no cavities.", categoryId: "cat-dental", authorUserId: "u-dad", createdAt: "2026-10-12T10:40:00Z", updatedAt: "2026-10-12T10:40:00Z" },
+    { id: "n1", childId: "c-leo", title: "Lunch preference for Maya", text: "Maya mentioned she prefers sliced apples over bananas today. Teacher notified about snack time.", categoryIds: [], authorUserId: "u-charlie", createdAt: "2026-10-12T05:45:00Z", updatedAt: "2026-10-12T05:45:00Z" },
+    { id: "n2", childId: "c-leo", title: "Dentist follow-up notes", text: "Dr. Lind suggested scheduling regular fluoride treatment next October. Teeth look great, no cavities.", categoryIds: ["cat-dental"], authorUserId: "u-dad", createdAt: "2026-10-12T10:40:00Z", updatedAt: "2026-10-12T10:40:00Z" },
   ].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
   lessons: [
     { id: "l1", childId: "c-leo", weekday: 1, startTime: "09:00", endTime: null, subject: "Math & Logic", room: "Room 14", note: null, bring: null },

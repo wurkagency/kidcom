@@ -11,7 +11,7 @@ export type CalendarEventRow = {
   id: string;
   childId: string;
   kind: CalendarEventDto["kind"];
-  categoryId: string | null;
+  categoryIds: string[];
   title: string;
   startsAt: Date;
   endsAt: Date | null;
@@ -35,7 +35,7 @@ export function toCalendarEventDto(row: CalendarEventRow): CalendarEventDto {
     id: row.id,
     childId: row.childId,
     kind: row.kind,
-    categoryId: row.categoryId,
+    categoryIds: row.categoryIds,
     title: row.title,
     startsAt: row.startsAt.toISOString(),
     endsAt: row.endsAt?.toISOString() ?? null,

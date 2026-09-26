@@ -548,10 +548,9 @@ model CalendarEvent {
   childId   String
   child     Child                 @relation(fields: [childId], references: [id], onDelete: Cascade)
   kind      CalendarEventKind     @default(EVENT)
-  // Global category (shared with Moments and Media). Null only if a custom
-  // category was removed; the app then shows the event uncategorised.
-  categoryId String?
-  category   Category?            @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  // Global categories (shared with Moments and Media), any number of them.
+  // A category in use is archived rather than deleted, so ids never dangle.
+  categoryIds String[] @default([])
   title     String
   startsAt  DateTime
   endsAt    DateTime?
@@ -672,8 +671,9 @@ model CalendarEventRequest {
   id            String            @id @default(cuid())
   childId       String
   child         Child             @relation(fields: [childId], references: [id], onDelete: Cascade)
-  categoryId    String?
-  category      Category?         @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  // Global categories (shared with Moments and Media), any number of them.
+  // A category in use is archived rather than deleted, so ids never dangle.
+  categoryIds String[] @default([])
   title         String
   startsAt      DateTime
   endsAt        DateTime?
@@ -778,11 +778,12 @@ model Moment {
   // Description is optional — only the title is required to post. Empty
   // posts (media-only, or just a title) store this as null rather than "".
   text      String?
-  // v3.0 Phase 4: global category, a typed place name (no GPS), the day it
-  // happened, and whether extended family (AccessRole FAMILY) may see it —
-  // off means parents/guardians and the author only (enforced by RLS).
-  categoryId    String?
-  category      Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  // Global categories (shared with Moments and Media), any number of them.
+  // A category in use is archived rather than deleted, so ids never dangle.
+  categoryIds String[] @default([])
+  // v3.0 Phase 4: a typed place name (no GPS), the day it happened, and
+  // whether extended family (AccessRole FAMILY) may see it — off means
+  // parents/guardians and the author only (enforced by RLS).
   location      String?
   occurredOn    DateTime? @db.Date
   familyVisible Boolean   @default(true)
@@ -795,7 +796,7 @@ model Moment {
   comments  Comment[]
   reactions MomentReaction[]
 
-  @@index([categoryId])
+  @@index([categoryIds], type: Gin)
   @@map("journal_posts")
 }
 
@@ -1278,12 +1279,6 @@ model Category {
   createdAt  DateTime     @default(now())
   updatedAt  DateTime     @updatedAt
 
-  calendarEvents        CalendarEvent[]
-  calendarEventRequests CalendarEventRequest[]
-  tasks                 Task[]
-  notes                 ChildNote[]
-  moments               Moment[]
-
   @@index([ownerId])
   @@map("categories")
 }
@@ -1330,8 +1325,9 @@ model Task {
   child         Child     @relation(fields: [childId], references: [id], onDelete: Cascade)
   title         String
   note          String?
-  categoryId    String?
-  category      Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  // Global categories (shared with Moments and Media), any number of them.
+  // A category in use is archived rather than deleted, so ids never dangle.
+  categoryIds String[] @default([])
   dueOn         DateTime? @db.Date
   createdById   String?
   createdBy     User?     @relation("TaskCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
@@ -1355,8 +1351,9 @@ model ChildNote {
   author     User?     @relation(fields: [authorId], references: [id], onDelete: SetNull)
   title      String
   text       String?
-  categoryId String?
-  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  // Global categories (shared with Moments and Media), any number of them.
+  // A category in use is archived rather than deleted, so ids never dangle.
+  categoryIds String[] @default([])
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 

@@ -66,7 +66,7 @@ export function TodayScreen() {
               <EventCard
                 key={`${e.id}-${e.startsAt}`}
                 event={e}
-                category={e.categoryId ? data.categories.get(e.categoryId) : undefined}
+                category={e.categoryIds.length ? data.categories.get(e.categoryIds[0]!) : undefined}
                 members={data.membersFor(e.childId)}
               />
             ))}

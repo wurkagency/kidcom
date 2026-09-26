@@ -5,7 +5,7 @@ import { prisma } from "../../db";
 import { ApiError } from "../../middleware/errorHandler";
 import { requireCapability } from "../../lib/permissions";
 import { withRls, withRlsBypass } from "../../lib/rls";
-import { assertUsableCategory } from "../../lib/categories";
+import { assertUsableCategories } from "../../lib/categories";
 import { galleryInclude, galleryWhere, momentInclude, momentWhere, parseMomentFilters, toMomentDto, toMomentMediaDto } from "../../lib/moments";
 import { copenhagenToday, optionalDateOnly, optionalText, requiredText } from "../../lib/validation";
 import { momentCommentsRouter } from "./momentComments";
@@ -123,7 +123,7 @@ momentsRouter.post("/", requireCapability("moments:post"), async (req: Request<C
     const text = optionalText(body.text, "text", 5000) ?? null;
     const location = optionalText(body.location, "location", 200) ?? null;
     const occurredOn = optionalDateOnly(body.occurredOn, "occurredOn") ?? new Date(`${copenhagenToday()}T00:00:00Z`);
-    const categoryId = await assertUsableCategory(userId, body.categoryId);
+    const categoryIds = await assertUsableCategories(userId, body.categoryIds);
     const familyVisible = body.familyVisible !== false;
     const childIds = body.childIds?.length ? [...new Set(body.childIds)] : [req.params.childId];
 
@@ -134,7 +134,7 @@ momentsRouter.post("/", requireCapability("moments:post"), async (req: Request<C
 
     const post = await withRls(userId, async (tx) => {
       const created = await tx.moment.create({
-        data: { authorId: userId, title, text, location, occurredOn, categoryId, familyVisible },
+        data: { authorId: userId, title, text, location, occurredOn, categoryIds, familyVisible },
       });
       await tx.momentChild.createMany({ data: childIds.map((childId) => ({ momentId: created.id, childId })) });
       if (body.mediaAssetIds?.length) {
@@ -169,7 +169,7 @@ momentsRouter.patch("/:postId", async (req: Request<PostParams>, res, next) => {
       ...(body.text !== undefined ? { text: optionalText(body.text, "text", 5000) ?? null } : {}),
       ...(body.location !== undefined ? { location: optionalText(body.location, "location", 200) ?? null } : {}),
       ...(body.occurredOn !== undefined ? { occurredOn: optionalDateOnly(body.occurredOn, "occurredOn") ?? null } : {}),
-      ...(body.categoryId !== undefined ? { categoryId: await assertUsableCategory(userId, body.categoryId) } : {}),
+      ...(body.categoryIds !== undefined ? { categoryIds: await assertUsableCategories(userId, body.categoryIds) } : {}),
       ...(body.familyVisible !== undefined ? { familyVisible: Boolean(body.familyVisible) } : {}),
     };
     const post = await withRls(userId, async (tx) => {

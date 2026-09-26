@@ -50,7 +50,7 @@ describe("Categories", () => {
     const { mom, childId } = await family();
     const used = (await mom.agent.post("/categories").send({ name: "Chess", icon: "chess", tone: "NEUTRAL" })).body.id;
     const unused = (await mom.agent.post("/categories").send({ name: "Unused", icon: "circle", tone: "NEUTRAL" })).body.id;
-    await mom.agent.post(`/children/${childId}/calendar-events`).send({ categoryId: used, title: "Chess club", startsAt: "2026-10-01T15:00:00Z" });
+    await mom.agent.post(`/children/${childId}/calendar-events`).send({ categoryIds: [used], title: "Chess club", startsAt: "2026-10-01T15:00:00Z" });
 
     expect((await mom.agent.delete(`/categories/${used}`)).status).toBe(204);
     expect((await mom.agent.delete(`/categories/${unused}`)).status).toBe(204);
@@ -58,14 +58,37 @@ describe("Categories", () => {
     expect(await prisma.category.findUnique({ where: { id: unused } })).toBeNull();
 
     // Archived: kept on the event, but can't be chosen for a new one.
-    const again = await mom.agent.post(`/children/${childId}/calendar-events`).send({ categoryId: used, title: "x", startsAt: "2026-10-02T15:00:00Z" });
+    const again = await mom.agent.post(`/children/${childId}/calendar-events`).send({ categoryIds: [used], title: "x", startsAt: "2026-10-02T15:00:00Z" });
     expect(again.body.code).toBe("CATEGORY_UNKNOWN");
+  });
+
+  it("an item carries several categories; a moment using one keeps it archived rather than deleted", async () => {
+    const { mom, childId } = await family();
+    const chess = (await mom.agent.post("/categories").send({ name: "Chess", icon: "chess", tone: "NEUTRAL" })).body.id;
+    const event = await mom.agent
+      .post(`/children/${childId}/calendar-events`)
+      .send({ categoryIds: ["cat_sport", chess, "cat_sport"], title: "Tournament", startsAt: "2026-10-01T15:00:00Z" });
+    expect(event.body.categoryIds).toEqual(["cat_sport", chess]); // de-duplicated, order kept
+    const edited = await mom.agent.patch(`/children/${childId}/calendar-events/${event.body.id}`).send({ title: "Tournament!" });
+    expect(edited.body.categoryIds).toEqual(["cat_sport", chess]); // untouched when not sent
+    const cleared = await mom.agent.patch(`/children/${childId}/calendar-events/${event.body.id}`).send({ categoryIds: [] });
+    expect(cleared.body.categoryIds).toEqual([]);
+
+    // Only a moment uses it now: deleting archives it instead of stripping the moment.
+    const moment = (await mom.agent.post(`/children/${childId}/moments`).send({ title: "Won", categoryIds: [chess, "cat_milestone"] })).body;
+    expect(moment.categoryIds).toEqual([chess, "cat_milestone"]);
+    expect((await mom.agent.delete(`/categories/${chess}`)).status).toBe(204);
+    expect((await prisma.category.findUnique({ where: { id: chess } }))?.archivedAt).not.toBeNull();
+
+    const bad = await mom.agent.post(`/children/${childId}/tasks`).send({ title: "x", categoryIds: ["cat_sport", "nope"] });
+    expect(bad.body.code).toBe("CATEGORY_UNKNOWN");
+    expect((await mom.agent.post(`/children/${childId}/tasks`).send({ title: "x", categoryIds: "cat_sport" })).status).toBe(400);
   });
 
   it("an outsider's category can't be put on a family's event", async () => {
     const { mom, outsider, childId } = await family();
     const theirs = (await outsider.agent.post("/categories").send({ name: "Mine", icon: "circle", tone: "NEUTRAL" })).body.id;
-    const res = await mom.agent.post(`/children/${childId}/calendar-events`).send({ categoryId: theirs, title: "x", startsAt: "2026-10-01T10:00:00Z" });
+    const res = await mom.agent.post(`/children/${childId}/calendar-events`).send({ categoryIds: [theirs], title: "x", startsAt: "2026-10-01T10:00:00Z" });
     expect(res.status).toBe(400);
   });
 });
@@ -76,7 +99,7 @@ describe("Events: place, address, handled-by, packing list, national holidays", 
   it("stores place + address + assignee + packing items; the assignee must be in the family", async () => {
     const { mom, dad, outsider, childId } = await family();
     const res = await mom.agent.post(`/children/${childId}/calendar-events`).send({
-      categoryId: "cat_sport",
+      categoryIds: ["cat_sport"],
       title: "Soccer Practice",
       startsAt: "2026-10-01T13:00:00Z",
       location: "Oakwood Soccer Field",
@@ -85,7 +108,7 @@ describe("Events: place, address, handled-by, packing list, national holidays", 
       checklist: [{ label: "Shin guards", kind: "PACKING" }, { label: "Sign form" }],
     });
     expect(res.status).toBe(201);
-    expect(res.body).toMatchObject({ categoryId: "cat_sport", location: "Oakwood Soccer Field", address: "Field 3", assigneeUserId: dad.userId, kind: "EVENT" });
+    expect(res.body).toMatchObject({ categoryIds: ["cat_sport"], location: "Oakwood Soccer Field", address: "Field 3", assigneeUserId: dad.userId, kind: "EVENT" });
     expect(res.body.checklist.map((c: { kind: string }) => c.kind)).toEqual(["PACKING", "TASK"]);
 
     const bad = await mom.agent.post(`/children/${childId}/calendar-events`).send({ title: "x", startsAt: "2026-10-01T10:00:00Z", assigneeUserId: outsider.userId });
@@ -100,7 +123,7 @@ describe("Events: place, address, handled-by, packing list, national holidays", 
       tx.calendarEvent.findMany({ where: { childId, kind: "NATIONAL_HOLIDAY", startsAt: { gte: new Date("2027-01-01"), lt: new Date("2028-01-01") } } }),
     );
     expect(holidays).toHaveLength(10);
-    expect(new Set(holidays.map((h) => h.categoryId))).toEqual(new Set(["cat_holiday"]));
+    expect(new Set(holidays.flatMap((h) => h.categoryIds))).toEqual(new Set(["cat_holiday"]));
     const res = await mom.agent.get(range);
     const one = res.body.events.find((e: { kind: string }) => e.kind === "NATIONAL_HOLIDAY");
     expect(one.editable).toBe(false);
@@ -113,9 +136,9 @@ describe("Tasks", () => {
 
   it("family members create tasks; a caregiver can tick one done but not create; outsiders see nothing", async () => {
     const { gran, carer, outsider, childId } = await family();
-    const task = await gran.agent.post(`/children/${childId}/tasks`).send({ title: "Wash shin guards", dueOn: "2026-10-02", categoryId: "cat_sport" });
+    const task = await gran.agent.post(`/children/${childId}/tasks`).send({ title: "Wash shin guards", dueOn: "2026-10-02", categoryIds: ["cat_sport"] });
     expect(task.status).toBe(201);
-    expect(task.body).toMatchObject({ dueOn: "2026-10-02", categoryId: "cat_sport", createdByUserId: gran.userId });
+    expect(task.body).toMatchObject({ dueOn: "2026-10-02", categoryIds: ["cat_sport"], createdByUserId: gran.userId });
 
     expect((await carer.agent.post(`/children/${childId}/tasks`).send({ title: "x" })).status).toBe(403);
     expect((await carer.agent.patch(`/children/${childId}/tasks/${task.body.id}`).send({ title: "renamed" })).status).toBe(403);
@@ -205,7 +228,7 @@ describe("Overview", () => {
       handoverTime: "15:00",
       handoverLocation: "Oakwood School",
     });
-    await mom.agent.post(`/children/${childId}/calendar-events`).send({ categoryId: "cat_health", title: "Dentist", startsAt: `${today}T10:15:00Z` });
+    await mom.agent.post(`/children/${childId}/calendar-events`).send({ categoryIds: ["cat_health"], title: "Dentist", startsAt: `${today}T10:15:00Z` });
     await mom.agent.post(`/children/${childId}/tasks`).send({ title: "Allergy medicine" });
     await mom.agent.post(`/children/${childId}/notes`).send({ title: "Lunch" });
     await mom.agent.post(`/children/${childId}/school-lessons`).send({ weekday: 1, startTime: "09:00", subject: "Math" });

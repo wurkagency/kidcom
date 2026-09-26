@@ -42,7 +42,8 @@ export function useCalendarFilters() {
   }, []);
   const showsType = useCallback((type: CalendarItemType) => filters.types.length === 0 || filters.types.includes(type), [filters]);
   const showsCategory = useCallback(
-    (categoryId: string | null) => filters.categoryIds.length === 0 || (categoryId !== null && filters.categoryIds.includes(categoryId)),
+    // An item shows when any of its categories is among the chosen ones.
+    (categoryIds: string[]) => filters.categoryIds.length === 0 || categoryIds.some((id) => filters.categoryIds.includes(id)),
     [filters],
   );
   return { filters, setFilters: update, showsType, showsCategory };

@@ -69,16 +69,32 @@ export async function visibleCategories(userId: string): Promise<CategoryDto[]> 
   return rows.map((r) => toCategoryDto(r, userId));
 }
 
+/** Most categories one item can carry. */
+export const MAX_CATEGORIES_PER_ITEM = 10;
+
 /**
- * Validates a category chosen for a new or edited item: it must exist, be
- * visible to the user and not be archived. Returns the id (or null).
+ * Validates the categories chosen for a new or edited item: each must exist,
+ * be visible to the user and not be archived. Returns them de-duplicated, in
+ * the order given; undefined stays undefined (a PATCH that leaves them alone).
  */
-export async function assertUsableCategory(userId: string, categoryId: string | null | undefined): Promise<string | null> {
-  if (categoryId === undefined || categoryId === null) return null;
-  const row = await prisma.category.findUnique({ where: { id: categoryId } });
-  if (!row || row.archivedAt) throw new ApiError(400, "Unknown category", "CATEGORY_UNKNOWN");
-  if (row.ownerId && !(await circleUserIds(userId)).includes(row.ownerId)) {
-    throw new ApiError(400, "Unknown category", "CATEGORY_UNKNOWN");
+export async function assertUsableCategories(userId: string, categoryIds: unknown): Promise<string[]>;
+export async function assertUsableCategories(userId: string, categoryIds: unknown, partial: "partial"): Promise<string[] | undefined>;
+export async function assertUsableCategories(userId: string, categoryIds: unknown, partial?: "partial"): Promise<string[] | undefined> {
+  if (categoryIds === undefined) return partial ? undefined : [];
+  if (categoryIds === null) return [];
+  if (!Array.isArray(categoryIds) || !categoryIds.every((id) => typeof id === "string")) {
+    throw new ApiError(400, "categoryIds must be a list of category ids");
   }
-  return row.id;
+  const ids = [...new Set(categoryIds as string[])];
+  if (ids.length > MAX_CATEGORIES_PER_ITEM) throw new ApiError(400, `At most ${MAX_CATEGORIES_PER_ITEM} categories`);
+  if (ids.length === 0) return [];
+  const rows = await prisma.category.findMany({ where: { id: { in: ids } } });
+  const circle = rows.some((r) => r.ownerId) ? await circleUserIds(userId) : [];
+  for (const id of ids) {
+    const row = rows.find((r) => r.id === id);
+    if (!row || row.archivedAt || (row.ownerId && !circle.includes(row.ownerId))) {
+      throw new ApiError(400, "Unknown category", "CATEGORY_UNKNOWN");
+    }
+  }
+  return ids;
 }

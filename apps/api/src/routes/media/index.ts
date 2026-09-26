@@ -467,7 +467,7 @@ mediaRouter.get("/:id/info", requireAuth, async (req, res, next) => {
             authorId: m.authorId,
             authorName: `${m.author.firstName} ${m.author.lastName}`.trim(),
             authorAvatarUrl: m.author.avatarUrl,
-            categoryId: m.categoryId,
+            categoryIds: m.categoryIds,
             location: m.location,
             occurredOn: m.occurredOn ? m.occurredOn.toISOString().slice(0, 10) : null,
             createdAt: m.createdAt.toISOString(),

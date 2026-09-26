@@ -80,21 +80,21 @@ describe("Moments: category, place, date, family visibility", () => {
     const created = await mom.agent.post(`/children/${leo}/moments`).send({
       title: "First Home Run",
       text: "Outfield hit!",
-      categoryId: "cat_sport",
+      categoryIds: ["cat_sport"],
       location: "Oakwood Little League Field",
       occurredOn: "2026-10-10",
     });
     expect(created.status).toBe(201);
     expect(created.body).toMatchObject({
-      categoryId: "cat_sport",
+      categoryIds: ["cat_sport"],
       location: "Oakwood Little League Field",
       occurredOn: "2026-10-10",
       familyVisible: true,
       bookmarkedByMe: false,
     });
 
-    const edited = await mom.agent.patch(`/children/${leo}/moments/${created.body.id}`).send({ location: "Field 3", categoryId: null });
-    expect(edited.body).toMatchObject({ location: "Field 3", categoryId: null });
+    const edited = await mom.agent.patch(`/children/${leo}/moments/${created.body.id}`).send({ location: "Field 3", categoryIds: [] });
+    expect(edited.body).toMatchObject({ location: "Field 3", categoryIds: [] });
     expect((await dad.agent.patch(`/children/${leo}/moments/${created.body.id}`).send({ title: "Mine now" })).status).toBe(403);
   });
 
@@ -118,7 +118,7 @@ describe("Moments: category, place, date, family visibility", () => {
 
   it("the cross-child feed filters by child, category and type", async () => {
     const { mom, leo, maya } = await family();
-    const a = (await mom.agent.post(`/children/${leo}/moments`).send({ title: "Leo sport", categoryId: "cat_sport" })).body;
+    const a = (await mom.agent.post(`/children/${leo}/moments`).send({ title: "Leo sport", categoryIds: ["cat_sport"] })).body;
     await mom.agent.post(`/children/${maya}/moments`).send({ title: "Maya words only" });
     await readyMedia(mom.userId, a.id, "VIDEO");
 
@@ -132,7 +132,7 @@ describe("Moments: category, place, date, family visibility", () => {
 
     const gallery = (await mom.agent.get("/moments/media")).body.items;
     expect(gallery).toHaveLength(1);
-    expect(gallery[0]).toMatchObject({ type: "VIDEO", durationSeconds: 42.5, postTitle: "Leo sport", categoryId: "cat_sport" });
+    expect(gallery[0]).toMatchObject({ type: "VIDEO", durationSeconds: 42.5, postTitle: "Leo sport", categoryIds: ["cat_sport"] });
   });
 
   it("notify pushes to the family who can see it — parents only when hidden from family", async () => {
@@ -184,7 +184,7 @@ describe("Media: details, ranges, downloads", () => {
 
   it("details carry the moment, sizes, codec and position", async () => {
     const { mom, dad, leo } = await family();
-    const post = (await mom.agent.post(`/children/${leo}/moments`).send({ title: "Home run", location: "Field 3", categoryId: "cat_sport" })).body;
+    const post = (await mom.agent.post(`/children/${leo}/moments`).send({ title: "Home run", location: "Field 3", categoryIds: ["cat_sport"] })).body;
     const first = await readyMedia(mom.userId, post.id);
     const video = await readyMedia(mom.userId, post.id, "VIDEO");
     const info = (await dad.agent.get(`/media/${video.id}/info`)).body;
@@ -192,7 +192,7 @@ describe("Media: details, ranges, downloads", () => {
       type: "VIDEO",
       codec: "hevc",
       originalBytes: 20,
-      moment: { id: post.id, title: "Home run", location: "Field 3", categoryId: "cat_sport", index: 1, mediaIds: [first.id, video.id] },
+      moment: { id: post.id, title: "Home run", location: "Field 3", categoryIds: ["cat_sport"], index: 1, mediaIds: [first.id, video.id] },
     });
   });
 

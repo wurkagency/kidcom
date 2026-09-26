@@ -48,14 +48,18 @@ test("approving an inbound swap resolves it", async ({ page }) => {
   expect((await sent).postDataJSON()).toEqual({ status: "APPROVED" });
 });
 
-test("new appointment: category, Copenhagen time, to-dos and assignee", async ({ page }) => {
+test("new appointment: several categories, Copenhagen time, to-dos and assignee", async ({ page }) => {
   await boot(page, {
     "POST /children/c-leo/calendar-events": { id: "e-new" },
     "GET /children/c-leo/calendar-events/e-new": leoOverview().events[0],
   });
   await page.goto("/events/new?child=c-leo&date=2026-10-14");
   await page.getByLabel("Title").fill("Swimming");
-  await page.getByRole("radio", { name: /Sport/ }).click();
+  // Categories: a dropdown where several can be ticked.
+  await page.getByLabel("Categories").click();
+  await page.getByRole("menuitemcheckbox", { name: /Sport/ }).click();
+  await page.getByRole("menuitemcheckbox", { name: /Health/ }).click();
+  await page.keyboard.press("Escape");
   await page.getByLabel("Starts").fill("16:30");
   await page.getByLabel("Ends").fill("17:15");
   await page.getByLabel("Place").fill("Bellahøj Svømmestadion");
@@ -68,7 +72,7 @@ test("new appointment: category, Copenhagen time, to-dos and assignee", async ({
   const body = (await sent).postDataJSON();
   expect(body).toMatchObject({
     title: "Swimming",
-    categoryId: "cat_sport",
+    categoryIds: ["cat_sport", "cat_health"],
     allDay: false,
     startsAt: "2026-10-14T14:30:00.000Z", // 16:30 CEST
     endsAt: "2026-10-14T15:15:00.000Z",
@@ -95,7 +99,7 @@ test("ticking a task and adding a note", async ({ page }) => {
   await page.getByLabel("Note", { exact: true }).fill("Grandma picks up on Thursday.");
   const sent = nextRequest(page, "POST", "/children/c-leo/notes");
   await page.getByRole("button", { name: "Share note" }).click();
-  expect((await sent).postDataJSON()).toEqual({ title: "Pickup change", text: "Grandma picks up on Thursday.", categoryId: null });
+  expect((await sent).postDataJSON()).toEqual({ title: "Pickup change", text: "Grandma picks up on Thursday.", categoryIds: [] });
 });
 
 test("create a category in Preferences", async ({ page }) => {

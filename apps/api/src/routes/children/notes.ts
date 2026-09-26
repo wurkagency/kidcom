@@ -4,7 +4,7 @@ import type { ChildNoteDto, CreateChildNoteRequest, UpdateChildNoteRequest } fro
 import { ApiError } from "../../middleware/errorHandler";
 import { requireCapability } from "../../lib/permissions";
 import { withRls } from "../../lib/rls";
-import { assertUsableCategory } from "../../lib/categories";
+import { assertUsableCategories } from "../../lib/categories";
 import { optionalText, requiredText } from "../../lib/validation";
 
 // Mounted at /children/:childId/notes — notes shared with everyone who can
@@ -20,7 +20,7 @@ export function toChildNoteDto(row: {
   childId: string;
   title: string;
   text: string | null;
-  categoryId: string | null;
+  categoryIds: string[];
   authorId: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -30,7 +30,7 @@ export function toChildNoteDto(row: {
     childId: row.childId,
     title: row.title,
     text: row.text,
-    categoryId: row.categoryId,
+    categoryIds: row.categoryIds,
     authorUserId: row.authorId,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
@@ -57,7 +57,7 @@ childNotesRouter.post("/", requireCapability("note:write"), async (req: Request<
       authorId: userId,
       title: requiredText(body.title, "title"),
       text: optionalText(body.text, "text", 5000) ?? null,
-      categoryId: await assertUsableCategory(userId, body.categoryId),
+      categoryIds: await assertUsableCategories(userId, body.categoryIds),
     };
     const row = await withRls(userId, (tx) => tx.childNote.create({ data }));
     res.status(201).json(toChildNoteDto(row));
@@ -73,7 +73,7 @@ childNotesRouter.patch("/:id", async (req: Request<NoteParams>, res, next) => {
     const data = {
       title: body.title === undefined ? undefined : requiredText(body.title, "title"),
       text: optionalText(body.text, "text", 5000),
-      categoryId: body.categoryId === undefined ? undefined : await assertUsableCategory(userId, body.categoryId),
+      categoryIds: await assertUsableCategories(userId, body.categoryIds, "partial"),
     };
     const row = await withRls(userId, async (tx) => {
       const existing = await tx.childNote.findFirst({ where: { id: req.params.id, childId: req.params.childId } });

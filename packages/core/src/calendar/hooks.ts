@@ -60,7 +60,7 @@ export function useCategories() {
   });
 }
 
-/** id → category, for resolving `categoryId` on events, tasks and notes. */
+/** id → category, for resolving `categoryIds` on events, tasks and notes. */
 export function useCategoryMap(): Map<string, CategoryDto> {
   const { data } = useCategories();
   return useMemo(() => new Map((data ?? []).map((c) => [c.id, c])), [data]);

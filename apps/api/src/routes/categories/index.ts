@@ -85,13 +85,18 @@ categoriesRouter.delete("/:id", async (req, res, next) => {
     await ownCategory(req.params.id, userId);
     // Usage spans other families' child-scoped rows (RLS-protected); counted
     // with the bypass, or RLS would report 0 and the delete would orphan them.
+    const used = { categoryIds: { has: req.params.id } };
     const counts = await withRlsBypass((tx) =>
-      tx.category.findUniqueOrThrow({
-        where: { id: req.params.id },
-        select: { _count: { select: { calendarEvents: true, calendarEventRequests: true, tasks: true, notes: true } } },
-      }),
+      Promise.all([
+        tx.calendarEvent.count({ where: used }),
+        tx.calendarEventRequest.count({ where: used }),
+        tx.task.count({ where: used }),
+        tx.childNote.count({ where: used }),
+        tx.moment.count({ where: used }),
+      ]),
     );
-    const inUse = Object.values(counts._count).some((n) => n > 0);
+    // In use anywhere: archive it (items keep showing it); else delete.
+    const inUse = counts.some((n) => n > 0);
     if (inUse) {
       await prisma.category.update({ where: { id: req.params.id }, data: { archivedAt: new Date() } });
     } else {

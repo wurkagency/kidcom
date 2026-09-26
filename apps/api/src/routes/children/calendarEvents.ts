@@ -5,7 +5,7 @@ import { ApiError } from "../../middleware/errorHandler";
 import { CALENDAR_EVENT_INCLUDE, toCalendarEventDto } from "../../lib/calendarEventDto";
 import { requireCapability } from "../../lib/permissions";
 import { withRls } from "../../lib/rls";
-import { assertUsableCategory } from "../../lib/categories";
+import { assertUsableCategories } from "../../lib/categories";
 import { prisma } from "../../db";
 import { notify } from "../../lib/notify";
 
@@ -108,13 +108,13 @@ calendarEventsRouter.post("/", requireCapability("calendar_event:manage"), async
       throw new ApiError(400, "title and startsAt are required");
     }
     validateRecurrence(body);
-    const categoryId = await assertUsableCategory(req.session.userId!, body.categoryId);
+    const categoryIds = await assertUsableCategories(req.session.userId!, body.categoryIds);
     const assigneeId = await assertMemberOrNull(req.params.childId, body.assigneeUserId);
     const row = await withRls(req.session.userId!, async (tx) => {
       const created = await tx.calendarEvent.create({
         data: {
           childId: req.params.childId,
-          categoryId,
+          categoryIds,
           title: body.title!,
           startsAt: new Date(body.startsAt!),
           endsAt: body.endsAt ? new Date(body.endsAt) : undefined,
@@ -160,7 +160,7 @@ calendarEventsRouter.patch("/:id", requireCapability("calendar_event:manage"), a
   try {
     const body = req.body as UpdateCalendarEventRequest;
     validateRecurrence(body);
-    const categoryId = body.categoryId === undefined ? undefined : await assertUsableCategory(req.session.userId!, body.categoryId);
+    const categoryIds = await assertUsableCategories(req.session.userId!, body.categoryIds, "partial");
     const assigneeId = await assertMemberOrNull(req.params.childId, body.assigneeUserId);
     const row = await withRls(req.session.userId!, async (tx) => {
       const existing = await tx.calendarEvent.findFirst({
@@ -174,7 +174,7 @@ calendarEventsRouter.patch("/:id", requireCapability("calendar_event:manage"), a
       await tx.calendarEvent.update({
         where: { id: req.params.id },
         data: {
-          categoryId,
+          categoryIds,
           title: body.title,
           startsAt: body.startsAt ? new Date(body.startsAt) : undefined,
           endsAt: body.endsAt ? new Date(body.endsAt) : undefined,

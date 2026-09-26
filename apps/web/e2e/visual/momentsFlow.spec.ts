@@ -50,8 +50,10 @@ test("create a moment: uploads, headline, children, category, place, parents onl
   await page.getByLabel("headline").fill("Spring Walk in Dyrehaven");
   await page.getByLabel("Story").fill("Deer and acorns.");
   await page.getByRole("button", { name: /^Select All$/ }).click();
-  await page.getByRole("button", { name: /Choose a category/ }).click();
-  await page.getByRole("menuitem", { name: "Outdoor" }).click();
+  await page.getByRole("button", { name: "Categories" }).click();
+  await page.getByRole("menuitemcheckbox", { name: "Outdoor" }).click();
+  await page.getByRole("menuitemcheckbox", { name: "Sport" }).click();
+  await page.keyboard.press("Escape");
   await page.getByPlaceholder("Where was it?").fill("Klampenborg, Denmark");
   await page.getByRole("switch").first().click(); // visible to family → off
   await page.getByRole("switch").nth(1).click(); // notify → on
@@ -60,7 +62,7 @@ test("create a moment: uploads, headline, children, category, place, parents onl
   expect((await sent).postDataJSON()).toEqual({
     title: "Spring Walk in Dyrehaven",
     text: "Deer and acorns.",
-    categoryId: "cat_outdoor",
+    categoryIds: ["cat_outdoor", "cat_sport"],
     location: "Klampenborg, Denmark",
     occurredOn: "2026-10-12",
     familyVisible: false,

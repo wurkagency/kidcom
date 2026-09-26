@@ -48,7 +48,7 @@ export function toMomentDto(post: MomentRow): MomentDto {
     commentCount: post._count.comments,
     reactionCount: post._count.reactions,
     reactedByMe: post.reactions.length > 0,
-    categoryId: post.categoryId,
+    categoryIds: post.categoryIds,
     location: post.location,
     occurredOn: dateOnly(post.occurredOn),
     familyVisible: post.familyVisible,
@@ -72,7 +72,7 @@ export function toMomentMediaDto(a: GalleryRow): MomentMediaDto {
     postCreatedAt: m.createdAt.toISOString(),
     childIds: m.children.map((c) => c.childId),
     postTitle: m.title,
-    categoryId: m.categoryId,
+    categoryIds: m.categoryIds,
     occurredOn: dateOnly(m.occurredOn),
     bookmarkedByMe: a.bookmarks.length > 0,
     originalBytes: a.originalBytes,
@@ -96,7 +96,7 @@ export function parseMomentFilters(query: Record<string, unknown>) {
 export function momentWhere(f: ReturnType<typeof parseMomentFilters>): Prisma.MomentWhereInput {
   const and: Prisma.MomentWhereInput[] = [];
   if (f.childIds.length) and.push({ children: { some: { childId: { in: f.childIds } } } });
-  if (f.categoryIds.length) and.push({ categoryId: { in: f.categoryIds } });
+  if (f.categoryIds.length) and.push({ categoryIds: { hasSome: f.categoryIds } });
   if (f.types.length) {
     const or: Prisma.MomentWhereInput[] = [];
     if (f.types.includes("photo")) or.push({ media: { some: { type: "IMAGE" } } });

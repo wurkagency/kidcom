@@ -173,7 +173,7 @@ export function TasksSection({ tasks, categories }: { tasks: TaskDto[]; categori
       ) : (
         <div className="rounded-[28px] bg-surface-container-lowest border border-outline-variant/30 shadow-[0_2px_10px_rgba(0,0,0,0.02)] p-4 flex flex-col divide-y divide-outline-variant/20">
           {tasks.map((task) => (
-            <TaskRow key={task.id} task={task} category={task.categoryId ? categories.get(task.categoryId) : undefined} />
+            <TaskRow key={task.id} task={task} category={task.categoryIds.length ? categories.get(task.categoryIds[0]!) : undefined} />
           ))}
         </div>
       )}
@@ -260,7 +260,7 @@ export function NotesSection({
               today={today}
               key={note.id}
               note={note}
-              category={note.categoryId ? categories.get(note.categoryId) : undefined}
+              category={note.categoryIds.length ? categories.get(note.categoryIds[0]!) : undefined}
               members={membersFor(note.childId)}
             />
           ))}

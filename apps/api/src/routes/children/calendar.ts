@@ -42,7 +42,7 @@ async function ensureHolidaysSeeded(tx: Prisma.TransactionClient, childId: strin
       data: holidays.map((h) => ({
         childId,
         kind: "NATIONAL_HOLIDAY" as const,
-        categoryId: systemCategoryId("holiday"),
+        categoryIds: [systemCategoryId("holiday")],
         title: h.title,
         startsAt: h.date,
         allDay: true,

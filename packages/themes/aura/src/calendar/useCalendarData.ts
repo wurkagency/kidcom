@@ -9,7 +9,7 @@ import type { DayMarks } from "./DateStrip";
 
 type Filters = {
   showsType: (type: CalendarItemType) => boolean;
-  showsCategory: (categoryId: string | null) => boolean;
+  showsCategory: (categoryIds: string[]) => boolean;
 };
 
 const ALL: Filters = { showsType: () => true, showsCategory: () => true };
@@ -35,7 +35,7 @@ function build(overview: OverviewResponse | undefined, categories: Map<string, C
 
   const events = kids
     .flatMap((c) => c.events)
-    .filter((e) => showsType(e.kind === "NATIONAL_HOLIDAY" ? "holidays" : "appointments") && showsCategory(e.categoryId))
+    .filter((e) => showsType(e.kind === "NATIONAL_HOLIDAY" ? "holidays" : "appointments") && showsCategory(e.categoryIds))
     .sort(byStart);
   // A holiday is seeded once per child; show it once.
   const seen = new Set<string>();
@@ -47,11 +47,11 @@ function build(overview: OverviewResponse | undefined, categories: Map<string, C
     return true;
   });
 
-  const tasks: TaskDto[] = showsType("tasks") ? kids.flatMap((c) => c.tasks).filter((x) => showsCategory(x.categoryId)) : [];
+  const tasks: TaskDto[] = showsType("tasks") ? kids.flatMap((c) => c.tasks).filter((x) => showsCategory(x.categoryIds)) : [];
   const notes: ChildNoteDto[] = showsType("notes")
     ? kids
         .flatMap((c) => c.notes)
-        .filter((n) => showsCategory(n.categoryId))
+        .filter((n) => showsCategory(n.categoryIds))
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     : [];
   const lessons = showsType("school") ? kids.flatMap((c) => c.lessons) : [];
@@ -59,7 +59,7 @@ function build(overview: OverviewResponse | undefined, categories: Map<string, C
   const marks: DayMarks = {};
   for (const e of uniqueEvents) {
     const day = eventDay(e);
-    const tone = e.categoryId ? categories.get(e.categoryId)?.tone : undefined;
+    const tone = e.categoryIds.length ? categories.get(e.categoryIds[0]!)?.tone : undefined;
     (marks[day] ??= []).push({ rose: tone === "ROSE" });
   }
   for (const x of tasks) {

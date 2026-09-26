@@ -25,7 +25,7 @@ import {
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Icon } from "../components/Icon";
 import {
-  CategoryField,
+  CategoriesField,
   ChildField,
   DateField,
   EditorTitle,
@@ -70,7 +70,9 @@ export function EventDetailScreen() {
     return <EditorTitle>{isLoading ? t("common:loading") : t("event.notFound")}</EditorTitle>;
   }
 
-  const category = event.categoryId ? categories.get(event.categoryId) : undefined;
+  // The first category leads (card tone, watermark); all of them show as pills.
+  const eventCategories = event.categoryIds.flatMap((id) => categories.get(id) ?? []);
+  const category = eventCategories[0];
   const tone = toneOf(category?.tone);
   const todos = event.checklist.filter((i) => i.kind === "TASK");
   const packing = event.checklist.filter((i) => i.kind === "PACKING");
@@ -114,7 +116,9 @@ export function EventDetailScreen() {
           <Icon name={category.icon} className={cn("absolute -bottom-4 -right-3 text-[100px] pointer-events-none select-none leading-none opacity-[0.035]", tone.ink)} />
         )}
         <div className="relative z-10 flex flex-col gap-2">
-          <CategoryChip category={category} className="w-fit" />
+          <div className="flex flex-wrap gap-1.5">
+            {eventCategories.length ? eventCategories.map((c) => <CategoryChip key={c.id} category={c} className="w-fit" />) : <CategoryChip category={undefined} className="w-fit" />}
+          </div>
           <h1 className="font-headline-md text-headline-md text-on-surface tracking-tight">{event.title}</h1>
           <span className="font-label-md text-label-md text-secondary font-semibold">{when}</span>
           {place && (
@@ -197,7 +201,7 @@ export function EventDetailScreen() {
 type Draft = {
   childId: string;
   title: string;
-  categoryId: string | null;
+  categoryIds: string[];
   day: string;
   allDay: boolean;
   start: string;
@@ -215,7 +219,7 @@ function draftFrom(e: CalendarEventDto): Draft {
   return {
     childId: e.childId,
     title: e.title,
-    categoryId: e.categoryId,
+    categoryIds: e.categoryIds,
     day: dateKey(e.startsAt),
     allDay: e.allDay,
     start: e.allDay ? "09:00" : timeKey(e.startsAt),
@@ -241,7 +245,7 @@ export function EventEditScreen() {
 const blankDraft = (childId: string, day: string): Draft => ({
   childId,
   title: "",
-  categoryId: null,
+  categoryIds: [],
   day,
   allDay: false,
   start: "09:00",
@@ -290,7 +294,7 @@ function EventForm({ existing }: { existing?: CalendarEventDto }) {
 
     const body: CreateCalendarEventRequest = {
       title: draft.title.trim(),
-      categoryId: draft.categoryId,
+      categoryIds: draft.categoryIds,
       allDay: draft.allDay,
       startsAt: copenhagenInstant(draft.day, draft.allDay ? "00:00" : draft.start),
       ...(draft.allDay || !draft.end ? {} : { endsAt: copenhagenInstant(draft.day, draft.end) }),
@@ -320,7 +324,7 @@ function EventForm({ existing }: { existing?: CalendarEventDto }) {
         <Field id="title" label={t("form.title")}>
           <Input id="title" value={draft.title} onChange={(e) => set("title", e.target.value)} placeholder={t("form.eventTitlePlaceholder")} />
         </Field>
-        <CategoryField value={draft.categoryId} onChange={(v) => set("categoryId", v)} />
+        <CategoriesField value={draft.categoryIds} onChange={(v) => set("categoryIds", v)} />
       </FormCard>
 
       <FormCard>

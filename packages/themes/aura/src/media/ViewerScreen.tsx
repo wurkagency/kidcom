@@ -347,7 +347,7 @@ function Details({ info, onClose }: { info: MediaInfoDto; onClose: () => void })
   const categories = useCategoryMap();
   const categoryName = useCategoryName();
   const m = info.moment;
-  const category = m?.categoryId ? categories.get(m.categoryId) : undefined;
+  const momentCategories = (m?.categoryIds ?? []).flatMap((id) => categories.get(id) ?? []);
   const resolution = resolutionClass(info.width, info.height);
   const tile = "bg-black/10 p-3 rounded-[18px] flex flex-col gap-1";
 
@@ -364,12 +364,14 @@ function Details({ info, onClose }: { info: MediaInfoDto; onClose: () => void })
               <Icon name="close" className="text-[20px]" />
             </button>
           </div>
-          {category && (
-            <div className="flex items-center gap-2 mt-1">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/10 text-black text-xs font-medium">
-                <Icon name={category.icon} className="text-[16px]" />
-                <span>{categoryName(category)}</span>
-              </span>
+          {momentCategories.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 mt-1">
+              {momentCategories.map((category) => (
+                <span key={category.id} className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/10 text-black text-xs font-medium">
+                  <Icon name={category.icon} className="text-[16px]" />
+                  <span>{categoryName(category)}</span>
+                </span>
+              ))}
             </div>
           )}
         </div>

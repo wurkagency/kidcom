@@ -634,7 +634,8 @@ export type CalendarEventDto = {
   id: string;
   childId: string;
   kind: CalendarEventKind;
-  categoryId: string | null;
+  /** Global categories, any number (empty = uncategorised) */
+  categoryIds: string[];
   title: string;
   startsAt: string;
   endsAt: string | null;
@@ -670,7 +671,7 @@ export type CalendarEventDto = {
 };
 
 export type CreateCalendarEventRequest = {
-  categoryId?: string | null;
+  categoryIds?: string[];
   title: string;
   startsAt: string;
   endsAt?: string;
@@ -741,7 +742,8 @@ export type ResolveSwapRequestRequest = {
 // rather than a duplicate enum — same three values, same meaning.
 export type CalendarEventRequestDto = {
   id: string;
-  categoryId: string | null;
+  /** Global categories, any number (empty = uncategorised) */
+  categoryIds: string[];
   title: string;
   startsAt: string;
   endsAt: string | null;
@@ -754,7 +756,7 @@ export type CalendarEventRequestDto = {
 };
 
 export type CreateCalendarEventRequestRequest = {
-  categoryId?: string | null;
+  categoryIds?: string[];
   title: string;
   startsAt: string;
   endsAt?: string;
@@ -775,7 +777,8 @@ export type TaskDto = {
   childId: string;
   title: string;
   note: string | null;
-  categoryId: string | null;
+  /** Global categories, any number (empty = uncategorised) */
+  categoryIds: string[];
   /** "YYYY-MM-DD" */
   dueOn: string | null;
   createdByUserId: string | null;
@@ -787,7 +790,7 @@ export type TaskDto = {
 export type CreateTaskRequest = {
   title: string;
   note?: string | null;
-  categoryId?: string | null;
+  categoryIds?: string[];
   dueOn?: string | null;
 };
 export type UpdateTaskRequest = Partial<CreateTaskRequest> & { completed?: boolean };
@@ -797,14 +800,15 @@ export type ChildNoteDto = {
   childId: string;
   title: string;
   text: string | null;
-  categoryId: string | null;
+  /** Global categories, any number (empty = uncategorised) */
+  categoryIds: string[];
   /** null once the author has left Kinnd ("Former member") */
   authorUserId: string | null;
   createdAt: string;
   updatedAt: string;
 };
 
-export type CreateChildNoteRequest = { title: string; text?: string | null; categoryId?: string | null };
+export type CreateChildNoteRequest = { title: string; text?: string | null; categoryIds?: string[] };
 export type UpdateChildNoteRequest = Partial<CreateChildNoteRequest>;
 
 export type SchoolLessonDto = {
@@ -929,7 +933,8 @@ export type MediaInfoDto = MediaAssetDto & {
     authorId: string;
     authorName: string;
     authorAvatarUrl: string | null;
-    categoryId: string | null;
+    /** Global categories, any number (empty = uncategorised) */
+    categoryIds: string[];
     location: string | null;
     occurredOn: string | null;
     createdAt: string;
@@ -952,7 +957,8 @@ export type MomentMediaDto = MediaAssetDto & {
   postCreatedAt: string;
   childIds: string[];
   postTitle: string;
-  categoryId: string | null;
+  /** Global categories, any number (empty = uncategorised) */
+  categoryIds: string[];
   occurredOn: string | null;
   bookmarkedByMe: boolean;
   /** As uploaded */
@@ -991,7 +997,8 @@ export type MomentDto = {
   commentCount: number;
   reactionCount: number;
   reactedByMe: boolean;
-  categoryId: string | null;
+  /** Global categories, any number (empty = uncategorised) */
+  categoryIds: string[];
   /** Typed place name ("Oakwood Little League Field") */
   location: string | null;
   /** "YYYY-MM-DD" — the day it happened (defaults to the posting day) */
@@ -1007,7 +1014,7 @@ export type MomentsPage = { items: MomentDto[]; nextCursor: string | null };
 export type MomentMediaType = "photo" | "video" | "text";
 
 export type UpdateMomentRequest = Partial<
-  Pick<CreateMomentRequest, "title" | "text" | "categoryId" | "location" | "occurredOn" | "familyVisible">
+  Pick<CreateMomentRequest, "title" | "text" | "categoryIds" | "location" | "occurredOn" | "familyVisible">
 >;
 
 export type BookmarksResponse = { moments: MomentDto[]; media: MomentMediaDto[] };
@@ -1022,7 +1029,7 @@ export type CreateMomentRequest = {
   // Which children this post is tagged to. Defaults to the child in the URL
   // (`/children/:childId/moments`) when omitted, for backward compatibility.
   childIds?: string[];
-  categoryId?: string | null;
+  categoryIds?: string[];
   location?: string | null;
   /** "YYYY-MM-DD" */
   occurredOn?: string | null;

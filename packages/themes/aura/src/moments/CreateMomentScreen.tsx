@@ -25,7 +25,7 @@ import { Icon } from "../components/Icon";
 import { PersonAvatar } from "../components/PersonAvatar";
 import { cn } from "../lib/utils";
 import { Calendar } from "../ui/calendar";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Switch } from "../ui/switch";
 import { PlanNotice } from "../billing/PlanNotice";
@@ -71,7 +71,7 @@ function MomentForm({ existing }: { existing?: MomentDto }) {
   const [title, setTitle] = useState(existing?.title ?? "");
   const [text, setText] = useState(existing?.text ?? "");
   const [picked, setChildIds] = useState<string[] | null>(existing ? existing.childIds : null);
-  const [categoryId, setCategoryId] = useState<string | null>(existing?.categoryId ?? null);
+  const [categoryIds, setCategoryIds] = useState<string[]>(existing?.categoryIds ?? []);
   const [day, setDay] = useState(existing?.occurredOn ?? dateKey());
   const [location, setLocation] = useState(existing?.location ?? "");
   const [familyVisible, setFamilyVisible] = useState(existing?.familyVisible ?? true);
@@ -83,7 +83,7 @@ function MomentForm({ existing }: { existing?: MomentDto }) {
   // Before the user picks, the header's selection decides (children load async).
   const childIds = picked ?? selected.map((c) => c.id);
   const uploading = uploads.some((u) => !u.assetId && !u.failed);
-  const category = categories.find((c) => c.id === categoryId);
+  const chosen = categoryIds.flatMap((id) => categories.filter((c) => c.id === id));
 
   useEffect(() => () => uploads.forEach((u) => URL.revokeObjectURL(u.previewUrl)), []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -109,7 +109,7 @@ function MomentForm({ existing }: { existing?: MomentDto }) {
     setPlanError(null);
     if (!title.trim()) return setError(t("create.titleRequired"));
     if (!childIds.length) return setError(t("create.childRequired"));
-    const fields = { title: title.trim(), text: text.trim(), categoryId, location: location.trim() || null, occurredOn: day, familyVisible };
+    const fields = { title: title.trim(), text: text.trim(), categoryIds, location: location.trim() || null, occurredOn: day, familyVisible };
     const onError = (err: unknown) => (isPlanError(err) ? setPlanError(err) : setError(err instanceof Error ? err.message : t("create.failed")));
     if (existing) {
       update.mutate(
@@ -306,38 +306,35 @@ function MomentForm({ existing }: { existing?: MomentDto }) {
             <span className="text-[18px] font-bold text-on-surface tracking-tight">{t("create.settings")}</span>
           </div>
           <DropdownMenu>
-            <DropdownMenuTrigger className={cn(card, "w-full h-13 px-4 py-3 flex items-center justify-between text-left active:scale-[0.99] transition-transform")}>
+            <DropdownMenuTrigger aria-label={t("filters.categories")} className={cn(card, "w-full min-h-13 px-4 py-3 flex items-center justify-between text-left active:scale-[0.99] transition-transform")}>
               <div className="flex items-center gap-2.5 min-w-0">
-                <span className={cn("w-8 h-8 rounded-xl flex items-center justify-center", category ? toneOf(category.tone).chip : "bg-secondary-container text-on-secondary-container")}>
-                  <Icon name={category?.icon ?? "category"} className="text-[18px]" />
+                <span className={cn("w-8 h-8 rounded-xl flex items-center justify-center shrink-0", chosen[0] ? toneOf(chosen[0].tone).chip : "bg-secondary-container text-on-secondary-container")}>
+                  <Icon name={chosen[0]?.icon ?? "category"} className="text-[18px]" />
                 </span>
                 <span className="font-body-lg text-body-lg text-on-surface font-medium truncate">
-                  {category ? categoryName(category) : t("create.chooseCategory")}
+                  {chosen.length ? chosen.map((c) => categoryName(c)).join(", ") : t("create.chooseCategory")}
                 </span>
               </div>
-              <Icon name="expand_more" className="text-[22px] text-secondary" />
+              <Icon name="expand_more" className="text-[22px] text-secondary shrink-0" />
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className={cn(menuContentClass, "w-[var(--radix-dropdown-menu-trigger-width)] max-h-80 p-2 gap-1")}>
+            <DropdownMenuContent align="start" className={cn(menuContentClass, "w-[var(--radix-dropdown-menu-trigger-width)] max-h-80 overflow-y-auto p-2 gap-1")}>
               {categories
-                .filter((c) => !c.archived || c.id === categoryId)
+                .filter((c) => !c.archived || categoryIds.includes(c.id))
                 .map((c) => (
-                  <DropdownMenuItem
+                  <DropdownMenuCheckboxItem
                     key={c.id}
-                    onSelect={() => setCategoryId(c.id)}
-                    className={cn(
-                      "w-full px-3 py-2 rounded-xl text-on-surface flex items-center justify-between font-label-md text-label-md focus:bg-surface-container",
-                      c.id === categoryId && "bg-secondary-container/40",
-                    )}
+                    checked={categoryIds.includes(c.id)}
+                    // Stay open: several can be ticked in one go.
+                    onSelect={(e) => e.preventDefault()}
+                    onCheckedChange={() => setCategoryIds(categoryIds.includes(c.id) ? categoryIds.filter((x) => x !== c.id) : [...categoryIds, c.id])}
+                    className="w-full px-3 py-2 pl-8 rounded-xl text-on-surface font-label-md text-label-md focus:bg-surface-container"
                   >
-                    <span className="flex items-center gap-2.5">
-                      <Icon name={c.icon} className="text-[18px] text-secondary" />
-                      {categoryName(c)}
-                    </span>
-                    {c.id === categoryId && <Icon name="check" className="text-[16px] text-secondary" />}
-                  </DropdownMenuItem>
+                    <Icon name={c.icon} className="text-[18px] text-secondary" />
+                    {categoryName(c)}
+                  </DropdownMenuCheckboxItem>
                 ))}
-              {categoryId && (
-                <DropdownMenuItem onSelect={() => setCategoryId(null)} className="w-full px-3 py-2 rounded-xl text-secondary font-label-md text-label-md focus:bg-surface-container">
+              {categoryIds.length > 0 && (
+                <DropdownMenuItem onSelect={() => setCategoryIds([])} className="w-full px-3 py-2 pl-8 rounded-xl text-secondary font-label-md text-label-md focus:bg-surface-container">
                   {t("create.noCategory")}
                 </DropdownMenuItem>
               )}

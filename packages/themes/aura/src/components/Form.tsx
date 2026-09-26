@@ -3,8 +3,11 @@ import type { CategoryDto, ChildSummary } from "@kinnd/shared";
 import { useCategories, useFormat, useNavigate, useT } from "@kinnd/core";
 
 import { CategoryChip } from "../calendar/CategoryChip";
+import { useCategoryName } from "../calendar/people";
+import { menuContentClass } from "../calendar/Sections";
 import { cn } from "../lib/utils";
 import { Calendar } from "../ui/calendar";
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu";
 import { Label } from "../ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
@@ -122,27 +125,57 @@ export function ChildField({ kids, value, onChange }: { kids: ChildSummary[]; va
   );
 }
 
-/** The global categories as tappable chips (the exports' category pills). */
-export function CategoryField({ value, onChange }: { value: string | null; onChange: (id: string | null) => void }) {
+/**
+ * The global categories as a dropdown where any number can be ticked; the
+ * chosen ones show as the exports' category pills. An archived category stays
+ * listed only while it's still on the item.
+ */
+export function CategoriesField({ value, onChange }: { value: string[]; onChange: (ids: string[]) => void }) {
   const { t } = useT("calendar");
   const { data: categories = [] } = useCategories();
-  const usable = categories.filter((c: CategoryDto) => !c.archived || c.id === value);
+  const categoryName = useCategoryName();
+  const usable = categories.filter((c: CategoryDto) => !c.archived || value.includes(c.id));
+  const chosen = value.flatMap((id) => usable.filter((c) => c.id === id));
+  const toggle = (id: string) => onChange(value.includes(id) ? value.filter((x) => x !== id) : [...value, id]);
   return (
-    <Field label={t("form.category")}>
-      <div role="radiogroup" aria-label={t("form.category")} className="flex flex-wrap gap-2">
-        {usable.map((c) => (
-          <button
-            key={c.id}
-            type="button"
-            role="radio"
-            aria-checked={value === c.id}
-            onClick={() => onChange(value === c.id ? null : c.id)}
-            className={cn("rounded-full transition-all", value === c.id ? "ring-2 ring-primary ring-offset-2 ring-offset-surface-container-lowest" : "opacity-80")}
-          >
-            <CategoryChip category={c} />
-          </button>
-        ))}
-      </div>
+    <Field id="categories" label={t("form.categories")}>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          id="categories"
+          className="min-h-12 w-full rounded-[24px] bg-surface-container-low px-3 py-2 flex items-center justify-between gap-2 text-left hover:bg-surface-container transition-colors"
+        >
+          {chosen.length ? (
+            <span className="flex flex-wrap gap-1.5 min-w-0">
+              {chosen.map((c) => (
+                <CategoryChip key={c.id} category={c} />
+              ))}
+            </span>
+          ) : (
+            <span className="px-1 font-body-md text-body-md text-secondary">{t("form.chooseCategories")}</span>
+          )}
+          <Icon name="expand_more" className="text-[20px] text-secondary shrink-0" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className={cn(menuContentClass, "w-[var(--radix-dropdown-menu-trigger-width)] max-h-80 overflow-y-auto")}>
+          {usable.map((c) => (
+            <DropdownMenuCheckboxItem
+              key={c.id}
+              checked={value.includes(c.id)}
+              // Stay open: several can be ticked in one go.
+              onSelect={(e) => e.preventDefault()}
+              onCheckedChange={() => toggle(c.id)}
+              className="px-2.5 py-2 pl-8 rounded-xl font-label-md text-label-md text-on-surface focus:bg-surface-container-low"
+            >
+              <Icon name={c.icon} className="text-[18px] text-secondary" />
+              {categoryName(c)}
+            </DropdownMenuCheckboxItem>
+          ))}
+          {value.length > 0 && (
+            <DropdownMenuItem onSelect={() => onChange([])} className="px-2.5 py-2 pl-8 rounded-xl font-label-md text-label-md text-secondary focus:bg-surface-container-low">
+              {t("form.clearCategories")}
+            </DropdownMenuItem>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
     </Field>
   );
 }

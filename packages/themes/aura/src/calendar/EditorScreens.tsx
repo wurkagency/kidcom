@@ -21,7 +21,7 @@ import {
 
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import {
-  CategoryField,
+  CategoriesField,
   ChildField,
   DateField,
   EditorTitle,
@@ -129,7 +129,7 @@ function NoteForm({ target, noteId, existing }: { target: Target; noteId: string
   const { kids, childId, setChildId } = target;
   const [title, setTitle] = useState(existing?.title ?? "");
   const [text, setText] = useState(existing?.text ?? "");
-  const [categoryId, setCategoryId] = useState<string | null>(existing?.categoryId ?? null);
+  const [categoryIds, setCategoryIds] = useState<string[]>(existing?.categoryIds ?? []);
   const [error, setError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
 
@@ -141,7 +141,7 @@ function NoteForm({ target, noteId, existing }: { target: Target; noteId: string
     e.preventDefault();
     setError(null);
     if (!title.trim()) return setError(t("form.titleRequired"));
-    const body = { title: title.trim(), text: text.trim() || null, categoryId };
+    const body = { title: title.trim(), text: text.trim() || null, categoryIds };
     const done = { onSuccess: () => navigate(-1), onError: (err: unknown) => setError(errorText(err, t("form.saveFailed"))) };
     if (noteId) update.mutate({ noteId, body }, done);
     else create.mutate(body, done);
@@ -158,7 +158,7 @@ function NoteForm({ target, noteId, existing }: { target: Target; noteId: string
         <Field id="text" label={t("notes.text")}>
           <Textarea id="text" value={text} onChange={(e) => setText(e.target.value)} placeholder={t("notes.textPlaceholder")} className="min-h-32" />
         </Field>
-        <CategoryField value={categoryId} onChange={setCategoryId} />
+        <CategoriesField value={categoryIds} onChange={setCategoryIds} />
       </FormCard>
       <FormError message={error} />
       <PrimaryButton icon="check" disabled={create.isPending || update.isPending || !childId}>
@@ -203,7 +203,7 @@ function TaskForm({ target, taskId, existing }: { target: Target; taskId: string
   const { kids, childId, setChildId, params } = target;
   const [title, setTitle] = useState(existing?.title ?? "");
   const [note, setNote] = useState(existing?.note ?? "");
-  const [categoryId, setCategoryId] = useState<string | null>(existing?.categoryId ?? null);
+  const [categoryIds, setCategoryIds] = useState<string[]>(existing?.categoryIds ?? []);
   const [hasDue, setHasDue] = useState(existing ? Boolean(existing.dueOn) : Boolean(params.get("date")));
   const [dueOn, setDueOn] = useState(existing?.dueOn ?? params.get("date") ?? dateKey());
   const [error, setError] = useState<string | null>(null);
@@ -217,7 +217,7 @@ function TaskForm({ target, taskId, existing }: { target: Target; taskId: string
     e.preventDefault();
     setError(null);
     if (!title.trim()) return setError(t("form.titleRequired"));
-    const body = { title: title.trim(), note: note.trim() || null, categoryId, dueOn: hasDue ? dueOn : null };
+    const body = { title: title.trim(), note: note.trim() || null, categoryIds, dueOn: hasDue ? dueOn : null };
     const done = { onSuccess: () => navigate(-1), onError: (err: unknown) => setError(errorText(err, t("form.saveFailed"))) };
     if (taskId) update.mutate({ taskId, body }, done);
     else create.mutate(body, done);
@@ -234,7 +234,7 @@ function TaskForm({ target, taskId, existing }: { target: Target; taskId: string
         <Field id="note" label={t("tasks.note")}>
           <Textarea id="note" value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("tasks.notePlaceholder")} />
         </Field>
-        <CategoryField value={categoryId} onChange={setCategoryId} />
+        <CategoriesField value={categoryIds} onChange={setCategoryIds} />
       </FormCard>
       <FormCard>
         <label className="flex items-center justify-between gap-3">
