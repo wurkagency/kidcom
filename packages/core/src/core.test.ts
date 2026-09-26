@@ -102,6 +102,8 @@ describe("regions", () => {
     expect(us.format("2015-07-31")).toBe("07/31/2015");
     expect(us.parse("7/31/2015")).toBe("2015-07-31");
     expect(us.parse("31/07/2015")).toBeNull();
+    expect(createFormatters("en-US", "DK").clock("08:15")).toBe("08.15");
+    expect(createFormatters("en-US", "US").clock("13:05")).toMatch(/^01:05\sPM$/);
     const se = createFormatters("sv-SE", "SE").dateInput;
     expect(se.format("2015-07-31")).toBe("2015-07-31");
     expect(se.parse("2015-07-31")).toBe("2015-07-31");

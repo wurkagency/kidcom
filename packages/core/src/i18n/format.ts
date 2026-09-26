@@ -21,6 +21,8 @@ export type Formatters = {
   date: (value: DateInput, options?: Intl.DateTimeFormatOptions) => string;
   /** e.g. "15:00" / "3:00 PM" per locale */
   time: (value: DateInput) => string;
+  /** A wall-clock "HH:mm" (a school lesson, a handover time) the region's way: "08.15" (DK), "8:15 AM" (US) */
+  clock: (hhmm: string) => string;
   /** e.g. "Wed, Sep 23" */
   weekdayDate: (value: DateInput) => string;
   /** e.g. "September 2026" */
@@ -63,6 +65,8 @@ export function createFormatters(language: string, region: string): Formatters {
     new Intl.DateTimeFormat(hasWords(options) ? locales.text : locales.numeric, { timeZone: APP_TIME_ZONE, ...options });
   const dateFmt = zoned({ year: "numeric", month: "short", day: "numeric" });
   const timeFmt = zoned({ hour: "2-digit", minute: "2-digit" }); // "08:30 AM" (US), "08.30" (DK)
+  // A bare wall-clock time has no zone: format it as-is.
+  const clockFmt = new Intl.DateTimeFormat(locales.numeric, { hour: "2-digit", minute: "2-digit", timeZone: "UTC" });
   const weekdayFmt = zoned({ weekday: "short", month: "short", day: "numeric" });
   const monthYearFmt = zoned({ month: "long", year: "numeric" });
   const rtf = new Intl.RelativeTimeFormat(locales.text, { numeric: "auto" });
@@ -74,6 +78,11 @@ export function createFormatters(language: string, region: string): Formatters {
     weekStart: weekStartOf(region),
     date: (value, options) => (options ? zoned(options) : dateFmt).format(toDate(value)),
     time: (value) => timeFmt.format(toDate(value)),
+    clock: (hhmm) => {
+      const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm);
+      if (!m) return hhmm;
+      return clockFmt.format(new Date(Date.UTC(2000, 0, 1, Number(m[1]), Number(m[2]))));
+    },
     weekdayDate: (value) => weekdayFmt.format(toDate(value)),
     monthYear: (value) => monthYearFmt.format(toDate(value)),
     relative: (value, now = new Date()) => {

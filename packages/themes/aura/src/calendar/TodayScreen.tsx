@@ -1,6 +1,7 @@
 import type { SchoolLessonDto } from "@kinnd/shared";
-import { dateKey, isoWeekday, Link, paths, useCurrentUser, useT } from "@kinnd/core";
+import { dateKey, isoWeekday, Link, paths, useCurrentUser, useFormat, useT } from "@kinnd/core";
 
+import { cn } from "../lib/utils";
 import { Icon } from "../components/Icon";
 import { CustodyCard } from "./CustodyCard";
 import { EventCard } from "./EventCard";
@@ -115,12 +116,20 @@ export function TodayScreen() {
 
 /** One timetable row: "09:00  Math & Logic ……… Room 14" (+ what to bring). */
 export function LessonRow({ lesson, childName, className }: { lesson: SchoolLessonDto; childName?: string; className?: string }) {
+  const fmt = useFormat();
   const sub = [childName, lesson.bring].filter(Boolean).join(" · ");
+  const time = lesson.endTime ? `${fmt.clock(lesson.startTime)}–${fmt.clock(lesson.endTime)}` : fmt.clock(lesson.startTime);
   return (
     <div className={className ?? "flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"}>
       <div className={sub ? "flex items-start gap-3 min-w-0" : "flex items-center gap-3 min-w-0"}>
-        <span className={sub ? "font-label-md text-label-md text-secondary font-semibold w-12 shrink-0 pt-0.5" : "font-label-md text-label-md text-secondary font-semibold w-12 shrink-0"}>
-          {lesson.startTime}
+        <span
+          className={cn(
+            "font-label-md text-label-md text-secondary font-semibold shrink-0 tabular-nums whitespace-nowrap",
+            lesson.endTime ? "w-[6.5rem]" : "w-14",
+            sub && "pt-0.5"
+          )}
+        >
+          {time}
         </span>
         {sub ? (
           <div className="flex flex-col min-w-0">
